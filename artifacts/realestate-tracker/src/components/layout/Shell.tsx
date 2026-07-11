@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
   { href: "/app", label: "Portfolio", icon: LayoutDashboard },
+  { href: "/app/properties", label: "Properties", icon: Building2 },
   { href: "/app/projections", label: "Projections", icon: TrendingUp },
   { href: "/app/properties/new", label: "Add Property", icon: PlusCircle },
   { href: "/app/calculator", label: "Calculator", icon: Calculator },

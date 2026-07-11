@@ -15,6 +15,7 @@ import PropertyDetail from "@/pages/property-detail";
 import PropertyEdit from "@/pages/property-edit";
 import Calculator from "@/pages/calculator";
 import Projections from "@/pages/projections";
+import PropertiesList from "@/pages/properties";
 import NotFound from "@/pages/not-found";
 
 // REQUIRED — copy verbatim.
@@ -138,6 +139,7 @@ function AppRoute() {
         <Shell>
           <Switch>
             <Route path="/app" component={Dashboard} />
+            <Route path="/app/properties" component={PropertiesList} />
             <Route path="/app/properties/new" component={PropertyNew} />
             <Route path="/app/properties/:id/edit" component={PropertyEdit} />
             <Route path="/app/properties/:id" component={PropertyDetail} />
