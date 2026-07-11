@@ -9,6 +9,7 @@ import {
   useUpdateProperty,
   getGetDashboardQueryKey,
   getListPropertiesQueryKey,
+  getGetProjectionsQueryKey,
   useRunCalculator,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -115,6 +116,8 @@ export default function PropertyDetail() {
         setEditingValue(false);
         queryClient.invalidateQueries({ queryKey: getGetPropertyQueryKey(id) });
         queryClient.invalidateQueries({ queryKey: getGetDashboardQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getListPropertiesQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getGetProjectionsQueryKey() });
         toast({ title: "Value updated", description: `Current value set to ${formatCurrency(n)}.` });
       },
       onError: () => toast({ title: "Error", description: "Failed to save value.", variant: "destructive" }),
@@ -155,7 +158,8 @@ export default function PropertyDetail() {
         toast({ title: "Property Deleted", description: "The property has been removed." });
         queryClient.invalidateQueries({ queryKey: getListPropertiesQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetDashboardQueryKey() });
-        setLocation("/");
+        queryClient.invalidateQueries({ queryKey: getGetProjectionsQueryKey() });
+        setLocation("/app/properties");
       },
       onError: () => {
         toast({ title: "Error", description: "Failed to delete property.", variant: "destructive" });
@@ -211,6 +215,8 @@ export default function PropertyDetail() {
         queryClient.invalidateQueries({ queryKey: getGetPropertyQueryKey(id) });
         queryClient.invalidateQueries({ queryKey: getGetAmortizationScheduleQueryKey(id) });
         queryClient.invalidateQueries({ queryKey: getGetDashboardQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getListPropertiesQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getGetProjectionsQueryKey() });
         setShowingScenario(false);
         setScenarioOpen(false);
         toast({
@@ -233,6 +239,8 @@ export default function PropertyDetail() {
         queryClient.invalidateQueries({ queryKey: getGetPropertyQueryKey(id) });
         queryClient.invalidateQueries({ queryKey: getGetAmortizationScheduleQueryKey(id) });
         queryClient.invalidateQueries({ queryKey: getGetDashboardQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getListPropertiesQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getGetProjectionsQueryKey() });
         toast({ title: "Extra payments cleared", description: "Schedule reset to standard payments." });
       },
     });
@@ -242,6 +250,9 @@ export default function PropertyDetail() {
     updateProperty.mutate({ id, data: { autoPayEnabled: enabled } }, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getGetPropertyQueryKey(id) });
+        queryClient.invalidateQueries({ queryKey: getGetDashboardQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getListPropertiesQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getGetProjectionsQueryKey() });
         toast({
           title: enabled ? "Auto-pay assumed" : "Auto-pay paused",
           description: enabled

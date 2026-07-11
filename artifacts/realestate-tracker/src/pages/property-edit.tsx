@@ -9,7 +9,8 @@ import {
   useUpdateProperty,
   getListPropertiesQueryKey,
   getGetDashboardQueryKey,
-  getGetAmortizationScheduleQueryKey
+  getGetAmortizationScheduleQueryKey,
+  getGetProjectionsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -108,6 +109,7 @@ export default function PropertyEdit() {
         queryClient.invalidateQueries({ queryKey: getListPropertiesQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetDashboardQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetAmortizationScheduleQueryKey(id) });
+        queryClient.invalidateQueries({ queryKey: getGetProjectionsQueryKey() });
         setLocation(`/app/properties/${id}`);
       },
       onError: () => {
