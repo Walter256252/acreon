@@ -8,6 +8,7 @@ import openaiRouter from "./openai/index";
 import projectionsRouter from "./projections";
 import emailRouter from "./email";
 import settingsRouter from "./settings";
+import adminRouter from "./admin";
 
 const router: IRouter = Router();
 
@@ -20,5 +21,6 @@ router.use(openaiRouter);
 router.use(projectionsRouter);
 router.use(emailRouter);
 router.use(settingsRouter);
+router.use(adminRouter);
 
 export default router;

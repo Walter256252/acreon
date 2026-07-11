@@ -1,6 +1,7 @@
 import React from "react";
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, PlusCircle, Calculator, Building2, TrendingUp, Mail, Settings } from "lucide-react";
+import { LayoutDashboard, PlusCircle, Calculator, Building2, TrendingUp, Mail, Settings, ShieldCheck } from "lucide-react";
+import { useUser } from "@clerk/react";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
@@ -18,6 +19,8 @@ const BOTTOM_NAV_ITEMS = [
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
+  const { user } = useUser();
+  const isAdmin = user?.publicMetadata?.role === "admin";
 
   return (
     <div className="flex min-h-screen w-full flex-col md:flex-row bg-background">
@@ -50,7 +53,25 @@ export function Shell({ children }: { children: React.ReactNode }) {
             );
           })}
         </nav>
-        <div className="px-4 pb-2 mt-auto border-t border-sidebar-border pt-2">
+        <div className="px-4 pb-2 mt-auto border-t border-sidebar-border pt-2 space-y-1">
+          {isAdmin && (() => {
+            const isActive = location === "/app/admin" || location.startsWith("/app/admin");
+            return (
+              <Link
+                href="/app/admin"
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors cursor-pointer",
+                  isActive
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                )}
+                aria-current={isActive ? "page" : undefined}
+              >
+                <ShieldCheck className="w-4 h-4" />
+                Admin
+              </Link>
+            );
+          })()}
           {BOTTOM_NAV_ITEMS.map((item) => {
             const isActive = location === item.href || location.startsWith(item.href);
             return (

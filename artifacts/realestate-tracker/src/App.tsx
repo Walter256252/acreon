@@ -19,6 +19,7 @@ import PropertiesList from "@/pages/properties";
 import Communications from "@/pages/communications";
 import PropertyCommunications from "@/pages/property-communications";
 import SettingsPage from "@/pages/settings";
+import AdminDashboard from "@/pages/admin";
 import NotFound from "@/pages/not-found";
 
 // REQUIRED — copy verbatim.
@@ -151,6 +152,7 @@ function AppRoute() {
             <Route path="/app/communications" component={Communications} />
             <Route path="/app/calculator" component={Calculator} />
             <Route path="/app/settings" component={SettingsPage} />
+            <Route path="/app/admin" component={AdminDashboard} />
             <Route component={NotFound} />
           </Switch>
         </Shell>
