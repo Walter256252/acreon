@@ -362,26 +362,16 @@ export default function Communications() {
     queryClient.invalidateQueries();
   };
 
+  const numProperties = (settings ?? []).length;
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Communications</h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Connect your email and let AI turn property-related threads into organized monthly notes.
-          </p>
-        </div>
-        {connected && (
-          <button
-            onClick={handleSyncAll}
-            disabled={syncAllMutation.isPending}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
-          >
-            <RefreshCw className={cn("w-4 h-4", syncAllMutation.isPending && "animate-spin")} />
-            Sync All
-          </button>
-        )}
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight text-foreground">Communications</h1>
+        <p className="text-muted-foreground mt-1 text-sm">
+          Connect your email and let AI turn property-related threads into organized monthly notes.
+        </p>
       </div>
 
       {/* Connect form or connected status */}
@@ -429,6 +419,43 @@ export default function Communications() {
             </ul>
           </div>
         </div>
+      </div>
+
+      {/* Sync All card */}
+      <div className={cn(
+        "rounded-xl border p-5 flex items-center justify-between gap-4 flex-wrap",
+        connected ? "border-primary/20 bg-primary/5" : "border-border bg-card"
+      )}>
+        <div className="flex items-start gap-3">
+          <div className={cn(
+            "w-9 h-9 rounded-full flex items-center justify-center shrink-0",
+            connected ? "bg-primary/15" : "bg-muted"
+          )}>
+            <RefreshCw className={cn("w-4 h-4", connected ? "text-primary" : "text-muted-foreground")} />
+          </div>
+          <div>
+            <p className="font-semibold text-foreground text-sm">Sync all properties at once</p>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {connected
+                ? `Checks every property for new emails in one go${numProperties > 0 ? ` across ${numProperties} propert${numProperties !== 1 ? "ies" : "y"}` : ""}.`
+                : "Connect your email above to enable syncing."}
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={handleSyncAll}
+          disabled={!connected || syncAllMutation.isPending}
+          title={!connected ? "Connect your email first" : undefined}
+          className={cn(
+            "flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-colors shrink-0",
+            connected
+              ? "bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+              : "bg-muted text-muted-foreground cursor-not-allowed"
+          )}
+        >
+          <RefreshCw className={cn("w-4 h-4", syncAllMutation.isPending && "animate-spin")} />
+          {syncAllMutation.isPending ? "Syncing all…" : "Sync All Properties"}
+        </button>
       </div>
 
       {/* Per-property settings */}
