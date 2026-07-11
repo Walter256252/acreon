@@ -145,6 +145,52 @@ export interface CalculatorResult {
   summary: CalculatorSummary;
 }
 
+export interface PropertyMilestone {
+  years: number;
+  remainingBalance: number;
+  cumulativeInterestPaid: number;
+  cumulativePrincipalPaid: number;
+  equity: number;
+  isPaidOff: boolean;
+  payoffDate?: string;
+}
+
+export interface PropertyProjection {
+  id: number;
+  name: string;
+  address: string;
+  currentValue: number;
+  loanAmount: number;
+  interestRate: number;
+  loanTermYears: number;
+  monthlyPayment: number;
+  currentBalance: number;
+  snapshots: PropertyMilestone[];
+}
+
+export interface PortfolioMilestone {
+  years: number;
+  totalValue: number;
+  totalRemainingBalance: number;
+  totalEquity: number;
+  totalInterestPaid: number;
+  totalPrincipalPaid: number;
+}
+
+export interface CurrentTotals {
+  totalValue: number;
+  totalBalance: number;
+  totalEquity: number;
+  monthlyPaymentTotal: number;
+}
+
+export interface ProjectionsResponse {
+  asOf: string;
+  properties: PropertyProjection[];
+  totals: PortfolioMilestone[];
+  currentTotals: CurrentTotals;
+}
+
 export interface OpenaiConversation {
   id: number;
   title: string;

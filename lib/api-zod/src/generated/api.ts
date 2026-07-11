@@ -96,6 +96,48 @@ export const SendOpenaiMessageResponse = zod.unknown()
 
 
 /**
+ * @summary Portfolio projections at 5, 10, 15, 20, and 30 year milestones
+ */
+export const GetProjectionsResponse = zod.object({
+  "asOf": zod.string(),
+  "properties": zod.array(zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "address": zod.string(),
+  "currentValue": zod.number(),
+  "loanAmount": zod.number(),
+  "interestRate": zod.number(),
+  "loanTermYears": zod.number(),
+  "monthlyPayment": zod.number(),
+  "currentBalance": zod.number(),
+  "snapshots": zod.array(zod.object({
+  "years": zod.number(),
+  "remainingBalance": zod.number(),
+  "cumulativeInterestPaid": zod.number(),
+  "cumulativePrincipalPaid": zod.number(),
+  "equity": zod.number(),
+  "isPaidOff": zod.boolean(),
+  "payoffDate": zod.string().optional()
+}))
+})),
+  "totals": zod.array(zod.object({
+  "years": zod.number(),
+  "totalValue": zod.number(),
+  "totalRemainingBalance": zod.number(),
+  "totalEquity": zod.number(),
+  "totalInterestPaid": zod.number(),
+  "totalPrincipalPaid": zod.number()
+})),
+  "currentTotals": zod.object({
+  "totalValue": zod.number(),
+  "totalBalance": zod.number(),
+  "totalEquity": zod.number(),
+  "monthlyPaymentTotal": zod.number()
+})
+})
+
+
+/**
  * Returns server health status
  * @summary Health check
  */

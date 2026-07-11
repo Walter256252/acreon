@@ -9,6 +9,7 @@ import PropertyNew from '@/pages/property-new';
 import PropertyDetail from '@/pages/property-detail';
 import PropertyEdit from '@/pages/property-edit';
 import Calculator from '@/pages/calculator';
+import Projections from '@/pages/projections';
 import NotFound from '@/pages/not-found';
 
 const queryClient = new QueryClient();
@@ -21,6 +22,7 @@ function Router() {
         <Route path="/properties/new" component={PropertyNew} />
         <Route path="/properties/:id/edit" component={PropertyEdit} />
         <Route path="/properties/:id" component={PropertyDetail} />
+        <Route path="/projections" component={Projections} />
         <Route path="/calculator" component={Calculator} />
         <Route component={NotFound} />
       </Switch>

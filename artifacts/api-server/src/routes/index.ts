@@ -5,6 +5,7 @@ import paymentsRouter from "./payments";
 import dashboardRouter from "./dashboard";
 import calculatorRouter from "./calculator";
 import openaiRouter from "./openai/index";
+import projectionsRouter from "./projections";
 
 const router: IRouter = Router();
 
@@ -14,5 +15,6 @@ router.use(paymentsRouter);
 router.use(dashboardRouter);
 router.use(calculatorRouter);
 router.use(openaiRouter);
+router.use(projectionsRouter);
 
 export default router;

@@ -33,6 +33,7 @@ import type {
   OpenaiMessageInput,
   Payment,
   PaymentInput,
+  ProjectionsResponse,
   Property,
   PropertyInput,
   PropertyUpdate
@@ -509,6 +510,83 @@ export const useSendOpenaiMessage = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getSendOpenaiMessageMutationOptions(options));
     }
+
+export const getGetProjectionsUrl = () => {
+
+
+
+
+  return `/api/projections`
+}
+
+/**
+ * @summary Portfolio projections at 5, 10, 15, 20, and 30 year milestones
+ */
+export const getProjections = async ( options?: RequestInit): Promise<ProjectionsResponse> => {
+
+  return customFetch<ProjectionsResponse>(getGetProjectionsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetProjectionsQueryKey = () => {
+    return [
+    `/api/projections`
+    ] as const;
+    }
+
+
+export const getGetProjectionsQueryOptions = <TData = Awaited<ReturnType<typeof getProjections>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProjections>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetProjectionsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getProjections>>> = ({ signal }) => getProjections({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getProjections>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetProjectionsQueryResult = NonNullable<Awaited<ReturnType<typeof getProjections>>>
+export type GetProjectionsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Portfolio projections at 5, 10, 15, 20, and 30 year milestones
+ */
+
+export function useGetProjections<TData = Awaited<ReturnType<typeof getProjections>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProjections>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetProjectionsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getHealthCheckUrl = () => {
 
