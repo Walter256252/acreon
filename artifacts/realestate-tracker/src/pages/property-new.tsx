@@ -8,6 +8,7 @@ import {
   useBulkImportProperties,
   getListPropertiesQueryKey,
   getGetDashboardQueryKey,
+  getGetProjectionsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -494,6 +495,7 @@ export default function PropertyNew() {
         toast({ title: "Property Added", description: "Successfully added to your portfolio." });
         queryClient.invalidateQueries({ queryKey: getListPropertiesQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetDashboardQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getGetProjectionsQueryKey() });
         setLocation(`/properties/${property.id}`);
       },
       onError: () => {
