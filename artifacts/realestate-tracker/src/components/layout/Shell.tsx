@@ -1,7 +1,7 @@
 import React from "react";
 import { Link, useLocation } from "wouter";
 import { LayoutDashboard, PlusCircle, Calculator, Building2, TrendingUp, Mail, Settings, ShieldCheck } from "lucide-react";
-import { useUser } from "@clerk/react";
+import { useUser, UserButton } from "@clerk/react";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
@@ -91,6 +91,10 @@ export function Shell({ children }: { children: React.ReactNode }) {
               </Link>
             );
           })}
+          <div className="flex items-center gap-3 px-3 py-2.5">
+            <UserButton afterSignOutUrl="/" />
+            <span className="text-sm text-sidebar-foreground/70 truncate">{user?.firstName ?? user?.emailAddresses?.[0]?.emailAddress ?? "Account"}</span>
+          </div>
         </div>
       </aside>
 
