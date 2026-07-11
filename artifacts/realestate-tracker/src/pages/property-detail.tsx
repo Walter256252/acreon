@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useLocation, useParams } from "wouter";
 import {
   useGetProperty,
@@ -79,6 +79,11 @@ export default function PropertyDetail() {
   const deleteProperty = useDeleteProperty();
   const runCalculator = useRunCalculator();
 
+  // View mode state
+  const [viewMode, setViewMode] = useState<"all" | "current">("all");
+  const currentRowRef = useRef<HTMLTableRowElement>(null);
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+
   // Scenario state
   const [scenarioOpen, setScenarioOpen] = useState(false);
   const [extraMonthly, setExtraMonthly] = useState("");
@@ -148,6 +153,29 @@ export default function PropertyDetail() {
   const updateOneTime = (i: number, field: keyof OneTimeExtra, value: string) => {
     setOneTimeExtras(oneTimeExtras.map((e, idx) => idx === i ? { ...e, [field]: value } : e));
   };
+
+  // Calculate which payment number is "current" based on today vs loan start date
+  const currentPaymentNumber = (() => {
+    if (!property) return 1;
+    const start = new Date(property.loanStartDate);
+    const now = new Date();
+    const months =
+      (now.getFullYear() - start.getFullYear()) * 12 +
+      (now.getMonth() - start.getMonth());
+    return Math.min(Math.max(months + 1, 1), schedule?.length || 1);
+  })();
+
+  // Scroll to current row when switching to "all" mode
+  useEffect(() => {
+    if (viewMode === "all" && currentRowRef.current && tableScrollRef.current) {
+      const container = tableScrollRef.current;
+      const row = currentRowRef.current;
+      const rowTop = row.offsetTop;
+      const rowHeight = row.offsetHeight;
+      const containerHeight = container.clientHeight;
+      container.scrollTop = rowTop - containerHeight / 2 + rowHeight / 2;
+    }
+  }, [viewMode, currentPaymentNumber]);
 
   if (propLoading || schedLoading) {
     return (
@@ -260,15 +288,41 @@ export default function PropertyDetail() {
                 {baseSchedule.length} payments &mdash; payoff {baseSchedule.length > 0 ? formatDate(baseSchedule[baseSchedule.length - 1].paymentDate) : "—"}
               </p>
             </div>
-            <Button
-              variant={scenarioOpen ? "default" : "outline"}
-              size="sm"
-              onClick={() => setScenarioOpen(!scenarioOpen)}
-              data-testid="button-toggle-scenario"
-            >
-              {scenarioOpen ? <ChevronUp className="w-4 h-4 mr-2" /> : <ChevronDown className="w-4 h-4 mr-2" />}
-              Try a Scenario
-            </Button>
+            <div className="flex items-center gap-2">
+              {/* View mode toggle */}
+              <div className="flex items-center rounded-lg border border-border bg-muted/40 p-0.5 text-xs">
+                <button
+                  onClick={() => setViewMode("all")}
+                  className={`px-3 py-1.5 rounded-md transition-colors font-medium ${
+                    viewMode === "all"
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  All Payments
+                </button>
+                <button
+                  onClick={() => setViewMode("current")}
+                  className={`px-3 py-1.5 rounded-md transition-colors font-medium ${
+                    viewMode === "current"
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Current &amp; Forward
+                </button>
+              </div>
+
+              <Button
+                variant={scenarioOpen ? "default" : "outline"}
+                size="sm"
+                onClick={() => setScenarioOpen(!scenarioOpen)}
+                data-testid="button-toggle-scenario"
+              >
+                {scenarioOpen ? <ChevronUp className="w-4 h-4 mr-2" /> : <ChevronDown className="w-4 h-4 mr-2" />}
+                Try a Scenario
+              </Button>
+            </div>
           </div>
 
           {/* Scenario Panel */}
@@ -408,7 +462,14 @@ export default function PropertyDetail() {
             </div>
           )}
 
-          <div className="rounded-md border border-border h-[600px] overflow-auto">
+          {viewMode === "current" && (
+            <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+              <span className="inline-block w-2 h-2 rounded-full bg-primary" />
+              Showing from payment #{currentPaymentNumber} (today) through payoff
+            </p>
+          )}
+
+          <div ref={tableScrollRef} className="rounded-md border border-border h-[600px] overflow-auto">
             <Table>
               <TableHeader className="bg-muted/50 sticky top-0 z-10 backdrop-blur-sm">
                 <TableRow>
@@ -431,15 +492,44 @@ export default function PropertyDetail() {
                   const scen = showingScenario ? scenarioSchedule[idx] : undefined;
                   const isScenarioPaidOff = showingScenario && !scen && !!base;
                   const paymentNum = base?.paymentNumber ?? (scen?.paymentNumber ?? idx + 1);
+                  const isCurrent = paymentNum === currentPaymentNumber;
+                  const isPast = paymentNum < currentPaymentNumber;
+
+                  // In "current" mode, hide past payments
+                  if (viewMode === "current" && isPast) return null;
 
                   return (
                     <TableRow
                       key={paymentNum}
-                      className={isScenarioPaidOff ? "opacity-40" : ""}
+                      ref={isCurrent ? currentRowRef : undefined}
+                      className={[
+                        isScenarioPaidOff ? "opacity-40" : "",
+                        isCurrent
+                          ? "bg-primary/8 border-l-2 border-l-primary"
+                          : isPast
+                          ? "opacity-50"
+                          : "",
+                      ].join(" ")}
                       data-testid={`row-amortization-${paymentNum}`}
                     >
-                      <TableCell className="font-mono text-xs text-muted-foreground">{paymentNum}</TableCell>
-                      <TableCell className="text-sm">{formatDate(base?.paymentDate ?? scen?.paymentDate ?? "")}</TableCell>
+                      <TableCell className="font-mono text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1.5">
+                          {isCurrent && (
+                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0" />
+                          )}
+                          {paymentNum}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        <span className={isCurrent ? "font-semibold text-foreground" : ""}>
+                          {formatDate(base?.paymentDate ?? scen?.paymentDate ?? "")}
+                        </span>
+                        {isCurrent && (
+                          <span className="ml-2 text-xs font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">
+                            current
+                          </span>
+                        )}
+                      </TableCell>
                       <TableCell className="text-right font-mono text-sm">
                         {base ? formatCurrency(base.paymentAmount) : "—"}
                       </TableCell>
