@@ -16,7 +16,19 @@ interface ChatMessage {
   streaming?: boolean;
 }
 
-export function PortfolioChat() {
+interface PortfolioChatProps {
+  title?: string;
+  subtitle?: string;
+  conversationTitle?: string;
+  suggestedQuestions?: string[];
+}
+
+export function PortfolioChat({
+  title = "Portfolio AI Assistant",
+  subtitle = "Ask anything about your properties",
+  conversationTitle = "Portfolio Assistant",
+  suggestedQuestions,
+}: PortfolioChatProps = {}) {
   const [isOpen, setIsOpen] = useState(false);
   const [conversationId, setConversationId] = useState<number | null>(null);
   const [localMessages, setLocalMessages] = useState<ChatMessage[]>([]);
@@ -41,7 +53,7 @@ export function PortfolioChat() {
   // On open, load the existing portfolio conversation if any
   useEffect(() => {
     if (isOpen && convList && !conversationId) {
-      const existing = convList.find((c) => c.title === "Portfolio Assistant");
+      const existing = convList.find((c) => c.title === conversationTitle);
       if (existing) {
         setConversationId(existing.id);
         // Load messages from server
@@ -60,7 +72,7 @@ export function PortfolioChat() {
   const ensureConversation = useCallback(async (): Promise<number> => {
     if (conversationId) return conversationId;
     const conv = await createConversation.mutateAsync({
-      data: { title: "Portfolio Assistant" },
+      data: { title: conversationTitle },
     });
     setConversationId(conv.id);
     queryClient.invalidateQueries({ queryKey: ["/api/openai/conversations"] });
@@ -152,12 +164,13 @@ export function PortfolioChat() {
     queryClient.invalidateQueries({ queryKey: ["/api/openai/conversations"] });
   };
 
-  const suggestedQuestions = [
+  const defaultSuggestions = [
     "Which property has the most equity?",
     "What's my total monthly obligation?",
     "Which loan has the highest interest rate?",
     "How much have I gained across all properties?",
   ];
+  const resolvedSuggestions = suggestedQuestions ?? defaultSuggestions;
 
   return (
     <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
@@ -171,8 +184,8 @@ export function PortfolioChat() {
             <Sparkles className="w-4 h-4 text-primary" />
           </div>
           <div>
-            <p className="font-semibold text-sm text-foreground">Portfolio AI Assistant</p>
-            <p className="text-xs text-muted-foreground">Ask anything about your properties</p>
+            <p className="font-semibold text-sm text-foreground">{title}</p>
+            <p className="text-xs text-muted-foreground">{subtitle}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -204,7 +217,7 @@ export function PortfolioChat() {
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2 justify-center mt-2">
-                  {suggestedQuestions.map((q) => (
+                  {resolvedSuggestions.map((q) => (
                     <button
                       key={q}
                       onClick={() => {

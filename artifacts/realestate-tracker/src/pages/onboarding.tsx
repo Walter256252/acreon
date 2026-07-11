@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useUser } from "@clerk/react";
 import { useLocation } from "wouter";
 import { Phone, ShieldCheck, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
@@ -80,6 +80,13 @@ export default function Onboarding() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
 
+  // If already onboarded, bounce to app (must be before any early returns)
+  useEffect(() => {
+    if (isLoaded && user?.unsafeMetadata?.onboardingComplete) {
+      setLocation("/app");
+    }
+  }, [isLoaded, user, setLocation]);
+
   if (!isLoaded) {
     return (
       <div className="flex min-h-dvh items-center justify-center">
@@ -87,13 +94,6 @@ export default function Onboarding() {
       </div>
     );
   }
-
-  // If already onboarded, bounce to app (via effect to avoid setState-during-render)
-  useEffect(() => {
-    if (isLoaded && user?.unsafeMetadata?.onboardingComplete) {
-      setLocation("/app");
-    }
-  }, [isLoaded, user, setLocation]);
 
   if (isLoaded && user?.unsafeMetadata?.onboardingComplete) return null;
 
