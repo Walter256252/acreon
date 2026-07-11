@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { MapContainer, TileLayer, Marker, Popup, CircleMarker } from "react-leaflet";
 import L from "leaflet";
-import { Map, ToggleLeft, ToggleRight, Loader2, Building2, TrendingUp, DollarSign, Landmark } from "lucide-react";
+import { Map, ToggleLeft, ToggleRight, Loader2, Building2, TrendingUp, DollarSign, Landmark, ChevronDown } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/ui/stat-card";
@@ -83,6 +83,16 @@ const MAP_SUGGESTIONS = [
 
 export default function MapView() {
   const [mode, setMode] = useState<"properties" | "equity">("properties");
+  const [expandedCities, setExpandedCities] = useState<Set<string>>(new Set());
+
+  const toggleCity = (label: string) => {
+    setExpandedCities(prev => {
+      const next = new Set(prev);
+      if (next.has(label)) next.delete(label);
+      else next.add(label);
+      return next;
+    });
+  };
 
   const { data, isLoading, isError } = useQuery<GeoResponse>({
     queryKey: ["properties-geo-user"],
@@ -329,60 +339,76 @@ export default function MapView() {
       {data && data.byCity.length > 0 && (
         <div className="space-y-4">
           <h2 className="text-lg font-semibold text-foreground">By City</h2>
-          <div className="grid grid-cols-1 gap-3">
+          <div className="rounded-lg border divide-y overflow-hidden">
             {data.byCity.map(c => {
               const equityPct = c.totalValue > 0 ? (c.totalEquity / c.totalValue) * 100 : 0;
               const label = c.state ? `${c.city}, ${c.state}` : c.city;
+              const isOpen = expandedCities.has(label);
               return (
-                <Card key={label} className="overflow-hidden">
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-5">
-                    {/* Location + count */}
-                    <div className="min-w-[180px]">
+                <div key={label} className="bg-card">
+                  {/* Header row — always visible */}
+                  <button
+                    onClick={() => toggleCity(label)}
+                    className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left hover:bg-muted/40 transition-colors"
+                  >
+                    <div>
                       <p className="font-semibold text-foreground">{label}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {c.count} {c.count === 1 ? "property" : "properties"}
                       </p>
                     </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      {/* Equity pill preview */}
+                      <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-full">
+                        {formatPercent(equityPct)} equity
+                      </span>
+                      <ChevronDown
+                        className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+                      />
+                    </div>
+                  </button>
 
-                    {/* Stats grid */}
-                    <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      <div>
-                        <p className="text-xs text-muted-foreground">Total Value</p>
-                        <p className="text-sm font-semibold mt-0.5">{formatCurrency(c.totalValue)}</p>
+                  {/* Expandable detail */}
+                  {isOpen && (
+                    <div className="px-5 pb-5 pt-1 border-t bg-muted/20">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Total Value</p>
+                          <p className="text-sm font-semibold mt-0.5">{formatCurrency(c.totalValue)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Total Equity</p>
+                          <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400 mt-0.5">
+                            {formatCurrency(c.totalEquity)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Remaining Debt</p>
+                          <p className="text-sm font-semibold text-muted-foreground mt-0.5">
+                            {formatCurrency(c.totalDebt)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Monthly P&I</p>
+                          <p className="text-sm font-semibold mt-0.5">{formatCurrency(c.totalMonthly)}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Total Equity</p>
-                        <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400 mt-0.5">
-                          {formatCurrency(c.totalEquity)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Remaining Debt</p>
-                        <p className="text-sm font-semibold text-muted-foreground mt-0.5">
-                          {formatCurrency(c.totalDebt)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Monthly P&I</p>
-                        <p className="text-sm font-semibold mt-0.5">{formatCurrency(c.totalMonthly)}</p>
+                      {/* Equity bar */}
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-xs">
+                          <span className="text-muted-foreground">Equity ratio</span>
+                          <span className="font-medium">{formatPercent(equityPct)}</span>
+                        </div>
+                        <div className="h-2 rounded-full bg-muted overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                            style={{ width: `${Math.max(0, Math.min(100, equityPct))}%` }}
+                          />
+                        </div>
                       </div>
                     </div>
-
-                    {/* Equity bar */}
-                    <div className="min-w-[120px] space-y-1">
-                      <div className="flex justify-between text-xs">
-                        <span className="text-muted-foreground">Equity</span>
-                        <span className="font-medium">{formatPercent(equityPct)}</span>
-                      </div>
-                      <div className="h-2 rounded-full bg-muted overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-emerald-500 transition-all duration-500"
-                          style={{ width: `${Math.max(0, Math.min(100, equityPct))}%` }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </Card>
+                  )}
+                </div>
               );
             })}
           </div>
