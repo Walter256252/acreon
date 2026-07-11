@@ -1,8 +1,9 @@
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { db } from "@workspace/db";
 import { propertiesTable, emailNotesTable } from "@workspace/db";
-import { eq, gte } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { ReplitConnectors } from "@replit/connectors-sdk";
+import { buildAmortizationSchedule } from "../routes/payments";
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -19,55 +20,30 @@ export interface DigestContent {
   closingLine: string;
   stats: {
     totalProperties: number;
+    totalValueFormatted: string;
     totalEquityFormatted: string;
     totalDebtFormatted: string;
     avgLtv: number;
+    monthlyPIFormatted: string;
+    netCashFlowFormatted: string;
+    netCashFlowPositive: boolean;
   };
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
 function fmt(n: number) {
-  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `$${Math.round(n / 1_000)}k`;
-  return `$${Math.round(n)}`;
+  const abs = Math.abs(n);
+  const sign = n < 0 ? "-" : "";
+  if (abs >= 1_000_000) return `${sign}$${(abs / 1_000_000).toFixed(1)}M`;
+  if (abs >= 1_000) return `${sign}$${Math.round(abs / 1_000)}k`;
+  return `${sign}$${Math.round(abs)}`;
 }
 
-function monthlyPayment(principal: number, annualRate: number, termMonths: number): number {
-  if (annualRate === 0) return principal / termMonths;
-  const r = annualRate / 100 / 12;
-  return (principal * r * Math.pow(1 + r, termMonths)) / (Math.pow(1 + r, termMonths) - 1);
-}
-
-function estimateEquityAndDebt(p: {
-  purchasePrice: number;
-  currentValue: number | null;
-  loanAmount: number | null;
-  interestRate: number | null;
-  loanTermMonths: number | null;
-  purchaseDate: string | null;
-}) {
-  const value = p.currentValue ?? p.purchasePrice;
-  const loan = p.loanAmount ?? 0;
-  if (!loan || !p.interestRate || !p.loanTermMonths || !p.purchaseDate) {
-    return { equity: value - loan, debt: loan };
-  }
-
-  const start = new Date(p.purchaseDate);
-  const now = new Date();
-  const monthsElapsed = Math.max(
-    0,
-    (now.getFullYear() - start.getFullYear()) * 12 + now.getMonth() - start.getMonth()
-  );
-
-  const r = p.interestRate / 100 / 12;
-  const pmt = monthlyPayment(loan, p.interestRate, p.loanTermMonths);
-  let balance = loan;
-  for (let i = 0; i < Math.min(monthsElapsed, p.loanTermMonths); i++) {
-    balance = balance * (1 + r) - pmt;
-  }
-  balance = Math.max(0, balance);
-  return { equity: value - balance, debt: balance };
+function fmtFull(n: number) {
+  const abs = Math.abs(n);
+  const sign = n < 0 ? "-" : "";
+  return `${sign}$${abs.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
 }
 
 // ── AI content generation ─────────────────────────────────────────────────
@@ -75,36 +51,112 @@ function estimateEquityAndDebt(p: {
 export async function generateDigest(userId: string, firstName: string): Promise<DigestContent> {
   const properties = await db.select().from(propertiesTable);
 
+  const today = new Date();
+  const [startYear5, startYear10] = [
+    today.getFullYear() + 5,
+    today.getFullYear() + 10,
+  ];
+
+  let totalValue = 0;
   let totalEquity = 0;
   let totalDebt = 0;
+  let totalMonthlyPI = 0;
+  let totalRent = 0;
+  let totalTaxes = 0;
+  let totalInsurance = 0;
+
   const propLines: string[] = [];
 
   for (const p of properties) {
-    const { equity, debt } = estimateEquityAndDebt(p as Parameters<typeof estimateEquityAndDebt>[0]);
-    totalEquity += equity;
-    totalDebt += debt;
-    const ltv = (p.currentValue ?? p.purchasePrice) > 0
-      ? (debt / (p.currentValue ?? p.purchasePrice)) * 100
-      : 0;
-    propLines.push(
-      `- ${p.name} (${p.address}): value ${fmt(p.currentValue ?? p.purchasePrice)}, equity ${fmt(equity)}, LTV ${ltv.toFixed(0)}%`
-    );
+    const currentValue = Number(p.currentValue ?? p.purchasePrice);
+    const purchasePrice = Number(p.purchasePrice);
+    const monthlyPayment = Number(p.monthlyPayment ?? 0);
+    const rent = Number(p.monthlyRent ?? 0);
+    const taxes = Number(p.monthlyTaxes ?? 0);
+    const insurance = Number(p.monthlyInsurance ?? 0);
+
+    // Build amortization to get current balance and payoff date
+    let currentBalance = Number(p.loanAmount ?? 0);
+    let payoffDate: string | undefined;
+
+    if (p.loanAmount && p.interestRate && p.loanTermYears && p.loanStartDate) {
+      const schedule = buildAmortizationSchedule({
+        loanAmount: Number(p.loanAmount),
+        interestRate: Number(p.interestRate),
+        loanTermYears: p.loanTermYears,
+        loanStartDate: p.loanStartDate,
+        monthlyPayment,
+        extraPaymentMonthly: p.savedExtraMonthly != null ? Number(p.savedExtraMonthly) : 0,
+        extraPayments: (p.savedExtraPayments as Array<{ paymentNumber: number; amount: number }> | null) ?? [],
+        startingBalance: p.currentLoanBalance != null ? Number(p.currentLoanBalance) : undefined,
+      });
+
+      const lastRow = schedule[schedule.length - 1];
+      payoffDate = lastRow?.paymentDate;
+
+      // Current balance: find the row matching today
+      const [sy, sm] = p.loanStartDate.split("-").map(Number);
+      const monthsElapsed = Math.max(0,
+        (today.getFullYear() - sy) * 12 + (today.getMonth() + 1 - sm)
+      );
+      const currentRow = schedule[Math.min(monthsElapsed, schedule.length) - 1];
+      if (currentRow) currentBalance = currentRow.remainingBalance;
+
+      // 5yr equity projection
+      const months5 = monthsElapsed + 60;
+      const row5 = schedule[Math.min(months5, schedule.length) - 1];
+      const equity5 = currentValue - (row5 ? row5.remainingBalance : 0);
+
+      // 10yr equity projection
+      const months10 = monthsElapsed + 120;
+      const row10 = schedule[Math.min(months10, schedule.length) - 1];
+      const equity10 = currentValue - (row10 ? row10.remainingBalance : 0);
+
+      const equity = currentValue - currentBalance;
+      const ltv = currentValue > 0 ? (currentBalance / currentValue) * 100 : 0;
+      const appreciation = currentValue - purchasePrice;
+      const appreciationPct = purchasePrice > 0 ? (appreciation / purchasePrice) * 100 : 0;
+      const netMonthly = rent - monthlyPayment - taxes - insurance;
+
+      propLines.push(
+        `- ${p.name} (${p.address}):` +
+        ` value ${fmt(currentValue)}, equity ${fmt(equity)}, debt ${fmt(currentBalance)}, LTV ${ltv.toFixed(0)}%` +
+        (appreciation !== 0 ? `, appreciation ${fmt(appreciation)} (${appreciationPct.toFixed(1)}% since ${p.yearBought})` : "") +
+        `, monthly P&I ${fmt(monthlyPayment)}` +
+        (rent > 0 ? `, rent ${fmt(rent)}, net cash flow ${fmt(netMonthly)}/mo` : "") +
+        (taxes > 0 || insurance > 0 ? `, taxes+ins ${fmt(taxes + insurance)}/mo` : "") +
+        (payoffDate ? `, payoff ${payoffDate}` : "") +
+        `, equity in 5yr: ${fmt(equity5)}, in 10yr: ${fmt(equity10)}`
+      );
+    } else {
+      const equity = currentValue - currentBalance;
+      const ltv = currentValue > 0 ? (currentBalance / currentValue) * 100 : 0;
+      propLines.push(
+        `- ${p.name} (${p.address}): value ${fmt(currentValue)}, equity ${fmt(equity)}, LTV ${ltv.toFixed(0)}%`
+      );
+    }
+
+    totalValue += currentValue;
+    totalEquity += currentValue - currentBalance;
+    totalDebt += currentBalance;
+    totalMonthlyPI += monthlyPayment;
+    totalRent += rent;
+    totalTaxes += taxes;
+    totalInsurance += insurance;
   }
 
-  const total = totalEquity + totalDebt;
-  const avgLtv = total > 0 ? (totalDebt / total) * 100 : 0;
+  const avgLtv = totalValue > 0 ? (totalDebt / totalValue) * 100 : 0;
+  const netCashFlow = totalRent - totalMonthlyPI - totalTaxes - totalInsurance;
 
-  // Recent email notes (last 60 days)
-  const since = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
+  // Recent email notes
   const notes = await db
     .select({ subject: emailNotesTable.subject, aiSummary: emailNotesTable.aiSummary, actionItems: emailNotesTable.actionItems })
     .from(emailNotesTable)
     .where(eq(emailNotesTable.userId, userId));
-  const recentNotes = notes.filter((n) => true); // all notes for context
 
   const notesContext =
-    recentNotes.length > 0
-      ? recentNotes.slice(0, 8).map((n) => `Email: "${n.subject}" — ${n.aiSummary}`).join("\n")
+    notes.length > 0
+      ? notes.slice(0, 8).map((n) => `Email: "${n.subject}" — ${n.aiSummary}`).join("\n")
       : "No recent email communications synced.";
 
   const month = new Date().toLocaleString("default", { month: "long", year: "numeric" });
@@ -130,21 +182,26 @@ Return JSON only — no markdown:
   ],
   "closingLine": "One encouraging, forward-looking sentence."
 }
-Be specific — use actual numbers from the data. Avoid generic platitudes. Sound like a trusted advisor, not a robot.`,
+Be specific — use actual numbers from the data. Highlights and watch items should draw on cash flow, appreciation, payoff timelines, projections, and email communications where relevant. Avoid generic platitudes. Sound like a trusted advisor, not a robot.`,
       },
       {
         role: "user",
         content: `Portfolio owner: ${firstName}
 Month: ${month}
 Total properties: ${properties.length}
-Total equity: ${fmt(totalEquity)}
-Total mortgage debt: ${fmt(totalDebt)}
+Total portfolio value: ${fmtFull(totalValue)}
+Total equity: ${fmtFull(totalEquity)}
+Total mortgage debt: ${fmtFull(totalDebt)}
 Portfolio LTV: ${avgLtv.toFixed(1)}%
+Total monthly P&I: ${fmtFull(totalMonthlyPI)}
+Total monthly rent collected: ${fmtFull(totalRent)}
+Total monthly taxes + insurance: ${fmtFull(totalTaxes + totalInsurance)}
+Net monthly cash flow (rent − P&I − taxes − insurance): ${fmtFull(netCashFlow)} ${netCashFlow >= 0 ? "(positive)" : "(negative — expenses exceed rent)"}
 
-Properties:
+Per-property detail:
 ${propLines.join("\n") || "No properties added yet."}
 
-Recent communications:
+Recent email communications:
 ${notesContext}`,
       },
     ],
@@ -163,9 +220,13 @@ ${notesContext}`,
     closingLine: typeof parsed.closingLine === "string" ? parsed.closingLine : "",
     stats: {
       totalProperties: properties.length,
+      totalValueFormatted: fmt(totalValue),
       totalEquityFormatted: fmt(totalEquity),
       totalDebtFormatted: fmt(totalDebt),
       avgLtv: Math.round(avgLtv),
+      monthlyPIFormatted: fmt(totalMonthlyPI),
+      netCashFlowFormatted: fmt(netCashFlow),
+      netCashFlowPositive: netCashFlow >= 0,
     },
   };
 }
@@ -197,6 +258,10 @@ function renderHtml(content: DigestContent, month: string): string {
     )
     .join("");
 
+  const cashFlowColor = content.stats.netCashFlowPositive ? "#d1fae5" : "#fee2e2";
+  const cashFlowTextColor = content.stats.netCashFlowPositive ? "#fff" : "#fff";
+  const cashFlowLabel = content.stats.netCashFlowPositive ? "Net Cash Flow ✓" : "Net Cash Flow ↓";
+
   return `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -217,14 +282,18 @@ function renderHtml(content: DigestContent, month: string): string {
           </table>
         </td>
       </tr>
-      <!-- Stats bar -->
+      <!-- Stats bar — row 1 -->
       <tr>
-        <td style="background:#f97316;padding:16px 32px;">
+        <td style="background:#f97316;padding:16px 32px 8px;">
           <table width="100%" cellpadding="0" cellspacing="0">
             <tr>
               <td align="center" style="padding:0 12px 0 0;">
                 <p style="margin:0;color:#fff;font-size:11px;font-weight:600;opacity:.8;text-transform:uppercase;letter-spacing:.05em;">Properties</p>
                 <p style="margin:4px 0 0;color:#fff;font-size:20px;font-weight:700;">${content.stats.totalProperties}</p>
+              </td>
+              <td align="center" style="padding:0 12px;border-left:1px solid rgba(255,255,255,0.3);">
+                <p style="margin:0;color:#fff;font-size:11px;font-weight:600;opacity:.8;text-transform:uppercase;letter-spacing:.05em;">Total Value</p>
+                <p style="margin:4px 0 0;color:#fff;font-size:20px;font-weight:700;">${content.stats.totalValueFormatted}</p>
               </td>
               <td align="center" style="padding:0 12px;border-left:1px solid rgba(255,255,255,0.3);">
                 <p style="margin:0;color:#fff;font-size:11px;font-weight:600;opacity:.8;text-transform:uppercase;letter-spacing:.05em;">Total Equity</p>
@@ -233,6 +302,27 @@ function renderHtml(content: DigestContent, month: string): string {
               <td align="center" style="padding:0 0 0 12px;border-left:1px solid rgba(255,255,255,0.3);">
                 <p style="margin:0;color:#fff;font-size:11px;font-weight:600;opacity:.8;text-transform:uppercase;letter-spacing:.05em;">Avg LTV</p>
                 <p style="margin:4px 0 0;color:#fff;font-size:20px;font-weight:700;">${content.stats.avgLtv}%</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+      <!-- Stats bar — row 2: cash flow -->
+      <tr>
+        <td style="background:#ea580c;padding:8px 32px 16px;">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td align="center" style="padding:0 12px 0 0;">
+                <p style="margin:0;color:#fff;font-size:11px;font-weight:600;opacity:.8;text-transform:uppercase;letter-spacing:.05em;">Monthly P&amp;I</p>
+                <p style="margin:4px 0 0;color:#fff;font-size:18px;font-weight:700;">${content.stats.monthlyPIFormatted}</p>
+              </td>
+              <td align="center" style="padding:0 0 0 12px;border-left:1px solid rgba(255,255,255,0.3);">
+                <p style="margin:0;color:#fff;font-size:11px;font-weight:600;opacity:.8;text-transform:uppercase;letter-spacing:.05em;">${cashFlowLabel}</p>
+                <p style="margin:4px 0 0;color:#fff;font-size:18px;font-weight:700;">${content.stats.netCashFlowFormatted}/mo</p>
+              </td>
+              <td align="center" style="padding:0 0 0 12px;border-left:1px solid rgba(255,255,255,0.3);">
+                <p style="margin:0;color:#fff;font-size:11px;font-weight:600;opacity:.8;text-transform:uppercase;letter-spacing:.05em;">Total Debt</p>
+                <p style="margin:4px 0 0;color:#fff;font-size:18px;font-weight:700;">${content.stats.totalDebtFormatted}</p>
               </td>
             </tr>
           </table>
@@ -294,7 +384,8 @@ function renderText(content: DigestContent, month: string): string {
     "",
     content.portfolioSummary,
     "",
-    `Portfolio: ${content.stats.totalProperties} properties | Equity: ${content.stats.totalEquityFormatted} | LTV: ${content.stats.avgLtv}%`,
+    `Portfolio: ${content.stats.totalProperties} properties | Value: ${content.stats.totalValueFormatted} | Equity: ${content.stats.totalEquityFormatted} | LTV: ${content.stats.avgLtv}%`,
+    `Monthly P&I: ${content.stats.monthlyPIFormatted} | Net Cash Flow: ${content.stats.netCashFlowFormatted}/mo | Total Debt: ${content.stats.totalDebtFormatted}`,
     "",
     "✅ GREAT THINGS GOING ON",
     ...content.highlights.map((h) => `  • ${h.title}: ${h.description}`),
