@@ -750,17 +750,17 @@ export default function PropertyDetail() {
       {/* Amortization + Scenario */}
       <Card>
         <CardHeader className="flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-xl">Amortization Schedule</CardTitle>
-              <p className="text-sm text-muted-foreground mt-1">
-                {baseSchedule.length} payments &mdash; payoff {baseSchedule.length > 0 ? formatDate(baseSchedule[baseSchedule.length - 1].paymentDate) : "—"}
-                {hasSavedExtras && (
-                  <span className="ml-2 text-primary font-medium">(with extra payments)</span>
-                )}
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
+          <div>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-xl">Amortization Schedule</CardTitle>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {baseSchedule.length} payments &mdash; payoff {baseSchedule.length > 0 ? formatDate(baseSchedule[baseSchedule.length - 1].paymentDate) : "—"}
+                  {hasSavedExtras && (
+                    <span className="ml-2 text-primary font-medium">(with extra payments)</span>
+                  )}
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={() => setSchedCollapsed(v => !v)}
@@ -771,6 +771,8 @@ export default function PropertyDetail() {
                   ? <ChevronDown className="w-4 h-4" />
                   : <ChevronUp className="w-4 h-4" />}
               </button>
+            </div>
+            <div className="flex items-center gap-2 mt-3">
               {/* View mode toggle */}
               <div className="flex items-center rounded-lg border border-border bg-muted/40 p-0.5 text-xs">
                 <button
@@ -794,7 +796,6 @@ export default function PropertyDetail() {
                   All Payments
                 </button>
               </div>
-
               <Button
                 variant={scenarioOpen ? "default" : "outline"}
                 size="sm"
