@@ -3,13 +3,22 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Real Estate Tracker API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: properties
+    description: Real estate property management
+  - name: payments
+    description: Mortgage payment tracking
+  - name: dashboard
+    description: Portfolio summary
+  - name: calculator
+    description: What-if mortgage calculations
+
 paths:
   /healthz:
     get:
@@ -24,6 +33,197 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /properties:
+    get:
+      operationId: listProperties
+      tags: [properties]
+      summary: List all properties
+      responses:
+        "200":
+          description: List of properties
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Property"
+    post:
+      operationId: createProperty
+      tags: [properties]
+      summary: Add a new property
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PropertyInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Property"
+
+  /properties/{id}:
+    get:
+      operationId: getProperty
+      tags: [properties]
+      summary: Get a single property
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Property found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Property"
+        "404":
+          description: Not found
+    put:
+      operationId: updateProperty
+      tags: [properties]
+      summary: Update a property
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PropertyUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Property"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteProperty
+      tags: [properties]
+      summary: Delete a property
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+
+  /properties/{id}/payments:
+    get:
+      operationId: listPayments
+      tags: [payments]
+      summary: Get all logged payments for a property
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Payments list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Payment"
+    post:
+      operationId: logPayment
+      tags: [payments]
+      summary: Log an actual mortgage payment made
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentInput"
+      responses:
+        "201":
+          description: Payment logged
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Payment"
+
+  /properties/{id}/amortization:
+    get:
+      operationId: getAmortizationSchedule
+      tags: [payments]
+      summary: Get the full projected amortization schedule for a property
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Full amortization schedule
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AmortizationRow"
+
+  /dashboard:
+    get:
+      operationId: getDashboard
+      tags: [dashboard]
+      summary: Get portfolio-level summary
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
+  /calculator:
+    post:
+      operationId: runCalculator
+      tags: [calculator]
+      summary: Run a what-if amortization calculation with extra payments
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CalculatorInput"
+      responses:
+        "200":
+          description: Calculator result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CalculatorResult"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +234,329 @@ components:
       required:
         - status
 
+    Property:
+      type: object
+      required:
+        - id
+        - name
+        - address
+        - yearBought
+        - purchasePrice
+        - currentValue
+        - loanAmount
+        - interestRate
+        - loanTermYears
+        - loanStartDate
+        - monthlyPayment
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        address:
+          type: string
+        yearBought:
+          type: integer
+        purchasePrice:
+          type: number
+        currentValue:
+          type: number
+        loanAmount:
+          type: number
+        interestRate:
+          type: number
+          description: Annual interest rate as a percentage (e.g. 6.5)
+        loanTermYears:
+          type: integer
+        loanStartDate:
+          type: string
+          description: ISO date string (YYYY-MM-DD)
+        monthlyPayment:
+          type: number
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+    PropertyInput:
+      type: object
+      required:
+        - name
+        - address
+        - yearBought
+        - purchasePrice
+        - currentValue
+        - loanAmount
+        - interestRate
+        - loanTermYears
+        - loanStartDate
+        - monthlyPayment
+      properties:
+        name:
+          type: string
+          minLength: 1
+        address:
+          type: string
+          minLength: 1
+        yearBought:
+          type: integer
+        purchasePrice:
+          type: number
+        currentValue:
+          type: number
+        loanAmount:
+          type: number
+        interestRate:
+          type: number
+        loanTermYears:
+          type: integer
+        loanStartDate:
+          type: string
+        monthlyPayment:
+          type: number
+        notes:
+          type: string
+
+    PropertyUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        address:
+          type: string
+        yearBought:
+          type: integer
+        purchasePrice:
+          type: number
+        currentValue:
+          type: number
+        loanAmount:
+          type: number
+        interestRate:
+          type: number
+        loanTermYears:
+          type: integer
+        loanStartDate:
+          type: string
+        monthlyPayment:
+          type: number
+        notes:
+          type: ["string", "null"]
+
+    Payment:
+      type: object
+      required:
+        - id
+        - propertyId
+        - paymentDate
+        - paymentAmount
+        - principalAmount
+        - interestAmount
+        - remainingBalance
+        - createdAt
+      properties:
+        id:
+          type: integer
+        propertyId:
+          type: integer
+        paymentDate:
+          type: string
+        paymentAmount:
+          type: number
+        principalAmount:
+          type: number
+        interestAmount:
+          type: number
+        extraPayment:
+          type: number
+        remainingBalance:
+          type: number
+        paymentNumber:
+          type: integer
+        createdAt:
+          type: string
+
+    PaymentInput:
+      type: object
+      required:
+        - paymentDate
+        - paymentAmount
+        - principalAmount
+        - interestAmount
+        - remainingBalance
+      properties:
+        paymentDate:
+          type: string
+        paymentAmount:
+          type: number
+        principalAmount:
+          type: number
+        interestAmount:
+          type: number
+        extraPayment:
+          type: number
+        remainingBalance:
+          type: number
+        paymentNumber:
+          type: integer
+
+    AmortizationRow:
+      type: object
+      required:
+        - paymentNumber
+        - paymentDate
+        - paymentAmount
+        - principalAmount
+        - interestAmount
+        - remainingBalance
+        - cumulativeInterest
+        - cumulativePrincipal
+      properties:
+        paymentNumber:
+          type: integer
+        paymentDate:
+          type: string
+        paymentAmount:
+          type: number
+        principalAmount:
+          type: number
+        interestAmount:
+          type: number
+        remainingBalance:
+          type: number
+        cumulativeInterest:
+          type: number
+        cumulativePrincipal:
+          type: number
+        isLogged:
+          type: boolean
+
+    DashboardStats:
+      type: object
+      required:
+        - totalProperties
+        - totalPortfolioValue
+        - totalLoanBalance
+        - totalEquity
+        - monthlyPaymentTotal
+        - properties
+      properties:
+        totalProperties:
+          type: integer
+        totalPortfolioValue:
+          type: number
+        totalLoanBalance:
+          type: number
+        totalEquity:
+          type: number
+        monthlyPaymentTotal:
+          type: number
+        properties:
+          type: array
+          items:
+            $ref: "#/components/schemas/PropertySummary"
+
+    PropertySummary:
+      type: object
+      required:
+        - id
+        - name
+        - address
+        - currentValue
+        - estimatedBalance
+        - equity
+        - equityPercent
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        address:
+          type: string
+        currentValue:
+          type: number
+        estimatedBalance:
+          type: number
+        equity:
+          type: number
+        equityPercent:
+          type: number
+
+    CalculatorInput:
+      type: object
+      required:
+        - loanAmount
+        - interestRate
+        - loanTermYears
+        - loanStartDate
+        - monthlyPayment
+      properties:
+        loanAmount:
+          type: number
+        interestRate:
+          type: number
+        loanTermYears:
+          type: integer
+        loanStartDate:
+          type: string
+        monthlyPayment:
+          type: number
+        extraPaymentMonthly:
+          type: number
+          description: Fixed extra payment added every month
+        extraPayments:
+          type: array
+          description: One-time extra payments for specific months
+          items:
+            $ref: "#/components/schemas/ExtraPaymentEntry"
+
+    ExtraPaymentEntry:
+      type: object
+      required:
+        - paymentNumber
+        - amount
+      properties:
+        paymentNumber:
+          type: integer
+        amount:
+          type: number
+
+    CalculatorResult:
+      type: object
+      required:
+        - schedule
+        - summary
+      properties:
+        schedule:
+          type: array
+          items:
+            $ref: "#/components/schemas/AmortizationRow"
+        summary:
+          $ref: "#/components/schemas/CalculatorSummary"
+
+    CalculatorSummary:
+      type: object
+      required:
+        - totalPayments
+        - totalInterest
+        - totalPrincipal
+        - payoffDate
+        - monthsSaved
+        - interestSaved
+      properties:
+        totalPayments:
+          type: integer
+        totalInterest:
+          type: number
+        totalPrincipal:
+          type: number
+        payoffDate:
+          type: string
+        monthsSaved:
+          type: integer
+        interestSaved:
+          type: number

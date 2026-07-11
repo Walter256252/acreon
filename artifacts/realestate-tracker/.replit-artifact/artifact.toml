@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "Real Estate Tracker"
+version = "1.0.0"
+id = "artifacts/realestate-tracker"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19638
+
+[services.development]
+run = "pnpm --filter @workspace/realestate-tracker run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/realestate-tracker", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/realestate-tracker/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19638"
+BASE_PATH = "/"

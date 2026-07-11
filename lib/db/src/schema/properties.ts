@@ -1,0 +1,24 @@
+import { pgTable, serial, text, numeric, integer, timestamp } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
+import { z } from "zod/v4";
+
+export const propertiesTable = pgTable("properties", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  address: text("address").notNull(),
+  yearBought: integer("year_bought").notNull(),
+  purchasePrice: numeric("purchase_price", { precision: 15, scale: 2 }).notNull(),
+  currentValue: numeric("current_value", { precision: 15, scale: 2 }).notNull(),
+  loanAmount: numeric("loan_amount", { precision: 15, scale: 2 }).notNull(),
+  interestRate: numeric("interest_rate", { precision: 6, scale: 4 }).notNull(),
+  loanTermYears: integer("loan_term_years").notNull(),
+  loanStartDate: text("loan_start_date").notNull(),
+  monthlyPayment: numeric("monthly_payment", { precision: 15, scale: 2 }).notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertPropertySchema = createInsertSchema(propertiesTable).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertProperty = z.infer<typeof insertPropertySchema>;
+export type Property = typeof propertiesTable.$inferSelect;
