@@ -21,6 +21,8 @@ import type {
 
 import type {
   AmortizationRow,
+  BulkImportInput,
+  BulkImportResult,
   CalculatorInput,
   CalculatorResult,
   DashboardStats,
@@ -1781,6 +1783,77 @@ export const useCreateProperty = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getCreatePropertyMutationOptions(options));
+    }
+
+export const getBulkImportPropertiesUrl = () => {
+
+
+
+
+  return `/api/properties/bulk-import`
+}
+
+/**
+ * @summary Import multiple properties at once (e.g. from a spreadsheet)
+ */
+export const bulkImportProperties = async (bulkImportInput: BulkImportInput, options?: RequestInit): Promise<BulkImportResult> => {
+
+  return customFetch<BulkImportResult>(getBulkImportPropertiesUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(bulkImportInput)
+  }
+);}
+
+
+
+
+
+export const getBulkImportPropertiesMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkImportProperties>>, TError,{data: BodyType<BulkImportInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof bulkImportProperties>>, TError,{data: BodyType<BulkImportInput>}, TContext> => {
+
+const mutationKey = ['bulkImportProperties'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof bulkImportProperties>>, {data: BodyType<BulkImportInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  bulkImportProperties(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BulkImportPropertiesMutationResult = NonNullable<Awaited<ReturnType<typeof bulkImportProperties>>>
+    export type BulkImportPropertiesMutationBody = BodyType<BulkImportInput>
+    export type BulkImportPropertiesMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Import multiple properties at once (e.g. from a spreadsheet)
+ */
+export const useBulkImportProperties = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkImportProperties>>, TError,{data: BodyType<BulkImportInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof bulkImportProperties>>,
+        TError,
+        {data: BodyType<BulkImportInput>},
+        TContext
+      > => {
+      return useMutation(getBulkImportPropertiesMutationOptions(options));
     }
 
 export const getGetPropertyUrl = (id: number,) => {

@@ -442,6 +442,25 @@ paths:
               schema:
                 $ref: "#/components/schemas/Property"
 
+  /properties/bulk-import:
+    post:
+      operationId: bulkImportProperties
+      tags: [properties]
+      summary: Import multiple properties at once (e.g. from a spreadsheet)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkImportInput"
+      responses:
+        "200":
+          description: Import result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkImportResult"
+
   /properties/{id}:
     get:
       operationId: getProperty
@@ -657,6 +676,37 @@ components:
           type: string
         updatedAt:
           type: string
+
+    BulkImportInput:
+      type: object
+      required: [properties]
+      properties:
+        properties:
+          type: array
+          items:
+            $ref: "#/components/schemas/PropertyInput"
+
+    BulkImportResultError:
+      type: object
+      required: [row, message]
+      properties:
+        row:
+          type: integer
+        message:
+          type: string
+
+    BulkImportResult:
+      type: object
+      required: [imported, failed]
+      properties:
+        imported:
+          type: integer
+        failed:
+          type: integer
+        errors:
+          type: array
+          items:
+            $ref: "#/components/schemas/BulkImportResultError"
 
     PropertyInput:
       type: object

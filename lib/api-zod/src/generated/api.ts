@@ -396,6 +396,39 @@ export const CreatePropertyResponse = zod.object({
 
 
 /**
+ * @summary Import multiple properties at once (e.g. from a spreadsheet)
+ */
+
+
+
+
+export const BulkImportPropertiesBody = zod.object({
+  "properties": zod.array(zod.object({
+  "name": zod.string().min(1),
+  "address": zod.string().min(1),
+  "yearBought": zod.number(),
+  "purchasePrice": zod.number(),
+  "currentValue": zod.number(),
+  "loanAmount": zod.number(),
+  "interestRate": zod.number(),
+  "loanTermYears": zod.number(),
+  "loanStartDate": zod.string(),
+  "monthlyPayment": zod.number(),
+  "notes": zod.string().optional()
+}))
+})
+
+export const BulkImportPropertiesResponse = zod.object({
+  "imported": zod.number(),
+  "failed": zod.number(),
+  "errors": zod.array(zod.object({
+  "row": zod.number(),
+  "message": zod.string()
+})).optional()
+})
+
+
+/**
  * @summary Get a single property
  */
 export const GetPropertyParams = zod.object({

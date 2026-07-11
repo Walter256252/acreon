@@ -8,6 +8,7 @@ import {
   GetPropertyParams,
   UpdatePropertyParams,
   DeletePropertyParams,
+  BulkImportPropertiesBody,
 } from "@workspace/api-zod";
 
 const router: IRouter = Router();
@@ -66,6 +67,38 @@ router.put("/properties/:id", async (req, res) => {
   const [row] = await db.update(propertiesTable).set(updates).where(eq(propertiesTable.id, id)).returning();
   if (!row) { res.status(404).json({ error: "Property not found" }); return; }
   res.json(toApiProperty(row));
+});
+
+// Bulk import properties
+router.post("/properties/bulk-import", async (req, res) => {
+  const { properties } = BulkImportPropertiesBody.parse(req.body);
+
+  let imported = 0;
+  const errors: { row: number; message: string }[] = [];
+
+  for (let i = 0; i < properties.length; i++) {
+    const p = properties[i];
+    try {
+      await db.insert(propertiesTable).values({
+        name: p.name,
+        address: p.address,
+        yearBought: p.yearBought,
+        purchasePrice: String(p.purchasePrice),
+        currentValue: String(p.currentValue),
+        loanAmount: String(p.loanAmount),
+        interestRate: String(p.interestRate),
+        loanTermYears: p.loanTermYears,
+        loanStartDate: p.loanStartDate,
+        monthlyPayment: String(p.monthlyPayment),
+        notes: p.notes ?? null,
+      });
+      imported++;
+    } catch (err) {
+      errors.push({ row: i + 1, message: err instanceof Error ? err.message : "Unknown error" });
+    }
+  }
+
+  res.json({ imported, failed: errors.length, errors });
 });
 
 // Delete property

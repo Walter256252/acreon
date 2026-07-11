@@ -45,6 +45,21 @@ export interface PropertyInput {
   notes?: string;
 }
 
+export interface BulkImportInput {
+  properties: PropertyInput[];
+}
+
+export interface BulkImportResultError {
+  row: number;
+  message: string;
+}
+
+export interface BulkImportResult {
+  imported: number;
+  failed: number;
+  errors?: BulkImportResultError[];
+}
+
 export interface PropertyUpdate {
   name?: string;
   address?: string;

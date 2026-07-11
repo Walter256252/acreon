@@ -7,6 +7,9 @@
  */
 
 export * from './amortizationRow';
+export * from './bulkImportInput';
+export * from './bulkImportResult';
+export * from './bulkImportResultError';
 export * from './calculatorInput';
 export * from './calculatorResult';
 export * from './calculatorSummary';
