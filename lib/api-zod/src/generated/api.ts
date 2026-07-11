@@ -361,6 +361,7 @@ export const ListPropertiesResponseItem = zod.object({
   "monthlyTaxes": zod.number().nullish(),
   "monthlyInsurance": zod.number().nullish(),
   "monthlyRent": zod.number().nullish(),
+  "currentLoanBalance": zod.number().nullish().describe('Override starting balance when entering a property mid-loan'),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -386,7 +387,8 @@ export const CreatePropertyBody = zod.object({
   "loanStartDate": zod.string(),
   "monthlyPayment": zod.number(),
   "notes": zod.string().optional(),
-  "zillowUrl": zod.string().optional()
+  "zillowUrl": zod.string().optional(),
+  "currentLoanBalance": zod.number().optional()
 })
 
 export const CreatePropertyResponse = zod.object({
@@ -413,6 +415,7 @@ export const CreatePropertyResponse = zod.object({
   "monthlyTaxes": zod.number().nullish(),
   "monthlyInsurance": zod.number().nullish(),
   "monthlyRent": zod.number().nullish(),
+  "currentLoanBalance": zod.number().nullish().describe('Override starting balance when entering a property mid-loan'),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -483,6 +486,7 @@ export const GetPropertyResponse = zod.object({
   "monthlyTaxes": zod.number().nullish(),
   "monthlyInsurance": zod.number().nullish(),
   "monthlyRent": zod.number().nullish(),
+  "currentLoanBalance": zod.number().nullish().describe('Override starting balance when entering a property mid-loan'),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -517,7 +521,8 @@ export const UpdatePropertyBody = zod.object({
   "zillowUrl": zod.string().nullish(),
   "monthlyTaxes": zod.number().nullish(),
   "monthlyInsurance": zod.number().nullish(),
-  "monthlyRent": zod.number().nullish()
+  "monthlyRent": zod.number().nullish(),
+  "currentLoanBalance": zod.number().nullish()
 })
 
 export const UpdatePropertyResponse = zod.object({
@@ -544,6 +549,7 @@ export const UpdatePropertyResponse = zod.object({
   "monthlyTaxes": zod.number().nullish(),
   "monthlyInsurance": zod.number().nullish(),
   "monthlyRent": zod.number().nullish(),
+  "currentLoanBalance": zod.number().nullish().describe('Override starting balance when entering a property mid-loan'),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })

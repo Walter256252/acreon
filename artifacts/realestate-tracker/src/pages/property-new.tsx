@@ -28,7 +28,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, FileSpreadsheet, PlusCircle, Upload, X, CheckCircle2, AlertCircle } from "lucide-react";
+import { ArrowLeft, FileSpreadsheet, PlusCircle, Upload, X, CheckCircle2, AlertCircle, Info } from "lucide-react";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
 
@@ -45,6 +45,7 @@ const formSchema = z.object({
   loanTermYears: z.coerce.number().min(1, "Must be positive"),
   loanStartDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD"),
   monthlyPayment: z.coerce.number().min(0, "Must be positive"),
+  currentLoanBalance: z.coerce.number().min(0, "Must be positive").optional(),
   notes: z.string().optional(),
   zillowUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
 });
@@ -468,6 +469,7 @@ export default function PropertyNew() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<"manual" | "import">("manual");
+  const [knowCurrentBalance, setKnowCurrentBalance] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -633,7 +635,52 @@ export default function PropertyNew() {
                     </FormItem>
                   )} />
                 </div>
+
+                {/* Current balance toggle */}
+                <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
+                  <label className="flex items-center gap-3 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={knowCurrentBalance}
+                      onChange={e => {
+                        setKnowCurrentBalance(e.target.checked);
+                        if (!e.target.checked) form.setValue("currentLoanBalance", undefined);
+                      }}
+                      className="w-4 h-4 accent-primary rounded"
+                    />
+                    <span className="text-sm font-medium text-foreground">
+                      I know my current remaining balance
+                    </span>
+                  </label>
+                  <p className="text-xs text-muted-foreground flex items-start gap-1.5 pl-7">
+                    <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                    Use this if you bought the property years ago and have already paid down some principal — the amortization schedule will start from this balance today instead of replaying the full loan history.
+                  </p>
+                  {knowCurrentBalance && (
+                    <div className="pl-7">
+                      <FormField control={form.control} name="currentLoanBalance" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Current Remaining Balance ($)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              placeholder="e.g. 187000"
+                              {...field}
+                              value={field.value ?? ""}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            What your lender shows you owe right now — also update the Loan Start Date above to today so payment #1 is dated correctly.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                    </div>
+                  )}
+                </div>
               </div>
+
 
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold border-b pb-2">Zillow Listing</h3>

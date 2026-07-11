@@ -22,6 +22,9 @@ export const propertiesTable = pgTable("properties", {
   autoPayEnabled: boolean("auto_pay_enabled").default(true).notNull(),
   savedExtraMonthly: numeric("saved_extra_monthly", { precision: 15, scale: 2 }),
   savedExtraPayments: jsonb("saved_extra_payments").$type<Array<{ paymentNumber: number; amount: number }>>(),
+  // Current balance override — used when entering a property mid-loan
+  // (e.g. bought in 2018, don't want to re-enter every extra payment)
+  currentLoanBalance: numeric("current_loan_balance", { precision: 15, scale: 2 }),
   // Monthly cost tracking (does not affect amortization schedule)
   monthlyTaxes: numeric("monthly_taxes", { precision: 15, scale: 2 }),
   monthlyInsurance: numeric("monthly_insurance", { precision: 15, scale: 2 }),

@@ -71,6 +71,7 @@ router.get("/properties/:id/amortization", async (req, res) => {
     extraPaymentMonthly: prop.savedExtraMonthly != null ? Number(prop.savedExtraMonthly) : 0,
     extraPayments: savedExtras,
     loggedByNumber,
+    startingBalance: prop.currentLoanBalance != null ? Number(prop.currentLoanBalance) : undefined,
   });
 
   res.json(schedule);
@@ -85,6 +86,7 @@ export function buildAmortizationSchedule(opts: {
   extraPaymentMonthly?: number;
   extraPayments?: Array<{ paymentNumber: number; amount: number }>;
   loggedByNumber?: Set<number | null>;
+  startingBalance?: number;
 }) {
   const {
     loanAmount,
@@ -95,13 +97,15 @@ export function buildAmortizationSchedule(opts: {
     extraPaymentMonthly = 0,
     extraPayments = [],
     loggedByNumber = new Set(),
+    startingBalance,
   } = opts;
 
   const monthlyRate = interestRate / 100 / 12;
   const totalPayments = loanTermYears * 12;
   const extraByNumber = new Map(extraPayments.map(e => [e.paymentNumber, e.amount]));
 
-  let balance = loanAmount;
+  // Use the override balance if provided (mid-loan entry), otherwise start fresh
+  let balance = startingBalance ?? loanAmount;
   let cumulativeInterest = 0;
   let cumulativePrincipal = 0;
 
