@@ -310,7 +310,7 @@ function renderText(content: DigestContent, month: string): string {
   return lines.join("\n");
 }
 
-function buildRawEmail(to: string, subject: string, html: string, text: string): string {
+export function buildRawEmail(to: string, subject: string, html: string, text: string): string {
   const boundary = `rt_${Date.now()}`;
   const msg = [
     `To: ${to}`,

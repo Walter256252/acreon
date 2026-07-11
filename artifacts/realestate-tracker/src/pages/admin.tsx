@@ -1,11 +1,17 @@
 import { useState } from "react";
 import { useUser } from "@clerk/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ShieldCheck, Users, Building2, CreditCard, Mail, Crown, UserX, Loader2 } from "lucide-react";
+import {
+  ShieldCheck, Users, Building2, Mail, Crown, UserX, Loader2,
+  RefreshCw, Activity, Search, Send,
+} from "lucide-react";
 import { StatCard } from "@/components/ui/stat-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
@@ -26,7 +32,7 @@ interface AdminUser {
 interface AdminStats {
   totalUsers: number;
   totalProperties: number;
-  totalPayments: number;
+  activeThisMonth: number;
   adminCount: number;
   digestEnabledCount: number;
   recentUsers: AdminUser[];
@@ -47,14 +53,31 @@ async function becomeAdmin(): Promise<{ success: boolean; message: string }> {
   return body;
 }
 
-async function makeAdmin(userId: string): Promise<void> {
-  const res = await fetch(`/api/admin/users/${userId}/make-admin`, { method: "POST" });
-  if (!res.ok) throw new Error(await res.text());
+async function findUserByEmail(email: string): Promise<AdminUser> {
+  const res = await fetch(`/api/admin/users/find?email=${encodeURIComponent(email)}`);
+  const body = await res.json();
+  if (!res.ok) throw new Error(body.error ?? "Not found");
+  return body;
 }
 
-async function removeAdmin(userId: string): Promise<void> {
-  const res = await fetch(`/api/admin/users/${userId}/remove-admin`, { method: "POST" });
-  if (!res.ok) throw new Error(await res.text());
+async function setAdminRole(userId: string, action: "make" | "remove"): Promise<void> {
+  const path = action === "make" ? "make-admin" : "remove-admin";
+  const res = await fetch(`/api/admin/users/${userId}/${path}`, { method: "POST" });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? "Failed");
+  }
+}
+
+async function broadcastEmail(subject: string, message: string): Promise<{ sent: number; failed: number; total: number }> {
+  const res = await fetch("/api/admin/broadcast-email", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ subject, message }),
+  });
+  const body = await res.json();
+  if (!res.ok) throw new Error(body.error ?? "Failed to send");
+  return body;
 }
 
 // ── Component ──────────────────────────────────────────────────────────────
@@ -63,33 +86,34 @@ export default function AdminDashboard() {
   const { user, isLoaded } = useUser();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [promotingId, setPromotingId] = useState<string | null>(null);
 
   const isAdmin = isLoaded && user?.publicMetadata?.role === "admin";
 
-  // Stats query — only runs when admin
-  const { data, isLoading, isError, refetch } = useQuery<AdminStats>({
+  // Stats — always fresh on focus, manual refresh available
+  const { data, isLoading, isError, refetch, isFetching } = useQuery<AdminStats>({
     queryKey: ["admin-stats"],
     queryFn: fetchAdminStats,
     enabled: isAdmin,
-    staleTime: 30_000,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 
-  // Bootstrap mutation — claim admin if no one has yet
+  // Bootstrap
   const becomeMutation = useMutation({
     mutationFn: becomeAdmin,
     onSuccess: async (result) => {
       toast({ title: "Admin access granted", description: result.message });
       await user?.reload();
       queryClient.invalidateQueries({ queryKey: ["admin-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-exists"] });
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
-  // Promote / demote mutations
+  // Promote / demote from users table
+  const [promotingId, setPromotingId] = useState<string | null>(null);
   const promoteMutation = useMutation({
-    mutationFn: ({ id, action }: { id: string; action: "make" | "remove" }) =>
-      action === "make" ? makeAdmin(id) : removeAdmin(id),
+    mutationFn: ({ id, action }: { id: string; action: "make" | "remove" }) => setAdminRole(id, action),
     onMutate: ({ id }) => setPromotingId(id),
     onSettled: () => setPromotingId(null),
     onSuccess: () => {
@@ -97,6 +121,53 @@ export default function AdminDashboard() {
       queryClient.invalidateQueries({ queryKey: ["admin-stats"] });
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  // Add admin by email
+  const [searchEmail, setSearchEmail] = useState("");
+  const [foundUser, setFoundUser] = useState<AdminUser | null>(null);
+  const [searching, setSearching] = useState(false);
+
+  const handleFindUser = async () => {
+    if (!searchEmail.trim()) return;
+    setSearching(true);
+    setFoundUser(null);
+    try {
+      const u = await findUserByEmail(searchEmail.trim());
+      setFoundUser(u);
+    } catch (err: unknown) {
+      toast({ title: "Not found", description: err instanceof Error ? err.message : "No user found", variant: "destructive" });
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const addAdminMutation = useMutation({
+    mutationFn: (id: string) => setAdminRole(id, "make"),
+    onSuccess: () => {
+      toast({ title: "Admin added", description: `${foundUser?.email} is now an admin.` });
+      setFoundUser(null);
+      setSearchEmail("");
+      queryClient.invalidateQueries({ queryKey: ["admin-stats"] });
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  // Broadcast email
+  const [emailSubject, setEmailSubject] = useState("");
+  const [emailMessage, setEmailMessage] = useState("");
+
+  const broadcastMutation = useMutation({
+    mutationFn: () => broadcastEmail(emailSubject, emailMessage),
+    onSuccess: ({ sent, failed, total }) => {
+      toast({
+        title: "Broadcast sent",
+        description: `Delivered to ${sent} of ${total} users${failed > 0 ? ` (${failed} failed)` : ""}.`,
+      });
+      setEmailSubject("");
+      setEmailMessage("");
+    },
+    onError: (err: Error) => toast({ title: "Send failed", description: err.message, variant: "destructive" }),
   });
 
   // ── Not yet admin ──────────────────────────────────────────────────────
@@ -117,11 +188,7 @@ export default function AdminDashboard() {
             You don't have admin access yet. If you're the app owner, click below to claim it.
           </p>
         </div>
-        <Button
-          onClick={() => becomeMutation.mutate()}
-          disabled={becomeMutation.isPending}
-          className="gap-2"
-        >
+        <Button onClick={() => becomeMutation.mutate()} disabled={becomeMutation.isPending} className="gap-2">
           {becomeMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Crown className="w-4 h-4" />}
           Claim Admin Access
         </Button>
@@ -136,8 +203,8 @@ export default function AdminDashboard() {
     return (
       <div className="space-y-6">
         <div className="h-10 w-48 bg-muted animate-pulse rounded" />
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          {[1,2,3,4,5].map(i => <div key={i} className="h-32 bg-muted animate-pulse rounded-xl" />)}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map(i => <div key={i} className="h-32 bg-muted animate-pulse rounded-xl" />)}
         </div>
         <div className="h-64 bg-muted animate-pulse rounded-xl" />
       </div>
@@ -157,21 +224,35 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="flex items-center gap-3">
-        <ShieldCheck className="w-7 h-7 text-primary" />
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
-          <p className="text-muted-foreground text-sm mt-0.5">Platform overview and user management.</p>
+
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <ShieldCheck className="w-7 h-7 text-primary" />
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
+            <p className="text-muted-foreground text-sm mt-0.5">Platform overview and user management.</p>
+          </div>
         </div>
+        <Button variant="outline" size="sm" className="gap-2" onClick={() => refetch()} disabled={isFetching}>
+          <RefreshCw className={`w-4 h-4 ${isFetching ? "animate-spin" : ""}`} />
+          Refresh
+        </Button>
       </div>
 
       {/* Stat cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Total Users"
           value={data.totalUsers.toString()}
           icon={<Users className="w-5 h-5 text-muted-foreground" />}
           subtext={`${data.adminCount} admin${data.adminCount !== 1 ? "s" : ""}`}
+        />
+        <StatCard
+          title="Active This Month"
+          value={(data.activeThisMonth ?? 0).toString()}
+          icon={<Activity className="w-5 h-5 text-muted-foreground" />}
+          subtext="signed in within 30 days"
         />
         <StatCard
           title="Total Properties"
@@ -180,23 +261,115 @@ export default function AdminDashboard() {
           subtext="across all users"
         />
         <StatCard
-          title="Payments Logged"
-          value={data.totalPayments.toString()}
-          icon={<CreditCard className="w-5 h-5 text-muted-foreground" />}
-          subtext="total recorded"
-        />
-        <StatCard
           title="Digest Subscribers"
           value={data.digestEnabledCount.toString()}
           icon={<Mail className="w-5 h-5 text-muted-foreground" />}
           subtext="monthly email on"
         />
-        <StatCard
-          title="Admins"
-          value={data.adminCount.toString()}
-          icon={<ShieldCheck className="w-5 h-5 text-muted-foreground" />}
-          subtext={`of ${data.totalUsers} users`}
-        />
+      </div>
+
+      {/* Add admin by email + Broadcast email */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        {/* Add admin by email */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base font-semibold">
+              <Crown className="w-4 h-4" />
+              Add Admin by Email
+            </CardTitle>
+            <CardDescription>Look up a user by their email address and grant them admin access.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex gap-2">
+              <Input
+                placeholder="user@example.com"
+                type="email"
+                value={searchEmail}
+                onChange={e => { setSearchEmail(e.target.value); setFoundUser(null); }}
+                onKeyDown={e => e.key === "Enter" && handleFindUser()}
+              />
+              <Button variant="outline" onClick={handleFindUser} disabled={searching || !searchEmail.trim()} className="shrink-0 gap-1">
+                {searching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                Find
+              </Button>
+            </div>
+
+            {foundUser && (
+              <div className="flex items-center justify-between rounded-lg border p-3 gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <Avatar className="w-8 h-8 shrink-0">
+                    <AvatarImage src={foundUser.imageUrl} />
+                    <AvatarFallback className="text-xs">
+                      {`${foundUser.firstName[0] ?? ""}${foundUser.lastName[0] ?? ""}`.toUpperCase() || "?"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{foundUser.firstName} {foundUser.lastName}</p>
+                    <p className="text-xs text-muted-foreground truncate">{foundUser.email}</p>
+                  </div>
+                  <Badge variant={foundUser.role === "admin" ? "default" : "secondary"} className="shrink-0">
+                    {foundUser.role === "admin" ? "Admin" : "User"}
+                  </Badge>
+                </div>
+                {foundUser.role !== "admin" ? (
+                  <Button
+                    size="sm"
+                    className="shrink-0 gap-1"
+                    disabled={addAdminMutation.isPending}
+                    onClick={() => addAdminMutation.mutate(foundUser.id)}
+                  >
+                    {addAdminMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Crown className="w-3 h-3" />}
+                    Make Admin
+                  </Button>
+                ) : (
+                  <span className="text-xs text-muted-foreground shrink-0">Already admin</span>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Broadcast email */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base font-semibold">
+              <Send className="w-4 h-4" />
+              Broadcast Email
+            </CardTitle>
+            <CardDescription>Send a message to all {data.totalUsers} registered users.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="email-subject">Subject</Label>
+              <Input
+                id="email-subject"
+                placeholder="Important update about RealTrack"
+                value={emailSubject}
+                onChange={e => setEmailSubject(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="email-message">Message</Label>
+              <Textarea
+                id="email-message"
+                placeholder="Write your message here…"
+                rows={4}
+                value={emailMessage}
+                onChange={e => setEmailMessage(e.target.value)}
+              />
+            </div>
+            <Button
+              className="w-full gap-2"
+              disabled={broadcastMutation.isPending || !emailSubject.trim() || !emailMessage.trim()}
+              onClick={() => broadcastMutation.mutate()}
+            >
+              {broadcastMutation.isPending
+                ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending…</>
+                : <><Send className="w-4 h-4" /> Send to All Users</>}
+            </Button>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Users table */}
@@ -204,7 +377,10 @@ export default function AdminDashboard() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base font-semibold">
             <Users className="w-4 h-4" />
-            Recent Users
+            All Users
+            <span className="ml-auto text-xs font-normal text-muted-foreground">
+              {data.recentUsers.length} shown
+            </span>
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
@@ -258,8 +434,7 @@ export default function AdminDashboard() {
                         {!isCurrentUser && (
                           u.role === "admin" ? (
                             <Button
-                              size="sm"
-                              variant="ghost"
+                              size="sm" variant="ghost"
                               className="gap-1 text-destructive hover:text-destructive"
                               disabled={isPending}
                               onClick={() => promoteMutation.mutate({ id: u.id, action: "remove" })}
@@ -269,9 +444,7 @@ export default function AdminDashboard() {
                             </Button>
                           ) : (
                             <Button
-                              size="sm"
-                              variant="ghost"
-                              className="gap-1"
+                              size="sm" variant="ghost" className="gap-1"
                               disabled={isPending}
                               onClick={() => promoteMutation.mutate({ id: u.id, action: "make" })}
                             >
