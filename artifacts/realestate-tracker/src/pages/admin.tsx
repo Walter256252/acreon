@@ -3,8 +3,9 @@ import { useUser } from "@clerk/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ShieldCheck, Users, Building2, Mail, Crown, UserX, Loader2,
-  RefreshCw, Activity, Search, Send, FileCheck,
+  RefreshCw, Activity, Search, Send, FileCheck, DollarSign, TrendingUp, Landmark,
 } from "lucide-react";
+import { formatCurrency, formatPercent } from "@/lib/utils";
 import { StatCard } from "@/components/ui/stat-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,10 @@ interface AdminStats {
   activeThisMonth: number;
   adminCount: number;
   digestEnabledCount: number;
+  platformPortfolioValue: number;
+  platformEquity: number;
+  platformOriginalLoan: number;
+  platformLoanBalance: number;
   recentUsers: AdminUser[];
 }
 
@@ -290,6 +295,37 @@ export default function AdminDashboard() {
           icon={<Mail className="w-5 h-5 text-muted-foreground" />}
           subtext="monthly email on"
         />
+      </div>
+
+      {/* Platform financial totals */}
+      <div>
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Platform — Real Estate Tracked</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard
+            title="Total Property Value"
+            value={formatCurrency(data.platformPortfolioValue)}
+            icon={<Building2 className="w-5 h-5 text-muted-foreground" />}
+            subtext="current value across all users"
+          />
+          <StatCard
+            title="Total Equity Tracked"
+            value={formatCurrency(data.platformEquity)}
+            icon={<TrendingUp className="w-5 h-5 text-emerald-600" />}
+            subtext={`${formatPercent(data.platformPortfolioValue > 0 ? (data.platformEquity / data.platformPortfolioValue) * 100 : 0)} of total value`}
+          />
+          <StatCard
+            title="Total Debt Tracked"
+            value={formatCurrency(data.platformLoanBalance)}
+            icon={<Landmark className="w-5 h-5 text-destructive" />}
+            subtext="estimated remaining balances"
+          />
+          <StatCard
+            title="Originally Financed"
+            value={formatCurrency(data.platformOriginalLoan)}
+            icon={<DollarSign className="w-5 h-5 text-muted-foreground" />}
+            subtext="sum of all original loan amounts"
+          />
+        </div>
       </div>
 
       {/* Add admin by email + Broadcast email */}

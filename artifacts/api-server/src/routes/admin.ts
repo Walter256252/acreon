@@ -2,9 +2,10 @@ import { Router, type IRouter, type Request, type Response, type NextFunction } 
 import { getAuth, clerkClient } from "@clerk/express";
 import { db } from "@workspace/db";
 import { propertiesTable, userPreferencesTable, termsAcceptancesTable } from "@workspace/db";
-import { count, desc } from "drizzle-orm";
+import { count, desc, sum } from "drizzle-orm";
 import { ReplitConnectors } from "@replit/connectors-sdk";
 import { buildRawEmail } from "../lib/digestSender";
+import { buildAmortizationSchedule } from "./payments";
 
 const router: IRouter = Router();
 
@@ -68,15 +69,16 @@ router.post("/admin/become", async (req, res) => {
 router.get("/admin/stats", requireAdmin, async (_req, res) => {
   const [
     { data: allUsers, totalCount },
-    [{ value: totalProperties }],
     digestPrefs,
+    allProperties,
   ] = await Promise.all([
     clerkClient.users.getUserList({ limit: 500, orderBy: "-created_at" }),
-    db.select({ value: count() }).from(propertiesTable),
     db.select().from(userPreferencesTable),
+    db.select().from(propertiesTable),
   ]);
 
   const totalUsers = totalCount ?? allUsers.length;
+  const totalProperties = allProperties.length;
   const adminCount = allUsers.filter((u) => u.publicMetadata?.role === "admin").length;
   const digestEnabledCount = digestPrefs.filter((p) => p.monthlyDigestEnabled).length;
 
@@ -84,6 +86,44 @@ router.get("/admin/stats", requireAdmin, async (_req, res) => {
   const activeThisMonth = allUsers.filter(
     (u) => u.lastSignInAt != null && u.lastSignInAt > thirtyDaysAgo
   ).length;
+
+  // ── Platform-wide financial totals ────────────────────────────────────────
+  let platformPortfolioValue = 0;
+  let platformLoanBalance = 0;
+  const platformOriginalLoan = allProperties.reduce((s, p) => s + Number(p.loanAmount), 0);
+
+  for (const prop of allProperties) {
+    platformPortfolioValue += Number(prop.currentValue);
+
+    const now = new Date();
+    const start = new Date(prop.loanStartDate);
+    const monthsElapsed =
+      (now.getFullYear() - start.getFullYear()) * 12 +
+      (now.getMonth() - start.getMonth());
+
+    const savedExtras =
+      (prop.savedExtraPayments as Array<{ paymentNumber: number; amount: number }> | null) ?? [];
+
+    const schedule = buildAmortizationSchedule({
+      loanAmount: Number(prop.loanAmount),
+      interestRate: Number(prop.interestRate),
+      loanTermYears: prop.loanTermYears,
+      loanStartDate: prop.loanStartDate,
+      monthlyPayment: Number(prop.monthlyPayment),
+      extraPaymentMonthly: prop.savedExtraMonthly != null ? Number(prop.savedExtraMonthly) : 0,
+      extraPayments: savedExtras,
+      startingBalance: prop.currentLoanBalance != null ? Number(prop.currentLoanBalance) : undefined,
+    });
+
+    const idx = Math.max(0, Math.min(monthsElapsed - 1, schedule.length - 1));
+    const balance = monthsElapsed <= 0
+      ? (prop.currentLoanBalance != null ? Number(prop.currentLoanBalance) : Number(prop.loanAmount))
+      : (schedule[idx]?.remainingBalance ?? 0);
+
+    platformLoanBalance += balance;
+  }
+
+  const platformEquity = platformPortfolioValue - platformLoanBalance;
 
   const recentUsers = allUsers.slice(0, 50).map((u) => ({
     id: u.id,
@@ -102,6 +142,10 @@ router.get("/admin/stats", requireAdmin, async (_req, res) => {
     activeThisMonth,
     adminCount,
     digestEnabledCount,
+    platformPortfolioValue: Math.round(platformPortfolioValue),
+    platformEquity: Math.round(platformEquity),
+    platformOriginalLoan: Math.round(platformOriginalLoan),
+    platformLoanBalance: Math.round(platformLoanBalance),
     recentUsers,
   });
 });
