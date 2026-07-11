@@ -7,6 +7,7 @@ import calculatorRouter from "./calculator";
 import openaiRouter from "./openai/index";
 import projectionsRouter from "./projections";
 import emailRouter from "./email";
+import settingsRouter from "./settings";
 
 const router: IRouter = Router();
 
@@ -18,5 +19,6 @@ router.use(calculatorRouter);
 router.use(openaiRouter);
 router.use(projectionsRouter);
 router.use(emailRouter);
+router.use(settingsRouter);
 
 export default router;

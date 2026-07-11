@@ -138,6 +138,60 @@ export const GetProjectionsResponse = zod.object({
 
 
 /**
+ * @summary Get the current user's notification preferences
+ */
+export const GetUserPreferencesResponse = zod.object({
+  "monthlyDigestEnabled": zod.boolean(),
+  "lastDigestSentAt": zod.string().nullish()
+})
+
+
+/**
+ * @summary Update the current user's notification preferences
+ */
+export const PutUserPreferencesBody = zod.object({
+  "monthlyDigestEnabled": zod.boolean()
+})
+
+export const PutUserPreferencesResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+/**
+ * @summary Generate an AI digest preview without sending
+ */
+export const PostUserDigestPreviewResponse = zod.object({
+  "greeting": zod.string(),
+  "portfolioSummary": zod.string(),
+  "highlights": zod.array(zod.object({
+  "title": zod.string(),
+  "description": zod.string()
+})),
+  "watchItems": zod.array(zod.object({
+  "title": zod.string(),
+  "description": zod.string()
+})),
+  "closingLine": zod.string(),
+  "stats": zod.object({
+  "totalProperties": zod.number(),
+  "totalEquityFormatted": zod.string(),
+  "totalDebtFormatted": zod.string(),
+  "avgLtv": zod.number()
+})
+})
+
+
+/**
+ * @summary Generate and send the monthly digest to the user's email
+ */
+export const PostUserDigestSendResponse = zod.object({
+  "success": zod.boolean(),
+  "sentTo": zod.string()
+})
+
+
+/**
  * @summary Get the current user's email connection details
  */
 export const GetEmailConnectionResponse = zod.object({

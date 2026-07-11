@@ -191,6 +191,37 @@ export interface ProjectionsResponse {
   currentTotals: CurrentTotals;
 }
 
+export interface UserPreferences {
+  monthlyDigestEnabled: boolean;
+  /** @nullable */
+  lastDigestSentAt?: string | null;
+}
+
+export interface UserPreferencesInput {
+  monthlyDigestEnabled: boolean;
+}
+
+export interface DigestHighlight {
+  title: string;
+  description: string;
+}
+
+export interface DigestStats {
+  totalProperties: number;
+  totalEquityFormatted: string;
+  totalDebtFormatted: string;
+  avgLtv: number;
+}
+
+export interface DigestContent {
+  greeting: string;
+  portfolioSummary: string;
+  highlights: DigestHighlight[];
+  watchItems: DigestHighlight[];
+  closingLine: string;
+  stats: DigestStats;
+}
+
 export interface EmailStatus {
   connected: boolean;
   /** @nullable */
@@ -304,6 +335,15 @@ export interface OpenaiConversationWithMessages {
 export interface OpenaiError {
   error: string;
 }
+
+export type PutUserPreferences200 = {
+  success: boolean;
+};
+
+export type PostUserDigestSend200 = {
+  success: boolean;
+  sentTo: string;
+};
 
 export type DeleteEmailConnection200 = {
   success: boolean;

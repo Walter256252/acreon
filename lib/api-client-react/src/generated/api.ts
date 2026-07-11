@@ -25,6 +25,7 @@ import type {
   CalculatorResult,
   DashboardStats,
   DeleteEmailConnection200,
+  DigestContent,
   EmailConnectInput,
   EmailConnectResult,
   EmailConnectionDetail,
@@ -42,11 +43,15 @@ import type {
   OpenaiMessageInput,
   Payment,
   PaymentInput,
+  PostUserDigestSend200,
   ProjectionsResponse,
   Property,
   PropertyInput,
   PropertyUpdate,
-  PutEmailSettingsPropertyId200
+  PutEmailSettingsPropertyId200,
+  PutUserPreferences200,
+  UserPreferences,
+  UserPreferencesInput
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -597,6 +602,296 @@ export function useGetProjections<TData = Awaited<ReturnType<typeof getProjectio
 
 
 
+
+export const getGetUserPreferencesUrl = () => {
+
+
+
+
+  return `/api/user/preferences`
+}
+
+/**
+ * @summary Get the current user's notification preferences
+ */
+export const getUserPreferences = async ( options?: RequestInit): Promise<UserPreferences> => {
+
+  return customFetch<UserPreferences>(getGetUserPreferencesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetUserPreferencesQueryKey = () => {
+    return [
+    `/api/user/preferences`
+    ] as const;
+    }
+
+
+export const getGetUserPreferencesQueryOptions = <TData = Awaited<ReturnType<typeof getUserPreferences>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getUserPreferences>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetUserPreferencesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getUserPreferences>>> = ({ signal }) => getUserPreferences({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getUserPreferences>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetUserPreferencesQueryResult = NonNullable<Awaited<ReturnType<typeof getUserPreferences>>>
+export type GetUserPreferencesQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get the current user's notification preferences
+ */
+
+export function useGetUserPreferences<TData = Awaited<ReturnType<typeof getUserPreferences>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getUserPreferences>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetUserPreferencesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getPutUserPreferencesUrl = () => {
+
+
+
+
+  return `/api/user/preferences`
+}
+
+/**
+ * @summary Update the current user's notification preferences
+ */
+export const putUserPreferences = async (userPreferencesInput: UserPreferencesInput, options?: RequestInit): Promise<PutUserPreferences200> => {
+
+  return customFetch<PutUserPreferences200>(getPutUserPreferencesUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(userPreferencesInput)
+  }
+);}
+
+
+
+
+
+export const getPutUserPreferencesMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof putUserPreferences>>, TError,{data: BodyType<UserPreferencesInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof putUserPreferences>>, TError,{data: BodyType<UserPreferencesInput>}, TContext> => {
+
+const mutationKey = ['putUserPreferences'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof putUserPreferences>>, {data: BodyType<UserPreferencesInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  putUserPreferences(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PutUserPreferencesMutationResult = NonNullable<Awaited<ReturnType<typeof putUserPreferences>>>
+    export type PutUserPreferencesMutationBody = BodyType<UserPreferencesInput>
+    export type PutUserPreferencesMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update the current user's notification preferences
+ */
+export const usePutUserPreferences = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof putUserPreferences>>, TError,{data: BodyType<UserPreferencesInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof putUserPreferences>>,
+        TError,
+        {data: BodyType<UserPreferencesInput>},
+        TContext
+      > => {
+      return useMutation(getPutUserPreferencesMutationOptions(options));
+    }
+
+export const getPostUserDigestPreviewUrl = () => {
+
+
+
+
+  return `/api/user/digest/preview`
+}
+
+/**
+ * @summary Generate an AI digest preview without sending
+ */
+export const postUserDigestPreview = async ( options?: RequestInit): Promise<DigestContent> => {
+
+  return customFetch<DigestContent>(getPostUserDigestPreviewUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getPostUserDigestPreviewMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postUserDigestPreview>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof postUserDigestPreview>>, TError,void, TContext> => {
+
+const mutationKey = ['postUserDigestPreview'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postUserDigestPreview>>, void> = () => {
+
+
+          return  postUserDigestPreview(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PostUserDigestPreviewMutationResult = NonNullable<Awaited<ReturnType<typeof postUserDigestPreview>>>
+
+    export type PostUserDigestPreviewMutationError = ErrorType<void>
+
+    /**
+ * @summary Generate an AI digest preview without sending
+ */
+export const usePostUserDigestPreview = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postUserDigestPreview>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof postUserDigestPreview>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getPostUserDigestPreviewMutationOptions(options));
+    }
+
+export const getPostUserDigestSendUrl = () => {
+
+
+
+
+  return `/api/user/digest/send`
+}
+
+/**
+ * @summary Generate and send the monthly digest to the user's email
+ */
+export const postUserDigestSend = async ( options?: RequestInit): Promise<PostUserDigestSend200> => {
+
+  return customFetch<PostUserDigestSend200>(getPostUserDigestSendUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getPostUserDigestSendMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postUserDigestSend>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof postUserDigestSend>>, TError,void, TContext> => {
+
+const mutationKey = ['postUserDigestSend'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postUserDigestSend>>, void> = () => {
+
+
+          return  postUserDigestSend(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PostUserDigestSendMutationResult = NonNullable<Awaited<ReturnType<typeof postUserDigestSend>>>
+
+    export type PostUserDigestSendMutationError = ErrorType<void>
+
+    /**
+ * @summary Generate and send the monthly digest to the user's email
+ */
+export const usePostUserDigestSend = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postUserDigestSend>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof postUserDigestSend>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getPostUserDigestSendMutationOptions(options));
+    }
 
 export const getGetEmailConnectionUrl = () => {
 

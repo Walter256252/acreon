@@ -22,6 +22,8 @@ tags:
     description: OpenAI AI chat operations
   - name: email
     description: Per-user email communications sync (IMAP — works with any provider)
+  - name: user
+    description: User preferences and monthly digest
 
 paths:
   /openai/conversations:
@@ -152,6 +154,80 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ProjectionsResponse"
+
+  /user/preferences:
+    get:
+      operationId: getUserPreferences
+      tags: [user]
+      summary: Get the current user's notification preferences
+      responses:
+        "200":
+          description: Preferences
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserPreferences"
+        "401":
+          description: Not authenticated
+    put:
+      operationId: putUserPreferences
+      tags: [user]
+      summary: Update the current user's notification preferences
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserPreferencesInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                required: [success]
+
+  /user/digest/preview:
+    post:
+      operationId: postUserDigestPreview
+      tags: [user]
+      summary: Generate an AI digest preview without sending
+      responses:
+        "200":
+          description: Digest content
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DigestContent"
+        "401":
+          description: Not authenticated
+
+  /user/digest/send:
+    post:
+      operationId: postUserDigestSend
+      tags: [user]
+      summary: Generate and send the monthly digest to the user's email
+      responses:
+        "200":
+          description: Sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  sentTo:
+                    type: string
+                required: [success, sentTo]
+        "400":
+          description: No email address on account
+        "401":
+          description: Not authenticated
 
   /email/connection:
     get:
@@ -953,6 +1029,65 @@ components:
           type: number
         monthlyPaymentTotal:
           type: number
+
+    UserPreferences:
+      type: object
+      required: [monthlyDigestEnabled]
+      properties:
+        monthlyDigestEnabled:
+          type: boolean
+        lastDigestSentAt:
+          type: ["string", "null"]
+
+    UserPreferencesInput:
+      type: object
+      required: [monthlyDigestEnabled]
+      properties:
+        monthlyDigestEnabled:
+          type: boolean
+
+    DigestHighlight:
+      type: object
+      required: [title, description]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+
+    DigestStats:
+      type: object
+      required: [totalProperties, totalEquityFormatted, totalDebtFormatted, avgLtv]
+      properties:
+        totalProperties:
+          type: integer
+        totalEquityFormatted:
+          type: string
+        totalDebtFormatted:
+          type: string
+        avgLtv:
+          type: integer
+
+    DigestContent:
+      type: object
+      required: [greeting, portfolioSummary, highlights, watchItems, closingLine, stats]
+      properties:
+        greeting:
+          type: string
+        portfolioSummary:
+          type: string
+        highlights:
+          type: array
+          items:
+            $ref: "#/components/schemas/DigestHighlight"
+        watchItems:
+          type: array
+          items:
+            $ref: "#/components/schemas/DigestHighlight"
+        closingLine:
+          type: string
+        stats:
+          $ref: "#/components/schemas/DigestStats"
 
     EmailStatus:
       type: object

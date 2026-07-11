@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, PlusCircle, Calculator, Building2, TrendingUp, Mail } from "lucide-react";
+import { LayoutDashboard, PlusCircle, Calculator, Building2, TrendingUp, Mail, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
@@ -10,6 +10,10 @@ const NAV_ITEMS = [
   { href: "/app/communications", label: "Communications", icon: Mail },
   { href: "/app/properties/new", label: "Add Property", icon: PlusCircle },
   { href: "/app/calculator", label: "Calculator", icon: Calculator },
+];
+
+const BOTTOM_NAV_ITEMS = [
+  { href: "/app/settings", label: "Settings", icon: Settings },
 ];
 
 export function Shell({ children }: { children: React.ReactNode }) {
@@ -46,11 +50,26 @@ export function Shell({ children }: { children: React.ReactNode }) {
             );
           })}
         </nav>
-        <div className="p-4 mt-auto">
-          <div className="bg-sidebar-accent/30 rounded-lg p-4 border border-sidebar-border">
-            <h4 className="text-xs font-semibold text-sidebar-foreground/80 uppercase tracking-wider mb-1">Status</h4>
-            <p className="text-xs text-sidebar-foreground/60">Live market data connection active. All systems operational.</p>
-          </div>
+        <div className="px-4 pb-2 mt-auto border-t border-sidebar-border pt-2">
+          {BOTTOM_NAV_ITEMS.map((item) => {
+            const isActive = location === item.href || location.startsWith(item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors cursor-pointer",
+                  isActive
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                )}
+                aria-current={isActive ? "page" : undefined}
+              >
+                <item.icon className="w-4 h-4" />
+                {item.label}
+              </Link>
+            );
+          })}
         </div>
       </aside>
 

@@ -5,3 +5,4 @@ export * from "./messages";
 export * from "./gmailSettings";
 export * from "./emailNotes";
 export * from "./emailConnections";
+export * from "./userPreferences";
