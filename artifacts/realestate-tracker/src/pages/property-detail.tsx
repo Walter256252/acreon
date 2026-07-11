@@ -101,6 +101,7 @@ export default function PropertyDetail() {
 
   const deleteProperty = useDeleteProperty();
   const updateProperty = useUpdateProperty();
+  const updateValue = useUpdateProperty();   // separate instance — never shares isPending with other mutations
   const runCalculator = useRunCalculator();
 
   // Inline current value editing
@@ -119,7 +120,7 @@ export default function PropertyDetail() {
   const handleSaveValue = () => {
     const n = Number(valueInput);
     if (!valueInput || isNaN(n) || n <= 0) return;
-    updateProperty.mutate({ id, data: { currentValue: n } }, {
+    updateValue.mutate({ id, data: { currentValue: n } }, {
       onSuccess: () => {
         setEditingValue(false);
         queryClient.invalidateQueries({ queryKey: getGetPropertyQueryKey(id) });
@@ -521,14 +522,16 @@ export default function PropertyDetail() {
               </div>
               <div className="flex items-center gap-2">
                 <button
+                  type="button"
                   onClick={handleSaveValue}
-                  disabled={updateProperty.isPending}
-                  className="inline-flex items-center gap-1 px-2 py-1 rounded bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
+                  disabled={updateValue.isPending}
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
                 >
                   <Check className="w-3 h-3" />
-                  {updateProperty.isPending ? "Saving…" : "Save"}
+                  {updateValue.isPending ? "Saving…" : "Save"}
                 </button>
                 <button
+                  type="button"
                   onClick={() => setEditingValue(false)}
                   className="text-xs text-muted-foreground hover:text-foreground transition-colors"
                 >
