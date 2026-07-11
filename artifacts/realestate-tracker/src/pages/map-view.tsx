@@ -86,7 +86,7 @@ export default function MapView() {
 
   const { data, isLoading, isError } = useQuery<GeoResponse>({
     queryKey: ["properties-geo-user"],
-    queryFn: () => fetch("/api/properties/geo").then(r => {
+    queryFn: () => fetch("/api/properties-geo").then(r => {
       if (!r.ok) throw new Error("Failed to load");
       return r.json();
     }),

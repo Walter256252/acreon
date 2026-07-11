@@ -175,9 +175,9 @@ router.get("/admin/properties-geo", requireAdmin, async (_req, res) => {
   res.json({ properties, byState });
 });
 
-// GET /api/properties/geo  — user-facing (auth required, not admin-only)
-// Returns the signed-in user's properties with geocodes + city aggregates.
-router.get("/properties/geo", async (req, res) => {
+// GET /api/properties-geo  — user-facing (auth required, not admin-only)
+// Returns all properties with geocodes + city aggregates.
+router.get("/properties-geo", async (req, res) => {
   const userId = uid(req);
   if (!userId) { res.status(401).json({ error: "Not authenticated" }); return; }
 
