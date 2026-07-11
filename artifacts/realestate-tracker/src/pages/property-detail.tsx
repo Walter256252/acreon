@@ -22,6 +22,13 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
   ArrowLeft,
   Edit,
   Trash2,
@@ -104,25 +111,16 @@ export default function PropertyDetail() {
   const updateValue = useUpdateProperty();   // separate instance — never shares isPending with other mutations
   const runCalculator = useRunCalculator();
 
-  // Inline current value editing
-  const [editingValue, setEditingValue] = useState(false);
+  // Inline current value editing via Popover
+  const [valuePopoverOpen, setValuePopoverOpen] = useState(false);
   const [valueInput, setValueInput] = useState("");
-  const valueInputRef = useRef<HTMLInputElement>(null);
-
-  // Seed input whenever edit mode opens so it's always populated
-  useEffect(() => {
-    if (editingValue && property) {
-      setValueInput(String(property.currentValue));
-      setTimeout(() => { valueInputRef.current?.focus(); valueInputRef.current?.select(); }, 30);
-    }
-  }, [editingValue]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSaveValue = () => {
     const n = Number(valueInput);
     if (!valueInput || isNaN(n) || n <= 0) return;
     updateValue.mutate({ id, data: { currentValue: n } }, {
       onSuccess: () => {
-        setEditingValue(false);
+        setValuePopoverOpen(false);
         queryClient.invalidateQueries({ queryKey: getGetPropertyQueryKey(id) });
         queryClient.invalidateQueries({ queryKey: getGetDashboardQueryKey() });
         queryClient.invalidateQueries({ queryKey: getListPropertiesQueryKey() });
@@ -487,71 +485,59 @@ export default function PropertyDetail() {
       })()}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Current Value — inline editable */}
+        {/* Current Value — dialog edit */}
         <Card className="p-6 flex flex-col gap-2 relative overflow-hidden">
           <div className="flex justify-between items-start">
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Current Value</h3>
             <div className="flex items-center gap-1">
-              {!editingValue && (
-                <button
-                  onClick={() => setEditingValue(true)}
-                  className="text-muted-foreground/50 hover:text-primary transition-colors p-0.5 rounded"
-                  title="Update current value"
-                >
-                  <Pencil className="w-3.5 h-3.5" />
-                </button>
-              )}
+              <button
+                type="button"
+                title="Update current value"
+                className="text-muted-foreground/50 hover:text-primary transition-colors p-0.5 rounded"
+                onClick={() => { setValueInput(String(property.currentValue)); setValuePopoverOpen(true); }}
+              >
+                <Pencil className="w-3.5 h-3.5" />
+              </button>
               <Building className="w-5 h-5 text-muted-foreground/50" />
             </div>
           </div>
-
-          {editingValue ? (
-            <div className="flex flex-col gap-2 mt-1">
-              <div className="flex items-center gap-1">
-                <span className="text-lg font-mono text-muted-foreground">$</span>
-                <input
-                  ref={valueInputRef}
-                  type="number"
-                  min="0"
-                  step="1000"
-                  value={valueInput}
-                  onChange={e => setValueInput(e.target.value)}
-                  onKeyDown={e => { if (e.key === "Enter") handleSaveValue(); if (e.key === "Escape") setEditingValue(false); }}
-                  className="flex-1 text-xl font-bold font-mono bg-transparent border-b-2 border-primary outline-none w-full min-w-0"
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleSaveValue}
-                  disabled={updateValue.isPending}
-                  className="inline-flex items-center gap-1 px-2 py-1 rounded bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
-                >
-                  <Check className="w-3 h-3" />
-                  {updateValue.isPending ? "Saving…" : "Save"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setEditingValue(false)}
-                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          ) : (
-            <>
-              <div className="flex items-baseline gap-2 mt-1">
-                <span className="text-3xl font-bold font-mono tracking-tight text-foreground">
-                  {formatCurrency(property.currentValue)}
-                </span>
-              </div>
-              <div className="text-sm text-muted-foreground mt-auto pt-2">
-                Bought {property.yearBought} for {formatCurrency(property.purchasePrice)}
-              </div>
-            </>
-          )}
+          <div className="flex items-baseline gap-2 mt-1">
+            <span className="text-3xl font-bold font-mono tracking-tight text-foreground">
+              {formatCurrency(property.currentValue)}
+            </span>
+          </div>
+          <div className="text-sm text-muted-foreground mt-auto pt-2">
+            Bought {property.yearBought} for {formatCurrency(property.purchasePrice)}
+          </div>
         </Card>
+
+        {/* Update current value dialog */}
+        <Dialog open={valuePopoverOpen} onOpenChange={setValuePopoverOpen}>
+          <DialogContent className="sm:max-w-xs">
+            <DialogHeader>
+              <DialogTitle>Update Current Value</DialogTitle>
+            </DialogHeader>
+            <div className="flex flex-col gap-3 py-2">
+              <Label htmlFor="current-value-input">New value ($)</Label>
+              <Input
+                id="current-value-input"
+                type="number"
+                min="0"
+                step="1000"
+                value={valueInput}
+                onChange={e => setValueInput(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") handleSaveValue(); }}
+                autoFocus
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" type="button" onClick={() => setValuePopoverOpen(false)}>Cancel</Button>
+              <Button type="button" onClick={handleSaveValue} disabled={updateValue.isPending}>
+                {updateValue.isPending ? "Saving…" : "Save"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
         <StatCard
           title="Loan Amount"
           value={formatCurrency(property.loanAmount)}
