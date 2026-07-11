@@ -142,6 +142,10 @@ export default function PropertyDetail() {
   const currentRowRef = useRef<HTMLTableRowElement>(null);
   const tableScrollRef = useRef<HTMLDivElement>(null);
 
+  // Collapse state for the two collapsible sections
+  const [snapCollapsed, setSnapCollapsed] = useState(false);
+  const [schedCollapsed, setSchedCollapsed] = useState(false);
+
   // Monthly cash flow state (taxes, insurance, rent)
   const [taxesVal, setTaxesVal] = useState("");
   const [insuranceVal, setInsuranceVal] = useState("");
@@ -656,67 +660,87 @@ export default function PropertyDetail() {
 
         return (
           <Card>
-            <CardContent className="pt-5 pb-4">
-              <div className="flex items-center gap-2 mb-4">
-                <Receipt className="w-4 h-4 text-primary" />
+            <CardContent className="pt-4 pb-4">
+              <button
+                type="button"
+                onClick={() => setSnapCollapsed(v => !v)}
+                className="flex items-center gap-2 w-full text-left mb-4 group"
+              >
+                <Receipt className="w-4 h-4 text-primary shrink-0" />
                 <h3 className="text-sm font-semibold text-foreground">Monthly Snapshot</h3>
-                <span className="text-xs text-muted-foreground ml-auto">Hover a cell to edit · Schedule below is P&amp;I only</span>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                {snapCollapsed && hasRent && (
+                  <span className={cn(
+                    "text-xs font-semibold ml-2 px-2 py-0.5 rounded-full",
+                    net >= 0 ? "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400" : "bg-red-100 text-red-600 dark:bg-red-950/40 dark:text-red-400",
+                  )}>
+                    {net >= 0 ? "+" : ""}{formatCurrency(net)}/mo
+                  </span>
+                )}
+                <span className="text-xs text-muted-foreground ml-auto mr-1 hidden group-hover:inline">
+                  {snapCollapsed ? "expand" : "collapse"}
+                </span>
+                {snapCollapsed
+                  ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                  : <ChevronUp className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
+              </button>
+              {!snapCollapsed && (
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                    {/* Mortgage P&I — read-only */}
+                    <div className="bg-primary/5 rounded-xl p-4 border border-primary/20 flex flex-col gap-1">
+                      <p className="text-xs text-muted-foreground">Mortgage P&amp;I</p>
+                      <p className="text-lg font-bold text-foreground">{formatCurrency(property.monthlyPayment)}</p>
+                      <p className="text-xs text-muted-foreground/50">Fixed</p>
+                    </div>
 
-                {/* Mortgage P&I — read-only */}
-                <div className="bg-primary/5 rounded-xl p-4 border border-primary/20 flex flex-col gap-1">
-                  <p className="text-xs text-muted-foreground">Mortgage P&amp;I</p>
-                  <p className="text-lg font-bold text-foreground">{formatCurrency(property.monthlyPayment)}</p>
-                  <p className="text-xs text-muted-foreground/50">Fixed</p>
-                </div>
+                    <EditableCell field="taxes"     label="Taxes"               prefix="+"  value={taxesVal}     setValue={setTaxesVal}     placeholder="0"   dimLabel="/mo" />
+                    <EditableCell field="insurance" label="Insurance &amp; Other" prefix="+"  value={insuranceVal} setValue={setInsuranceVal} placeholder="0"   dimLabel="/mo" />
+                    <EditableCell field="rent"      label="Rent Income"         prefix="−"  value={rentVal}      setValue={setRentVal}      placeholder="0"   dimLabel="/mo" />
 
-                <EditableCell field="taxes"     label="Taxes"               prefix="+"  value={taxesVal}     setValue={setTaxesVal}     placeholder="0"   dimLabel="/mo" />
-                <EditableCell field="insurance" label="Insurance &amp; Other" prefix="+"  value={insuranceVal} setValue={setInsuranceVal} placeholder="0"   dimLabel="/mo" />
-                <EditableCell field="rent"      label="Rent Income"         prefix="−"  value={rentVal}      setValue={setRentVal}      placeholder="0"   dimLabel="/mo" />
+                    {/* Net cash flow */}
+                    <div className={cn(
+                      "rounded-xl p-4 border flex flex-col gap-1",
+                      !hasRent
+                        ? "bg-muted/20 border-border"
+                        : net >= 0
+                        ? "bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-900/40"
+                        : "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900/40",
+                    )}>
+                      <p className="text-xs text-muted-foreground">Net / Month</p>
+                      {hasRent ? (
+                        <>
+                          <div className="flex items-center gap-1">
+                            {net >= 0
+                              ? <TrendingUp className="w-3.5 h-3.5 text-green-600 dark:text-green-400 shrink-0" />
+                              : <TrendingDown className="w-3.5 h-3.5 text-red-500 shrink-0" />}
+                            <p className={cn(
+                              "text-lg font-bold",
+                              net >= 0 ? "text-green-700 dark:text-green-400" : "text-red-600 dark:text-red-400",
+                            )}>
+                              {net >= 0 ? "+" : ""}{formatCurrency(net)}
+                            </p>
+                          </div>
+                          <p className="text-xs text-muted-foreground/50">
+                            {net >= 0 ? "Cash flow positive" : "Cash flow negative"}
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-lg font-bold text-muted-foreground/40">—</p>
+                          <p className="text-xs text-muted-foreground/50">Add rent to calculate</p>
+                        </>
+                      )}
+                    </div>
+                  </div>
 
-                {/* Net cash flow */}
-                <div className={cn(
-                  "rounded-xl p-4 border flex flex-col gap-1",
-                  !hasRent
-                    ? "bg-muted/20 border-border"
-                    : net >= 0
-                    ? "bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-900/40"
-                    : "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900/40",
-                )}>
-                  <p className="text-xs text-muted-foreground">Net / Month</p>
-                  {hasRent ? (
-                    <>
-                      <div className="flex items-center gap-1">
-                        {net >= 0
-                          ? <TrendingUp className="w-3.5 h-3.5 text-green-600 dark:text-green-400 shrink-0" />
-                          : <TrendingDown className="w-3.5 h-3.5 text-red-500 shrink-0" />}
-                        <p className={cn(
-                          "text-lg font-bold",
-                          net >= 0 ? "text-green-700 dark:text-green-400" : "text-red-600 dark:text-red-400",
-                        )}>
-                          {net >= 0 ? "+" : ""}{formatCurrency(net)}
-                        </p>
-                      </div>
-                      <p className="text-xs text-muted-foreground/50">
-                        {net >= 0 ? "Cash flow positive" : "Cash flow negative"}
-                      </p>
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-lg font-bold text-muted-foreground/40">—</p>
-                      <p className="text-xs text-muted-foreground/50">Add rent to calculate</p>
-                    </>
+                  {/* Total out summary line */}
+                  {(taxes > 0 || insurance > 0) && (
+                    <p className="text-xs text-muted-foreground mt-3">
+                      Total out: {formatCurrency(totalOut)}/mo
+                      {hasRent && <> · Rent covers {((rent / totalOut) * 100).toFixed(0)}% of expenses</>}
+                    </p>
                   )}
-                </div>
-              </div>
-
-              {/* Total out summary line */}
-              {(taxes > 0 || insurance > 0) && (
-                <p className="text-xs text-muted-foreground mt-3">
-                  Total out: {formatCurrency(totalOut)}/mo
-                  {hasRent && <> · Rent covers {((rent / totalOut) * 100).toFixed(0)}% of expenses</>}
-                </p>
+                </>
               )}
             </CardContent>
           </Card>
@@ -727,15 +751,29 @@ export default function PropertyDetail() {
       <Card>
         <CardHeader className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-xl">Amortization Schedule</CardTitle>
-              <p className="text-sm text-muted-foreground mt-1">
-                {baseSchedule.length} payments &mdash; payoff {baseSchedule.length > 0 ? formatDate(baseSchedule[baseSchedule.length - 1].paymentDate) : "—"}
-                {hasSavedExtras && (
-                  <span className="ml-2 text-primary font-medium">(with extra payments)</span>
-                )}
-              </p>
-            </div>
+            <button
+              type="button"
+              onClick={() => setSchedCollapsed(v => !v)}
+              className="flex items-start gap-3 text-left group"
+            >
+              <div>
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-xl">Amortization Schedule</CardTitle>
+                  <span className="text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+                    {schedCollapsed ? "expand" : "collapse"}
+                  </span>
+                  {schedCollapsed
+                    ? <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                    : <ChevronUp className="w-4 h-4 text-muted-foreground" />}
+                </div>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {baseSchedule.length} payments &mdash; payoff {baseSchedule.length > 0 ? formatDate(baseSchedule[baseSchedule.length - 1].paymentDate) : "—"}
+                  {hasSavedExtras && (
+                    <span className="ml-2 text-primary font-medium">(with extra payments)</span>
+                  )}
+                </p>
+              </div>
+            </button>
             <div className="flex items-center gap-2">
               {/* View mode toggle */}
               <div className="flex items-center rounded-lg border border-border bg-muted/40 p-0.5 text-xs">
@@ -921,7 +959,7 @@ export default function PropertyDetail() {
           )}
         </CardHeader>
 
-        <CardContent>
+        <CardContent className={schedCollapsed ? "hidden" : ""}>
           {showingScenario && scenarioResult && (
             <div className="flex items-center gap-3 mb-3 text-xs">
               <span className="flex items-center gap-1.5">
