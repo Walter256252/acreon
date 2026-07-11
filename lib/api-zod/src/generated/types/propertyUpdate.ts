@@ -25,4 +25,6 @@ export interface PropertyUpdate {
   savedExtraMonthly?: number | null;
   /** @nullable */
   savedExtraPayments?: ExtraPaymentEntry[] | null;
+  /** @nullable */
+  valueLastUpdatedAt?: string | null;
 }

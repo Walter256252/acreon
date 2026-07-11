@@ -38,6 +38,8 @@ import {
   ZapOff,
   Sparkles,
   AlertCircle,
+  RefreshCw,
+  ExternalLink,
 } from "lucide-react";
 import { Link } from "wouter";
 import {
@@ -61,6 +63,18 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+
+function zillowUrl(address: string) {
+  return `https://www.zillow.com/homes/${encodeURIComponent(address)}_rb/`;
+}
+
+function valueStaleness(iso: string | null | undefined): { days: number | null; level: "fresh" | "aging" | "stale" | "never" } {
+  if (!iso) return { days: null, level: "never" };
+  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+  if (days < 30) return { days, level: "fresh" };
+  if (days < 90) return { days, level: "aging" };
+  return { days, level: "stale" };
+}
 
 interface OneTimeExtra {
   paymentNumber: string;
@@ -399,6 +413,36 @@ export default function PropertyDetail() {
       )}
 
       {/* Stats Row */}
+      {(() => {
+        const stale = valueStaleness(property.valueLastUpdatedAt);
+        const showNudge = stale.level !== "fresh";
+        return showNudge ? (
+          <div className={cn(
+            "flex items-center gap-3 px-4 py-3 rounded-lg border text-sm",
+            stale.level === "stale"
+              ? "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-400"
+              : "border-border bg-muted/40 text-muted-foreground"
+          )}>
+            <RefreshCw className="w-4 h-4 flex-shrink-0" />
+            <span className="flex-1">
+              {stale.level === "never"
+                ? "Property value has never been refreshed — check Zillow and update it for accurate equity figures."
+                : `Value last updated ${stale.days} day${stale.days === 1 ? "" : "s"} ago${stale.level === "stale" ? " — consider refreshing for accurate equity." : "."}`}
+            </span>
+            <a
+              href={zillowUrl(property.address)}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={e => e.stopPropagation()}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-background border border-border text-xs font-medium text-foreground hover:bg-muted transition-colors whitespace-nowrap"
+            >
+              Check on Zillow
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          </div>
+        ) : null;
+      })()}
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Current Value"

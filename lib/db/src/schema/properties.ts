@@ -15,6 +15,8 @@ export const propertiesTable = pgTable("properties", {
   loanStartDate: text("loan_start_date").notNull(),
   monthlyPayment: numeric("monthly_payment", { precision: 15, scale: 2 }).notNull(),
   notes: text("notes"),
+  // Valuation tracking
+  valueLastUpdatedAt: timestamp("value_last_updated_at"),
   // Payment tracking
   autoPayEnabled: boolean("auto_pay_enabled").default(true).notNull(),
   savedExtraMonthly: numeric("saved_extra_monthly", { precision: 15, scale: 2 }),

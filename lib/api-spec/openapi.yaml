@@ -672,6 +672,9 @@ components:
           type: number
         notes:
           type: ["string", "null"]
+        valueLastUpdatedAt:
+          type: ["string", "null"]
+          description: ISO timestamp of when currentValue was last manually refreshed
         autoPayEnabled:
           type: boolean
           description: When true, assume all past payments have been made on schedule
@@ -791,6 +794,8 @@ components:
           type: ["array", "null"]
           items:
             $ref: "#/components/schemas/ExtraPaymentEntry"
+        valueLastUpdatedAt:
+          type: ["string", "null"]
 
     Payment:
       type: object

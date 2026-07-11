@@ -350,6 +350,7 @@ export const ListPropertiesResponseItem = zod.object({
   "loanStartDate": zod.string().describe('ISO date string (YYYY-MM-DD)'),
   "monthlyPayment": zod.number(),
   "notes": zod.string().nullish(),
+  "valueLastUpdatedAt": zod.string().nullish().describe('ISO timestamp of when currentValue was last manually refreshed'),
   "autoPayEnabled": zod.boolean().optional().describe('When true, assume all past payments have been made on schedule'),
   "savedExtraMonthly": zod.number().nullish().describe('Persistent extra principal added to every monthly payment'),
   "savedExtraPayments": zod.array(zod.object({
@@ -396,6 +397,7 @@ export const CreatePropertyResponse = zod.object({
   "loanStartDate": zod.string().describe('ISO date string (YYYY-MM-DD)'),
   "monthlyPayment": zod.number(),
   "notes": zod.string().nullish(),
+  "valueLastUpdatedAt": zod.string().nullish().describe('ISO timestamp of when currentValue was last manually refreshed'),
   "autoPayEnabled": zod.boolean().optional().describe('When true, assume all past payments have been made on schedule'),
   "savedExtraMonthly": zod.number().nullish().describe('Persistent extra principal added to every monthly payment'),
   "savedExtraPayments": zod.array(zod.object({
@@ -460,6 +462,7 @@ export const GetPropertyResponse = zod.object({
   "loanStartDate": zod.string().describe('ISO date string (YYYY-MM-DD)'),
   "monthlyPayment": zod.number(),
   "notes": zod.string().nullish(),
+  "valueLastUpdatedAt": zod.string().nullish().describe('ISO timestamp of when currentValue was last manually refreshed'),
   "autoPayEnabled": zod.boolean().optional().describe('When true, assume all past payments have been made on schedule'),
   "savedExtraMonthly": zod.number().nullish().describe('Persistent extra principal added to every monthly payment'),
   "savedExtraPayments": zod.array(zod.object({
@@ -495,7 +498,8 @@ export const UpdatePropertyBody = zod.object({
   "savedExtraPayments": zod.array(zod.object({
   "paymentNumber": zod.number(),
   "amount": zod.number()
-})).nullish()
+})).nullish(),
+  "valueLastUpdatedAt": zod.string().nullish()
 })
 
 export const UpdatePropertyResponse = zod.object({
@@ -511,6 +515,7 @@ export const UpdatePropertyResponse = zod.object({
   "loanStartDate": zod.string().describe('ISO date string (YYYY-MM-DD)'),
   "monthlyPayment": zod.number(),
   "notes": zod.string().nullish(),
+  "valueLastUpdatedAt": zod.string().nullish().describe('ISO timestamp of when currentValue was last manually refreshed'),
   "autoPayEnabled": zod.boolean().optional().describe('When true, assume all past payments have been made on schedule'),
   "savedExtraMonthly": zod.number().nullish().describe('Persistent extra principal added to every monthly payment'),
   "savedExtraPayments": zod.array(zod.object({

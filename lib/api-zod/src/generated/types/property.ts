@@ -23,6 +23,11 @@ export interface Property {
   monthlyPayment: number;
   /** @nullable */
   notes?: string | null;
+  /**
+     * ISO timestamp of when currentValue was last manually refreshed
+     * @nullable
+     */
+  valueLastUpdatedAt?: string | null;
   /** When true, assume all past payments have been made on schedule */
   autoPayEnabled?: boolean;
   /**

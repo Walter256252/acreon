@@ -2,10 +2,19 @@ import { useState } from "react";
 import { useGetDashboard } from "@workspace/api-client-react";
 import { formatCurrency, formatPercent } from "@/lib/utils";
 import { Link } from "wouter";
-import { Building, PlusCircle, List, BarChart2 } from "lucide-react";
+import { Building, PlusCircle, List, BarChart2, ExternalLink } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+
+function zillowUrl(address: string) {
+  return `https://www.zillow.com/homes/${encodeURIComponent(address)}_rb/`;
+}
+
+function valueStaleDays(iso: string | null | undefined): number | null {
+  if (!iso) return null;
+  return Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+}
 
 type ViewMode = "simple" | "detailed";
 
@@ -133,6 +142,28 @@ export default function Properties() {
 
                 <div className="mt-4 pt-4 border-t flex items-center justify-between text-xs text-muted-foreground">
                   <span>View full amortization &rarr;</span>
+                  {(() => {
+                    const days = valueStaleDays(prop.valueLastUpdatedAt);
+                    const stale = days === null || days >= 30;
+                    if (!stale) return null;
+                    return (
+                      <a
+                        href={zillowUrl(prop.address)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={e => e.stopPropagation()}
+                        className={cn(
+                          "inline-flex items-center gap-1 px-2 py-1 rounded font-medium transition-colors",
+                          days === null || days >= 90
+                            ? "text-amber-600 bg-amber-50 hover:bg-amber-100 dark:text-amber-400 dark:bg-amber-950/30"
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        {days === null ? "Value never refreshed" : `Value ${days}d old`}
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    );
+                  })()}
                 </div>
               </Card>
             </Link>
