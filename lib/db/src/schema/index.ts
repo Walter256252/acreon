@@ -7,3 +7,4 @@ export * from "./emailNotes";
 export * from "./emailConnections";
 export * from "./userPreferences";
 export * from "./termsAcceptances";
+export * from "./propertyGeocodes";

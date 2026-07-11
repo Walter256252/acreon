@@ -9,6 +9,7 @@ import projectionsRouter from "./projections";
 import emailRouter from "./email";
 import settingsRouter from "./settings";
 import adminRouter from "./admin";
+import propertiesGeoRouter from "./propertiesGeo";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use(projectionsRouter);
 router.use(emailRouter);
 router.use(settingsRouter);
 router.use(adminRouter);
+router.use(propertiesGeoRouter);
 
 export default router;

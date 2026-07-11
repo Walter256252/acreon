@@ -77,6 +77,9 @@
   "dependencies": {
     "@clerk/react": "^6.12.2",
     "@clerk/themes": "^2.4.57",
+    "@types/leaflet": "^1.9.21",
+    "leaflet": "^1.9.4",
+    "react-leaflet": "^5.0.0",
     "xlsx": "^0.18.5"
   }
 }
