@@ -108,9 +108,17 @@ export default function PropertyDetail() {
   const [valueInput, setValueInput] = useState("");
   const valueInputRef = useRef<HTMLInputElement>(null);
 
+  // Seed input whenever edit mode opens so it's always populated
+  useEffect(() => {
+    if (editingValue && property) {
+      setValueInput(String(property.currentValue));
+      setTimeout(() => { valueInputRef.current?.focus(); valueInputRef.current?.select(); }, 30);
+    }
+  }, [editingValue]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleSaveValue = () => {
-    const n = parseFloat(valueInput.replace(/,/g, ""));
-    if (isNaN(n) || n <= 0) return;
+    const n = Number(valueInput);
+    if (!valueInput || isNaN(n) || n <= 0) return;
     updateProperty.mutate({ id, data: { currentValue: n } }, {
       onSuccess: () => {
         setEditingValue(false);
@@ -485,7 +493,7 @@ export default function PropertyDetail() {
             <div className="flex items-center gap-1">
               {!editingValue && (
                 <button
-                  onClick={() => { setValueInput(String(property.currentValue)); setEditingValue(true); setTimeout(() => valueInputRef.current?.select(), 30); }}
+                  onClick={() => setEditingValue(true)}
                   className="text-muted-foreground/50 hover:text-primary transition-colors p-0.5 rounded"
                   title="Update current value"
                 >
