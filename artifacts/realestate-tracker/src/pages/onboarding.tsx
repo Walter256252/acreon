@@ -111,6 +111,16 @@ export default function Onboarding() {
     setSaving(true);
     setSaveError("");
     try {
+      // 1. Persist acceptance to DB and fire admin notification email
+      const primaryEmail =
+        user!.primaryEmailAddress?.emailAddress ?? "";
+      await fetch("/api/onboarding/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: phone.trim(), email: primaryEmail }),
+      });
+
+      // 2. Store on Clerk user so the gate passes on next load
       await user!.update({
         unsafeMetadata: {
           ...((user!.unsafeMetadata as Record<string, unknown>) ?? {}),

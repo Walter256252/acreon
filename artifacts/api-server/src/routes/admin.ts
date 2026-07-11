@@ -1,8 +1,8 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { getAuth, clerkClient } from "@clerk/express";
 import { db } from "@workspace/db";
-import { propertiesTable, userPreferencesTable } from "@workspace/db";
-import { count } from "drizzle-orm";
+import { propertiesTable, userPreferencesTable, termsAcceptancesTable } from "@workspace/db";
+import { count, desc } from "drizzle-orm";
 import { ReplitConnectors } from "@replit/connectors-sdk";
 import { buildRawEmail } from "../lib/digestSender";
 
@@ -203,6 +203,92 @@ router.post("/admin/broadcast-email", requireAdmin, async (req, res) => {
   }
 
   res.json({ sent, failed, total: recipients.length });
+});
+
+// ── POST /api/onboarding/complete ──────────────────────────────────────────
+// Called by the onboarding page after the user accepts T&C.
+// Logs the acceptance to the DB and sends an email notification to admins.
+
+router.post("/onboarding/complete", async (req, res) => {
+  const userId = uid(req);
+  if (!userId) { res.status(401).json({ error: "Not authenticated" }); return; }
+
+  const { phone, email } = req.body as { phone?: string; email?: string };
+  if (!phone || !email) { res.status(400).json({ error: "phone and email are required" }); return; }
+
+  const ip =
+    (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ??
+    req.socket.remoteAddress ??
+    null;
+  const userAgent = (req.headers["user-agent"] as string | undefined) ?? null;
+
+  // Persist to DB
+  await db.insert(termsAcceptancesTable).values({
+    userId,
+    email,
+    phone,
+    ipAddress: ip,
+    userAgent,
+  });
+
+  // Notify admins via Gmail
+  try {
+    const { data: allUsers } = await clerkClient.users.getUserList({ limit: 500 });
+    const adminEmails = allUsers
+      .filter((u) => u.publicMetadata?.role === "admin")
+      .map((u) => u.emailAddresses.find((e) => e.id === u.primaryEmailAddressId)?.emailAddress)
+      .filter((e): e is string => Boolean(e));
+
+    if (adminEmails.length > 0) {
+      const acceptedAt = new Date().toLocaleString("en-US", { timeZone: "UTC", dateStyle: "long", timeStyle: "short" });
+      const html = `
+        <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px">
+          <h2 style="font-size:18px;color:#1a1a1a;margin-bottom:16px">✅ New User T&amp;C Acceptance — RealTrack</h2>
+          <table style="width:100%;border-collapse:collapse;font-size:14px">
+            <tr><td style="padding:8px 12px;background:#f5f5f5;font-weight:600;width:130px">Email</td><td style="padding:8px 12px;border-bottom:1px solid #eee">${email}</td></tr>
+            <tr><td style="padding:8px 12px;background:#f5f5f5;font-weight:600">Phone</td><td style="padding:8px 12px;border-bottom:1px solid #eee">${phone}</td></tr>
+            <tr><td style="padding:8px 12px;background:#f5f5f5;font-weight:600">Accepted at</td><td style="padding:8px 12px;border-bottom:1px solid #eee">${acceptedAt} UTC</td></tr>
+            <tr><td style="padding:8px 12px;background:#f5f5f5;font-weight:600">IP Address</td><td style="padding:8px 12px;border-bottom:1px solid #eee">${ip ?? "—"}</td></tr>
+          </table>
+          <p style="margin-top:20px;font-size:12px;color:#999">Full acceptance log available in your RealTrack Admin Dashboard → T&amp;C Acceptances.</p>
+        </div>`;
+      const text = `New T&C acceptance on RealTrack\n\nEmail: ${email}\nPhone: ${phone}\nAccepted at: ${acceptedAt} UTC\nIP: ${ip ?? "—"}`;
+
+      const connectors = new ReplitConnectors();
+      const gmail = connectors.gmail as {
+        request: (opts: { method: string; path: string; body?: unknown }) => Promise<unknown>;
+      };
+      for (const adminEmail of adminEmails) {
+        await gmail.request({
+          method: "POST",
+          path: "/gmail/v1/users/me/messages/send",
+          body: { raw: buildRawEmail(adminEmail, "New user accepted T&C — RealTrack", html, text) },
+        }).catch(() => { /* don't block signup if email fails */ });
+      }
+    }
+  } catch {
+    // Email notification is best-effort — don't fail the request
+  }
+
+  res.json({ success: true });
+});
+
+// ── GET /admin/terms-acceptances ───────────────────────────────────────────
+
+router.get("/admin/terms-acceptances", requireAdmin, async (_req, res) => {
+  const rows = await db
+    .select()
+    .from(termsAcceptancesTable)
+    .orderBy(desc(termsAcceptancesTable.acceptedAt));
+  res.json(rows.map((r) => ({
+    id: r.id,
+    userId: r.userId,
+    email: r.email,
+    phone: r.phone,
+    ipAddress: r.ipAddress ?? null,
+    userAgent: r.userAgent ?? null,
+    acceptedAt: r.acceptedAt.toISOString(),
+  })));
 });
 
 export default router;

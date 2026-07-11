@@ -3,7 +3,7 @@ import { useUser } from "@clerk/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ShieldCheck, Users, Building2, Mail, Crown, UserX, Loader2,
-  RefreshCw, Activity, Search, Send,
+  RefreshCw, Activity, Search, Send, FileCheck,
 } from "lucide-react";
 import { StatCard } from "@/components/ui/stat-card";
 import { Badge } from "@/components/ui/badge";
@@ -67,6 +67,22 @@ async function setAdminRole(userId: string, action: "make" | "remove"): Promise<
     const body = await res.json().catch(() => ({}));
     throw new Error(body.error ?? "Failed");
   }
+}
+
+interface TermsAcceptance {
+  id: number;
+  userId: string;
+  email: string;
+  phone: string;
+  ipAddress: string | null;
+  userAgent: string | null;
+  acceptedAt: string;
+}
+
+async function fetchTermsAcceptances(): Promise<TermsAcceptance[]> {
+  const res = await fetch("/api/admin/terms-acceptances");
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
 }
 
 async function broadcastEmail(subject: string, message: string): Promise<{ sent: number; failed: number; total: number }> {
@@ -151,6 +167,14 @@ export default function AdminDashboard() {
       queryClient.invalidateQueries({ queryKey: ["admin-stats"] });
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  // T&C acceptances log
+  const { data: acceptances, isLoading: acceptancesLoading } = useQuery<TermsAcceptance[]>({
+    queryKey: ["admin-terms-acceptances"],
+    queryFn: fetchTermsAcceptances,
+    enabled: isAdmin,
+    staleTime: 0,
   });
 
   // Broadcast email
@@ -371,6 +395,60 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* T&C Acceptances */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base font-semibold">
+            <FileCheck className="w-4 h-4" />
+            T&amp;C Acceptances
+            <span className="ml-auto text-xs font-normal text-muted-foreground">
+              {acceptances ? `${acceptances.length} record${acceptances.length !== 1 ? "s" : ""}` : ""}
+            </span>
+          </CardTitle>
+          <CardDescription>
+            Every user who accepted the Terms of Service &amp; Liability Disclaimer, with timestamp and IP for your records.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-0">
+          {acceptancesLoading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : !acceptances || acceptances.length === 0 ? (
+            <div className="text-center py-10 text-sm text-muted-foreground">
+              No acceptances recorded yet.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Phone</TableHead>
+                    <TableHead>Accepted</TableHead>
+                    <TableHead>IP Address</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {acceptances.map((a) => (
+                    <TableRow key={a.id}>
+                      <TableCell className="text-sm font-medium">{a.email}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground font-mono">{a.phone}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                        {new Date(a.acceptedAt).toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground font-mono">
+                        {a.ipAddress ?? "—"}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Users table */}
       <Card>
