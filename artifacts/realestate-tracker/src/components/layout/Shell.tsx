@@ -4,10 +4,10 @@ import { LayoutDashboard, PlusCircle, Calculator, Building2, TrendingUp } from "
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
-  { href: "/", label: "Portfolio", icon: LayoutDashboard },
-  { href: "/projections", label: "Projections", icon: TrendingUp },
-  { href: "/properties/new", label: "Add Property", icon: PlusCircle },
-  { href: "/calculator", label: "Calculator", icon: Calculator },
+  { href: "/app", label: "Portfolio", icon: LayoutDashboard },
+  { href: "/app/projections", label: "Projections", icon: TrendingUp },
+  { href: "/app/properties/new", label: "Add Property", icon: PlusCircle },
+  { href: "/app/calculator", label: "Calculator", icon: Calculator },
 ];
 
 export function Shell({ children }: { children: React.ReactNode }) {
@@ -25,7 +25,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
         </div>
         <nav className="flex-1 px-4 space-y-1">
           {NAV_ITEMS.map((item) => {
-            const isActive = location === item.href || (item.href !== "/" && location.startsWith(item.href));
+            const isActive = location === item.href || (item.href !== "/app" && location.startsWith(item.href));
             return (
               <Link
                 key={item.href}
@@ -36,6 +36,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
                     ? "bg-sidebar-accent text-sidebar-accent-foreground"
                     : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
                 )}
+              aria-current={isActive ? "page" : undefined}
               >
                 <item.icon className="w-4 h-4" />
                 {item.label}

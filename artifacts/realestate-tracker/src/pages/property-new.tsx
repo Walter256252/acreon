@@ -84,7 +84,7 @@ export default function PropertyNew() {
   return (
     <div className="max-w-3xl mx-auto space-y-6 animate-in fade-in duration-300">
       <div>
-        <Link href="/" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors">
+        <Link href="/app" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors">
           <ArrowLeft className="w-4 h-4 mr-1" />
           Back to Dashboard
         </Link>

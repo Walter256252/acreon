@@ -11,7 +11,7 @@ export default function NotFound() {
       <h1 className="text-4xl font-bold tracking-tight mb-2">404</h1>
       <p className="text-xl text-muted-foreground mb-8">This property could not be found.</p>
       <Button asChild size="lg">
-        <Link href="/">Return to Dashboard</Link>
+        <Link href="/app">Return to Dashboard</Link>
       </Button>
     </div>
   );
