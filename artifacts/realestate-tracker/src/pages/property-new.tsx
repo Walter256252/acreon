@@ -45,6 +45,7 @@ const formSchema = z.object({
   loanStartDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD"),
   monthlyPayment: z.coerce.number().min(0, "Must be positive"),
   notes: z.string().optional(),
+  zillowUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
 });
 
 // ─── Spreadsheet import helpers ──────────────────────────────────────────────
@@ -481,13 +482,14 @@ export default function PropertyNew() {
       loanStartDate: new Date().toISOString().split("T")[0],
       monthlyPayment: 0,
       notes: "",
+      zillowUrl: "",
     },
   });
 
   const createProperty = useCreateProperty();
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    createProperty.mutate({ data: values }, {
+    createProperty.mutate({ data: { ...values, zillowUrl: values.zillowUrl || undefined } }, {
       onSuccess: (property) => {
         toast({ title: "Property Added", description: "Successfully added to your portfolio." });
         queryClient.invalidateQueries({ queryKey: getListPropertiesQueryKey() });
@@ -629,6 +631,22 @@ export default function PropertyNew() {
                     </FormItem>
                   )} />
                 </div>
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold border-b pb-2">Zillow Listing</h3>
+                <FormField control={form.control} name="zillowUrl" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Zillow Listing URL <span className="text-muted-foreground font-normal">(optional)</span></FormLabel>
+                    <FormControl>
+                      <Input type="url" placeholder="https://www.zillow.com/homedetails/..." {...field} value={field.value ?? ""} />
+                    </FormControl>
+                    <FormDescription>
+                      Paste the exact Zillow listing URL — the "Check Zillow listing" button on the property page will link directly to it.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )} />
               </div>
 
               <div className="space-y-4">

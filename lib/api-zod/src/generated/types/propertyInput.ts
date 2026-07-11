@@ -20,4 +20,5 @@ export interface PropertyInput {
   loanStartDate: string;
   monthlyPayment: number;
   notes?: string;
+  zillowUrl?: string;
 }

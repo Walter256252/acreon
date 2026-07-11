@@ -34,6 +34,7 @@ router.post("/properties", async (req, res) => {
     loanStartDate: body.loanStartDate,
     monthlyPayment: String(body.monthlyPayment),
     notes: body.notes ?? null,
+    zillowUrl: body.zillowUrl ?? null,
   }).returning();
   res.status(201).json(toApiProperty(row));
 });

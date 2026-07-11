@@ -382,7 +382,8 @@ export const CreatePropertyBody = zod.object({
   "loanTermYears": zod.number(),
   "loanStartDate": zod.string(),
   "monthlyPayment": zod.number(),
-  "notes": zod.string().optional()
+  "notes": zod.string().optional(),
+  "zillowUrl": zod.string().optional()
 })
 
 export const CreatePropertyResponse = zod.object({
@@ -430,7 +431,8 @@ export const BulkImportPropertiesBody = zod.object({
   "loanTermYears": zod.number(),
   "loanStartDate": zod.string(),
   "monthlyPayment": zod.number(),
-  "notes": zod.string().optional()
+  "notes": zod.string().optional(),
+  "zillowUrl": zod.string().optional()
 }))
 })
 
