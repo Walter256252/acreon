@@ -108,7 +108,7 @@ export default function PropertyEdit() {
         queryClient.invalidateQueries({ queryKey: getListPropertiesQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetDashboardQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetAmortizationScheduleQueryKey(id) });
-        setLocation(`/properties/${id}`);
+        setLocation(`/app/properties/${id}`);
       },
       onError: () => {
         toast({
@@ -132,7 +132,7 @@ export default function PropertyEdit() {
   return (
     <div className="max-w-3xl mx-auto space-y-6 animate-in fade-in duration-300">
       <div>
-        <Link href={`/properties/${id}`} className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors">
+        <Link href={`/app/properties/${id}`} className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors">
           <ArrowLeft className="w-4 h-4 mr-1" />
           Back to Property
         </Link>
