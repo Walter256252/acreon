@@ -147,31 +147,29 @@ export default function MapView() {
         </p>
       </div>
 
-      {/* Portfolio summary cards */}
+      {/* Portfolio summary strip */}
       {data && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
-            title="Properties"
-            value={totals.count.toString()}
-            icon={<Building2 className="w-5 h-5 text-muted-foreground" />}
-            subtext={`across ${(data.byCity ?? []).length} ${data.byCity.length === 1 ? "city" : "cities"}`}
-          />
-          <StatCard
-            title="Total Value"
-            value={formatCurrency(totals.value)}
-            icon={<DollarSign className="w-5 h-5 text-muted-foreground" />}
-          />
-          <StatCard
-            title="Total Equity"
-            value={formatCurrency(totals.equity)}
-            icon={<TrendingUp className="w-5 h-5 text-emerald-600" />}
-            subtext={`${formatPercent(totals.value > 0 ? (totals.equity / totals.value) * 100 : 0)} of value`}
-          />
-          <StatCard
-            title="Total Debt"
-            value={formatCurrency(totals.debt)}
-            icon={<Landmark className="w-5 h-5 text-destructive" />}
-          />
+        <div className="flex flex-wrap gap-px rounded-lg border overflow-hidden text-sm">
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-card flex-1 min-w-[120px]">
+            <Building2 className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+            <span className="text-muted-foreground whitespace-nowrap">Properties</span>
+            <span className="font-semibold text-foreground ml-auto">{totals.count}</span>
+          </div>
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-card flex-1 min-w-[140px]">
+            <DollarSign className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+            <span className="text-muted-foreground whitespace-nowrap">Total Value</span>
+            <span className="font-semibold text-foreground ml-auto">{formatCurrency(totals.value)}</span>
+          </div>
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-card flex-1 min-w-[140px]">
+            <TrendingUp className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+            <span className="text-muted-foreground whitespace-nowrap">Equity</span>
+            <span className="font-semibold text-emerald-700 dark:text-emerald-400 ml-auto">{formatCurrency(totals.equity)}</span>
+          </div>
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-card flex-1 min-w-[140px]">
+            <Landmark className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+            <span className="text-muted-foreground whitespace-nowrap">Total Debt</span>
+            <span className="font-semibold text-foreground ml-auto">{formatCurrency(totals.debt)}</span>
+          </div>
         </div>
       )}
 
