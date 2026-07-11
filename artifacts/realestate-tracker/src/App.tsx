@@ -20,6 +20,7 @@ import Communications from "@/pages/communications";
 import PropertyCommunications from "@/pages/property-communications";
 import SettingsPage from "@/pages/settings";
 import AdminDashboard from "@/pages/admin";
+import Comparison from "@/pages/comparison";
 import NotFound from "@/pages/not-found";
 
 // REQUIRED — copy verbatim.
@@ -151,6 +152,7 @@ function AppRoute() {
             <Route path="/app/communications/:id" component={PropertyCommunications} />
             <Route path="/app/communications" component={Communications} />
             <Route path="/app/calculator" component={Calculator} />
+            <Route path="/app/comparison" component={Comparison} />
             <Route path="/app/settings" component={SettingsPage} />
             <Route path="/app/admin" component={AdminDashboard} />
             <Route component={NotFound} />
