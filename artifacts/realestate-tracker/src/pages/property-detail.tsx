@@ -50,6 +50,8 @@ import {
   ExternalLink,
   Pencil,
   Check,
+  Receipt,
+  TrendingUp,
 } from "lucide-react";
 import { Link } from "wouter";
 import {
@@ -139,6 +141,37 @@ export default function PropertyDetail() {
   const [viewMode, setViewMode] = useState<"all" | "current">("current");
   const currentRowRef = useRef<HTMLTableRowElement>(null);
   const tableScrollRef = useRef<HTMLDivElement>(null);
+
+  // Monthly cash flow state (taxes, insurance, rent)
+  const [taxesVal, setTaxesVal] = useState("");
+  const [insuranceVal, setInsuranceVal] = useState("");
+  const [rentVal, setRentVal] = useState("");
+  const [cfEditing, setCfEditing] = useState<"taxes" | "insurance" | "rent" | null>(null);
+
+  // Sync cash flow fields when property loads or changes
+  useEffect(() => {
+    if (property) {
+      setTaxesVal(property.monthlyTaxes != null ? String(property.monthlyTaxes) : "");
+      setInsuranceVal(property.monthlyInsurance != null ? String(property.monthlyInsurance) : "");
+      setRentVal(property.monthlyRent != null ? String(property.monthlyRent) : "");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [property?.id]);
+
+  const handleSaveCashFlow = (field: "taxes" | "insurance" | "rent") => {
+    const map = {
+      taxes:     { val: taxesVal,     key: "monthlyTaxes"     as const },
+      insurance: { val: insuranceVal, key: "monthlyInsurance"  as const },
+      rent:      { val: rentVal,      key: "monthlyRent"       as const },
+    };
+    const { val, key } = map[field];
+    const n = parseFloat(val.replace(/[$,\s]/g, ""));
+    const finalVal = isNaN(n) || n < 0 ? null : n;
+    setCfEditing(null);
+    updateProperty.mutate({ id, data: { [key]: finalVal } }, {
+      onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetPropertyQueryKey(id) }),
+    });
+  };
 
   // Scenario state
   const [scenarioOpen, setScenarioOpen] = useState(false);
@@ -561,6 +594,134 @@ export default function PropertyDetail() {
           icon={<DollarSign className="w-5 h-5 text-muted-foreground" />}
         />
       </div>
+
+      {/* Monthly Cash Flow Bar */}
+      {(() => {
+        const taxes     = parseFloat(taxesVal)     || 0;
+        const insurance = parseFloat(insuranceVal) || 0;
+        const rent      = parseFloat(rentVal)      || 0;
+        const totalOut  = property.monthlyPayment + taxes + insurance;
+        const net       = rent - totalOut;
+        const hasRent   = rent > 0;
+
+        type CfField = "taxes" | "insurance" | "rent";
+
+        function EditableCell({
+          field, label, prefix, value, setValue, placeholder, dimLabel,
+        }: {
+          field: CfField; label: string; prefix: string;
+          value: string; setValue: (v: string) => void;
+          placeholder: string; dimLabel?: string;
+        }) {
+          const isEditing = cfEditing === field;
+          return (
+            <div className="bg-muted/30 rounded-xl p-4 border border-border flex flex-col gap-1 relative group">
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <span className="font-medium text-muted-foreground/60">{prefix}</span> {label}
+              </p>
+              {isEditing ? (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-muted-foreground text-sm">$</span>
+                  <input
+                    autoFocus
+                    type="number"
+                    min="0"
+                    step="10"
+                    value={value}
+                    onChange={e => setValue(e.target.value)}
+                    onBlur={() => handleSaveCashFlow(field)}
+                    onKeyDown={e => { if (e.key === "Enter") handleSaveCashFlow(field); if (e.key === "Escape") setCfEditing(null); }}
+                    className="w-full bg-background border border-primary rounded px-2 py-0.5 text-sm font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    placeholder={placeholder}
+                  />
+                </div>
+              ) : (
+                <div className="flex items-center justify-between">
+                  <p className={cn("text-lg font-bold", value ? "text-foreground" : "text-muted-foreground/40")}>
+                    {value ? formatCurrency(parseFloat(value)) : "—"}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setCfEditing(field)}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground/50 hover:text-primary p-0.5"
+                  >
+                    <Pencil className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
+              {dimLabel && <p className="text-xs text-muted-foreground/50">{dimLabel}</p>}
+            </div>
+          );
+        }
+
+        return (
+          <Card>
+            <CardContent className="pt-5 pb-4">
+              <div className="flex items-center gap-2 mb-4">
+                <Receipt className="w-4 h-4 text-primary" />
+                <h3 className="text-sm font-semibold text-foreground">Monthly Snapshot</h3>
+                <span className="text-xs text-muted-foreground ml-auto">Hover a cell to edit · Schedule below is P&amp;I only</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+
+                {/* Mortgage P&I — read-only */}
+                <div className="bg-primary/5 rounded-xl p-4 border border-primary/20 flex flex-col gap-1">
+                  <p className="text-xs text-muted-foreground">Mortgage P&amp;I</p>
+                  <p className="text-lg font-bold text-foreground">{formatCurrency(property.monthlyPayment)}</p>
+                  <p className="text-xs text-muted-foreground/50">Fixed</p>
+                </div>
+
+                <EditableCell field="taxes"     label="Taxes"               prefix="+"  value={taxesVal}     setValue={setTaxesVal}     placeholder="0"   dimLabel="/mo" />
+                <EditableCell field="insurance" label="Insurance &amp; Other" prefix="+"  value={insuranceVal} setValue={setInsuranceVal} placeholder="0"   dimLabel="/mo" />
+                <EditableCell field="rent"      label="Rent Income"         prefix="−"  value={rentVal}      setValue={setRentVal}      placeholder="0"   dimLabel="/mo" />
+
+                {/* Net cash flow */}
+                <div className={cn(
+                  "rounded-xl p-4 border flex flex-col gap-1",
+                  !hasRent
+                    ? "bg-muted/20 border-border"
+                    : net >= 0
+                    ? "bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-900/40"
+                    : "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900/40",
+                )}>
+                  <p className="text-xs text-muted-foreground">Net / Month</p>
+                  {hasRent ? (
+                    <>
+                      <div className="flex items-center gap-1">
+                        {net >= 0
+                          ? <TrendingUp className="w-3.5 h-3.5 text-green-600 dark:text-green-400 shrink-0" />
+                          : <TrendingDown className="w-3.5 h-3.5 text-red-500 shrink-0" />}
+                        <p className={cn(
+                          "text-lg font-bold",
+                          net >= 0 ? "text-green-700 dark:text-green-400" : "text-red-600 dark:text-red-400",
+                        )}>
+                          {net >= 0 ? "+" : ""}{formatCurrency(net)}
+                        </p>
+                      </div>
+                      <p className="text-xs text-muted-foreground/50">
+                        {net >= 0 ? "Cash flow positive" : "Cash flow negative"}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-lg font-bold text-muted-foreground/40">—</p>
+                      <p className="text-xs text-muted-foreground/50">Add rent to calculate</p>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Total out summary line */}
+              {(taxes > 0 || insurance > 0) && (
+                <p className="text-xs text-muted-foreground mt-3">
+                  Total out: {formatCurrency(totalOut)}/mo
+                  {hasRent && <> · Rent covers {((rent / totalOut) * 100).toFixed(0)}% of expenses</>}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {/* Amortization + Scenario */}
       <Card>

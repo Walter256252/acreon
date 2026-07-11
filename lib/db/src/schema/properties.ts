@@ -22,6 +22,10 @@ export const propertiesTable = pgTable("properties", {
   autoPayEnabled: boolean("auto_pay_enabled").default(true).notNull(),
   savedExtraMonthly: numeric("saved_extra_monthly", { precision: 15, scale: 2 }),
   savedExtraPayments: jsonb("saved_extra_payments").$type<Array<{ paymentNumber: number; amount: number }>>(),
+  // Monthly cost tracking (does not affect amortization schedule)
+  monthlyTaxes: numeric("monthly_taxes", { precision: 15, scale: 2 }),
+  monthlyInsurance: numeric("monthly_insurance", { precision: 15, scale: 2 }),
+  monthlyRent: numeric("monthly_rent", { precision: 15, scale: 2 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

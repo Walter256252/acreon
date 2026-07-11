@@ -69,6 +69,9 @@ router.put("/properties/:id", async (req, res) => {
   if ("savedExtraPayments" in body) updates.savedExtraPayments = body.savedExtraPayments ?? null;
   if (body.currentValue !== undefined) updates.valueLastUpdatedAt = new Date();
   if ("zillowUrl" in body) updates.zillowUrl = body.zillowUrl ?? null;
+  if ("monthlyTaxes" in body) updates.monthlyTaxes = body.monthlyTaxes != null ? String(body.monthlyTaxes) : null;
+  if ("monthlyInsurance" in body) updates.monthlyInsurance = body.monthlyInsurance != null ? String(body.monthlyInsurance) : null;
+  if ("monthlyRent" in body) updates.monthlyRent = body.monthlyRent != null ? String(body.monthlyRent) : null;
 
   const [row] = await db.update(propertiesTable).set(updates).where(eq(propertiesTable.id, id)).returning();
   if (!row) { res.status(404).json({ error: "Property not found" }); return; }
@@ -134,6 +137,9 @@ function toApiProperty(row: typeof propertiesTable.$inferSelect) {
     savedExtraPayments: (row.savedExtraPayments as Array<{ paymentNumber: number; amount: number }> | null) ?? null,
     valueLastUpdatedAt: row.valueLastUpdatedAt ? row.valueLastUpdatedAt.toISOString() : null,
     zillowUrl: row.zillowUrl ?? null,
+    monthlyTaxes: row.monthlyTaxes != null ? Number(row.monthlyTaxes) : null,
+    monthlyInsurance: row.monthlyInsurance != null ? Number(row.monthlyInsurance) : null,
+    monthlyRent: row.monthlyRent != null ? Number(row.monthlyRent) : null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

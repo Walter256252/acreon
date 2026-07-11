@@ -358,6 +358,9 @@ export const ListPropertiesResponseItem = zod.object({
   "paymentNumber": zod.number(),
   "amount": zod.number()
 })).nullish().describe('Persistent one-time extra payments by payment number'),
+  "monthlyTaxes": zod.number().nullish(),
+  "monthlyInsurance": zod.number().nullish(),
+  "monthlyRent": zod.number().nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -407,6 +410,9 @@ export const CreatePropertyResponse = zod.object({
   "paymentNumber": zod.number(),
   "amount": zod.number()
 })).nullish().describe('Persistent one-time extra payments by payment number'),
+  "monthlyTaxes": zod.number().nullish(),
+  "monthlyInsurance": zod.number().nullish(),
+  "monthlyRent": zod.number().nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -474,6 +480,9 @@ export const GetPropertyResponse = zod.object({
   "paymentNumber": zod.number(),
   "amount": zod.number()
 })).nullish().describe('Persistent one-time extra payments by payment number'),
+  "monthlyTaxes": zod.number().nullish(),
+  "monthlyInsurance": zod.number().nullish(),
+  "monthlyRent": zod.number().nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -505,7 +514,10 @@ export const UpdatePropertyBody = zod.object({
   "amount": zod.number()
 })).nullish(),
   "valueLastUpdatedAt": zod.string().nullish(),
-  "zillowUrl": zod.string().nullish()
+  "zillowUrl": zod.string().nullish(),
+  "monthlyTaxes": zod.number().nullish(),
+  "monthlyInsurance": zod.number().nullish(),
+  "monthlyRent": zod.number().nullish()
 })
 
 export const UpdatePropertyResponse = zod.object({
@@ -529,6 +541,9 @@ export const UpdatePropertyResponse = zod.object({
   "paymentNumber": zod.number(),
   "amount": zod.number()
 })).nullish().describe('Persistent one-time extra payments by payment number'),
+  "monthlyTaxes": zod.number().nullish(),
+  "monthlyInsurance": zod.number().nullish(),
+  "monthlyRent": zod.number().nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
