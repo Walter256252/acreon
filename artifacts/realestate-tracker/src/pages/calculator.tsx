@@ -35,11 +35,12 @@ import {
   Target,
   ArrowDown,
   BarChart3,
-  Loader2,
-  TrendingDown,
   ChevronDown,
   ChevronUp,
   Building2,
+  TrendingUp,
+  TrendingDown,
+  Minus,
 } from "lucide-react";
 import { StatCard } from "@/components/ui/stat-card";
 import { Label } from "recharts";
@@ -49,26 +50,10 @@ import { Label } from "recharts";
 interface Property {
   id: number;
   name: string;
-  address: string;
   loanAmount: number;
   interestRate: number;
-  loanTermYears: number;
-  loanStartDate: string | null;
   monthlyPayment: number;
-}
-
-interface CalcSummary {
-  monthsSaved: number;
-  interestSaved: number;
-  payoffDate: string;
-  totalInterest: number;
-  totalPayments: number;
-}
-
-interface PropertyImpact {
-  property: Property;
-  summary: CalcSummary | null;
-  status: "loading" | "done" | "error";
+  currentValue: number;
 }
 
 // ── Form schema ────────────────────────────────────────────────────────────
@@ -92,255 +77,248 @@ const formSchema = z.object({
 
 // ── Portfolio impact panel ─────────────────────────────────────────────────
 
-function PortfolioImpact({
-  extraPaymentMonthly,
-  extraPayments,
-}: {
-  extraPaymentMonthly: number;
-  extraPayments: { paymentNumber: number; amount: number }[];
-}) {
-  const [impacts, setImpacts] = useState<PropertyImpact[]>([]);
-  const [hasRun, setHasRun] = useState(false);
-  const [running, setRunning] = useState(false);
-  const [open, setOpen] = useState(true);
+interface PortfolioImpactProps {
+  loanAmount: number;
+  interestRate: number;
+  monthlyPayment: number;
+  loanTermYears: number;
+  totalInterest: number | null; // from calc result
+}
 
-  const { data: properties = [], isLoading: propsLoading } = useQuery<Property[]>({
+function DeltaRow({
+  label,
+  before,
+  after,
+  format,
+  highlight,
+}: {
+  label: string;
+  before: string;
+  after: string;
+  format?: "up-bad" | "neutral";
+  highlight?: boolean;
+}) {
+  return (
+    <div className={cn("grid grid-cols-3 gap-2 py-2.5 text-sm border-b border-border last:border-0", highlight && "font-semibold")}>
+      <span className="text-muted-foreground col-span-1">{label}</span>
+      <span className="text-foreground text-right">{before}</span>
+      <span className={cn("text-right", format === "up-bad" ? "text-orange-500 dark:text-orange-400" : "text-foreground")}>
+        {after}
+      </span>
+    </div>
+  );
+}
+
+function PortfolioImpact({ loanAmount, interestRate, monthlyPayment, loanTermYears, totalInterest }: PortfolioImpactProps) {
+  const [open, setOpen] = useState(true);
+  const [showBreakdown, setShowBreakdown] = useState(false);
+
+  const { data: properties = [], isLoading } = useQuery<Property[]>({
     queryKey: ["/api/properties"],
     queryFn: () => fetch("/api/properties").then((r) => r.json()),
   });
 
-  const hasScenario = extraPaymentMonthly > 0 || extraPayments.length > 0;
-
-  const handleAnalyze = async () => {
-    if (!properties.length) return;
-    setRunning(true);
-    setHasRun(true);
-    setImpacts(
-      properties.map((p) => ({ property: p, summary: null, status: "loading" })),
-    );
-
-    const settled = await Promise.all(
-      properties.map(async (p): Promise<PropertyImpact> => {
-        try {
-          const resp = await fetch("/api/calculator", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              loanAmount: p.loanAmount,
-              interestRate: p.interestRate,
-              loanTermYears: p.loanTermYears,
-              loanStartDate: p.loanStartDate ?? new Date().toISOString().slice(0, 10),
-              monthlyPayment: p.monthlyPayment,
-              extraPaymentMonthly,
-              extraPayments,
-            }),
-          });
-          if (!resp.ok) throw new Error("calc failed");
-          const data = await resp.json();
-          return { property: p, summary: data.summary as CalcSummary, status: "done" };
-        } catch {
-          return { property: p, summary: null, status: "error" };
-        }
-      }),
-    );
-
-    setImpacts(settled.sort((a, b) => (b.summary?.interestSaved ?? 0) - (a.summary?.interestSaved ?? 0)));
-    setRunning(false);
-  };
-
-  // Aggregate totals
-  const doneImpacts = impacts.filter((i) => i.status === "done" && i.summary);
-  const totalInterestSaved = doneImpacts.reduce((s, i) => s + (i.summary?.interestSaved ?? 0), 0);
-  const avgMonthsSaved =
-    doneImpacts.length > 0
-      ? Math.round(doneImpacts.reduce((s, i) => s + (i.summary?.monthsSaved ?? 0), 0) / doneImpacts.length)
+  // Current portfolio totals
+  const currentDebt      = properties.reduce((s, p) => s + (p.loanAmount ?? 0), 0);
+  const currentMonthly   = properties.reduce((s, p) => s + (p.monthlyPayment ?? 0), 0);
+  const currentValue     = properties.reduce((s, p) => s + (p.currentValue ?? 0), 0);
+  const currentEquity    = currentValue - currentDebt;
+  const currentAvgRate   =
+    currentDebt > 0
+      ? properties.reduce((s, p) => s + (Number(p.interestRate) || 0) * (Number(p.loanAmount) || 0), 0) / currentDebt
       : 0;
-  const propertiesWithSavings = doneImpacts.filter((i) => (i.summary?.interestSaved ?? 0) > 0).length;
+
+  // After adding this loan
+  const newDebt     = currentDebt + loanAmount;
+  const newMonthly  = currentMonthly + monthlyPayment;
+  const newAvgRate  =
+    newDebt > 0 && loanAmount > 0
+      ? (currentAvgRate * currentDebt + Number(interestRate) * loanAmount) / newDebt
+      : Number(currentAvgRate) || 0;
+  const debtShare   = newDebt > 0 ? (loanAmount / newDebt) * 100 : 100;
+  const rateDelta   = newAvgRate - currentAvgRate;
+
+  const hasPortfolio = properties.length > 0;
 
   return (
     <Card className="border-primary/20">
-      {/* Header — always visible */}
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="w-full text-left"
-      >
+      <button type="button" onClick={() => setOpen((v) => !v)} className="w-full text-left">
         <CardHeader className="bg-muted/30 border-b">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <BarChart3 className="w-5 h-5 text-primary" />
               <CardTitle className="text-lg">Portfolio Impact</CardTitle>
             </div>
-            <div className="flex items-center gap-2">
-              {doneImpacts.length > 0 && (
-                <span className="text-xs text-primary font-medium bg-primary/10 px-2.5 py-0.5 rounded-full">
-                  {formatCurrency(totalInterestSaved)} total saved
-                </span>
-              )}
-              {open ? (
-                <ChevronUp className="w-4 h-4 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="w-4 h-4 text-muted-foreground" />
-              )}
-            </div>
+            {open ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
           </div>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Apply these extra payments to every property in your portfolio and see the combined effect.
+            How adding this property would shift your overall portfolio.
           </p>
         </CardHeader>
       </button>
 
       {open && (
         <CardContent className="pt-5 space-y-5">
-          {/* Scenario hint */}
-          {!hasScenario && (
-            <div className="flex items-start gap-2 text-sm text-muted-foreground bg-muted/30 rounded-lg p-3">
-              <TrendingDown className="w-4 h-4 shrink-0 mt-0.5" />
-              <span>
-                Set a <strong>Monthly Extra</strong> or add a one-time lump sum in the form above, then analyze the portfolio impact below.
-              </span>
-            </div>
-          )}
-
-          {/* Scenario summary pill */}
-          {hasScenario && (
-            <div className="flex flex-wrap gap-2 text-sm">
-              {extraPaymentMonthly > 0 && (
-                <span className="bg-primary/10 text-primary px-3 py-1 rounded-full font-medium text-xs">
-                  +{formatCurrency(extraPaymentMonthly)}/mo to every property
-                </span>
-              )}
-              {extraPayments.map((ep, i) => (
-                <span key={i} className="bg-amber-500/10 text-amber-600 dark:text-amber-400 px-3 py-1 rounded-full font-medium text-xs">
-                  {formatCurrency(ep.amount)} lump sum at payment #{ep.paymentNumber}
-                </span>
-              ))}
-            </div>
-          )}
-
-          {/* Analyze button */}
-          <Button
-            type="button"
-            onClick={handleAnalyze}
-            disabled={!hasScenario || running || propsLoading || properties.length === 0}
-            className="w-full"
-            variant={hasRun ? "outline" : "default"}
-          >
-            {running ? (
-              <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Analyzing {properties.length} properties…</>
-            ) : hasRun ? (
-              <><BarChart3 className="w-4 h-4 mr-2" /> Re-analyze Portfolio</>
-            ) : (
-              <><BarChart3 className="w-4 h-4 mr-2" /> Analyze Portfolio Impact</>
-            )}
-          </Button>
-
-          {/* Results */}
-          {hasRun && !running && doneImpacts.length > 0 && (
-            <div className="space-y-5 animate-in fade-in duration-300">
-              {/* Aggregate stat strip */}
-              <div className="grid grid-cols-3 gap-3">
-                <div className="rounded-xl bg-primary/5 border border-primary/15 px-4 py-3 text-center">
-                  <p className="text-xs text-muted-foreground mb-1">Total interest saved</p>
-                  <p className="text-xl font-bold text-primary">{formatCurrency(totalInterestSaved)}</p>
-                </div>
-                <div className="rounded-xl bg-muted/50 border border-border px-4 py-3 text-center">
-                  <p className="text-xs text-muted-foreground mb-1">Avg. months cut</p>
-                  <p className="text-xl font-bold text-foreground">
-                    {avgMonthsSaved > 0 ? `${avgMonthsSaved} mo` : "—"}
-                  </p>
-                </div>
-                <div className="rounded-xl bg-muted/50 border border-border px-4 py-3 text-center">
-                  <p className="text-xs text-muted-foreground mb-1">Properties benefiting</p>
-                  <p className="text-xl font-bold text-foreground">
-                    {propertiesWithSavings}/{doneImpacts.length}
-                  </p>
-                </div>
-              </div>
-
-              {/* Per-property breakdown table */}
-              <div className="rounded-lg border border-border overflow-hidden">
-                <div className="bg-muted/40 px-4 py-2.5 border-b border-border">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Per-property breakdown — sorted by interest saved
-                  </p>
-                </div>
-                <div className="divide-y divide-border">
-                  {impacts.map((item, idx) => (
-                    <div
-                      key={item.property.id}
-                      className={cn(
-                        "flex items-center gap-3 px-4 py-3",
-                        idx === 0 && item.status === "done" ? "bg-primary/5" : "",
-                      )}
-                    >
-                      {/* Rank */}
-                      <div className={cn(
-                        "w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0",
-                        idx === 0 && item.status === "done"
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted text-muted-foreground",
-                      )}>
-                        {idx + 1}
-                      </div>
-
-                      {/* Property info */}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground leading-tight">
-                          {item.property.name}
-                        </p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {item.property.interestRate}% · {item.property.loanTermYears}yr
-                        </p>
-                      </div>
-
-                      {/* Metrics */}
-                      {item.status === "loading" && (
-                        <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-                      )}
-                      {item.status === "error" && (
-                        <span className="text-xs text-destructive">Error</span>
-                      )}
-                      {item.status === "done" && item.summary && (
-                        <div className="flex items-center gap-5 text-right">
-                          <div className="hidden sm:block">
-                            <p className="text-xs text-muted-foreground">Months saved</p>
-                            <p className="text-sm font-semibold text-foreground">
-                              {item.summary.monthsSaved > 0 ? `${item.summary.monthsSaved} mo` : "—"}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-muted-foreground">Interest saved</p>
-                            <p className={cn(
-                              "text-sm font-bold",
-                              item.summary.interestSaved > 0 ? "text-primary" : "text-muted-foreground",
-                            )}>
-                              {item.summary.interestSaved > 0
-                                ? formatCurrency(item.summary.interestSaved)
-                                : "—"}
-                            </p>
-                          </div>
-                          <div className="hidden md:block">
-                            <p className="text-xs text-muted-foreground">New payoff</p>
-                            <p className="text-sm font-medium text-foreground">
-                              {formatDate(item.summary.payoffDate)}
-                            </p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* No properties state */}
-          {!propsLoading && properties.length === 0 && (
+          {isLoading ? (
+            <div className="space-y-2">{[1, 2, 3].map((i) => <div key={i} className="h-8 bg-muted animate-pulse rounded" />)}</div>
+          ) : !hasPortfolio ? (
             <div className="text-center py-6 text-muted-foreground text-sm">
               <Building2 className="w-8 h-8 mx-auto mb-2 opacity-30" />
-              No properties in your portfolio yet. Add one to see the impact here.
+              <p>No existing properties to compare against.</p>
+              <p className="text-xs mt-1">Add properties to your portfolio to see the impact here.</p>
             </div>
+          ) : (
+            <>
+              {/* Key impact numbers */}
+              <div className="grid grid-cols-2 gap-3">
+                {/* Debt added */}
+                <div className="rounded-xl border border-orange-200 dark:border-orange-900/40 bg-orange-50 dark:bg-orange-950/20 px-4 py-3">
+                  <p className="text-xs text-muted-foreground mb-0.5">Debt added</p>
+                  <p className="text-lg font-bold text-orange-600 dark:text-orange-400">+{formatCurrency(loanAmount)}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{debtShare.toFixed(0)}% of new total</p>
+                </div>
+                {/* Monthly obligation */}
+                <div className="rounded-xl border border-orange-200 dark:border-orange-900/40 bg-orange-50 dark:bg-orange-950/20 px-4 py-3">
+                  <p className="text-xs text-muted-foreground mb-0.5">Monthly obligation</p>
+                  <p className="text-lg font-bold text-orange-600 dark:text-orange-400">+{formatCurrency(monthlyPayment)}/mo</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {currentMonthly > 0 ? `${((monthlyPayment / currentMonthly) * 100).toFixed(0)}% increase` : "First property"}
+                  </p>
+                </div>
+                {/* Rate shift */}
+                <div className={cn(
+                  "rounded-xl border px-4 py-3",
+                  rateDelta > 0
+                    ? "border-orange-200 dark:border-orange-900/40 bg-orange-50 dark:bg-orange-950/20"
+                    : rateDelta < 0
+                    ? "border-green-200 dark:border-green-900/40 bg-green-50 dark:bg-green-950/20"
+                    : "border-border bg-muted/30",
+                )}>
+                  <p className="text-xs text-muted-foreground mb-0.5">Avg. rate shift</p>
+                  <div className="flex items-center gap-1">
+                    {rateDelta > 0 ? (
+                      <TrendingUp className="w-3.5 h-3.5 text-orange-500" />
+                    ) : rateDelta < 0 ? (
+                      <TrendingDown className="w-3.5 h-3.5 text-green-500" />
+                    ) : (
+                      <Minus className="w-3.5 h-3.5 text-muted-foreground" />
+                    )}
+                    <p className={cn(
+                      "text-lg font-bold",
+                      rateDelta > 0 ? "text-orange-600 dark:text-orange-400" : rateDelta < 0 ? "text-green-600 dark:text-green-400" : "text-foreground",
+                    )}>
+                      {rateDelta === 0 ? "No change" : `${rateDelta > 0 ? "+" : ""}${rateDelta.toFixed(2)}%`}
+                    </p>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {currentAvgRate.toFixed(2)}% → {newAvgRate.toFixed(2)}%
+                  </p>
+                </div>
+                {/* Lifetime interest on this loan */}
+                <div className="rounded-xl border border-border bg-muted/30 px-4 py-3">
+                  <p className="text-xs text-muted-foreground mb-0.5">Lifetime interest cost</p>
+                  <p className="text-lg font-bold text-foreground">
+                    {totalInterest !== null ? formatCurrency(totalInterest) : "—"}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {totalInterest !== null && loanAmount > 0
+                      ? `${((totalInterest / loanAmount) * 100).toFixed(0)}% of loan principal`
+                      : "Run calculator to see"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Before / After table */}
+              <div className="rounded-lg border border-border overflow-hidden">
+                <div className="bg-muted/40 px-4 py-2 grid grid-cols-3 gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Metric</span>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground text-right">Before</span>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-primary text-right">After</span>
+                </div>
+                <div className="px-4">
+                  <DeltaRow
+                    label="Properties"
+                    before={`${properties.length}`}
+                    after={`${properties.length + 1}`}
+                  />
+                  <DeltaRow
+                    label="Total debt"
+                    before={formatCurrency(currentDebt)}
+                    after={formatCurrency(newDebt)}
+                    format="up-bad"
+                    highlight
+                  />
+                  <DeltaRow
+                    label="Monthly P&I"
+                    before={formatCurrency(currentMonthly)}
+                    after={formatCurrency(newMonthly)}
+                    format="up-bad"
+                  />
+                  <DeltaRow
+                    label="Wtd. avg rate"
+                    before={`${currentAvgRate.toFixed(2)}%`}
+                    after={`${newAvgRate.toFixed(2)}%`}
+                    format={rateDelta > 0 ? "up-bad" : "neutral"}
+                  />
+                  {currentEquity > 0 && (
+                    <DeltaRow
+                      label="Portfolio equity"
+                      before={formatCurrency(currentEquity)}
+                      after="Updates after closing"
+                      format="neutral"
+                    />
+                  )}
+                </div>
+              </div>
+
+              {/* Per-property breakdown toggle */}
+              <button
+                type="button"
+                onClick={() => setShowBreakdown((v) => !v)}
+                className="flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 transition-colors font-medium"
+              >
+                {showBreakdown ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                {showBreakdown ? "Hide" : "Show"} existing property breakdown
+              </button>
+
+              {showBreakdown && (
+                <div className="rounded-lg border border-border overflow-hidden animate-in fade-in duration-200">
+                  <div className="divide-y divide-border">
+                    {properties.map((p) => (
+                      <div key={p.id} className="flex items-center gap-3 px-4 py-2.5">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate">{p.name}</p>
+                          <p className="text-xs text-muted-foreground">{p.interestRate}% rate</p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-sm font-medium text-foreground">{formatCurrency(p.loanAmount)}</p>
+                          <p className="text-xs text-muted-foreground">{formatCurrency(p.monthlyPayment)}/mo</p>
+                        </div>
+                        <div className="w-16 text-right shrink-0">
+                          <p className="text-xs text-muted-foreground">{currentDebt > 0 ? `${((p.loanAmount / currentDebt) * 100).toFixed(0)}%` : "—"}</p>
+                          <p className="text-xs text-muted-foreground/60">of debt</p>
+                        </div>
+                      </div>
+                    ))}
+                    {/* New property row */}
+                    <div className="flex items-center gap-3 px-4 py-2.5 bg-primary/5 border-t-2 border-primary/20">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-primary truncate">This property <span className="text-xs font-normal text-muted-foreground">(new)</span></p>
+                        <p className="text-xs text-muted-foreground">{interestRate}% rate · {loanTermYears}yr term</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-sm font-medium text-primary">{formatCurrency(loanAmount)}</p>
+                        <p className="text-xs text-muted-foreground">{formatCurrency(monthlyPayment)}/mo</p>
+                      </div>
+                      <div className="w-16 text-right shrink-0">
+                        <p className="text-xs text-primary font-medium">{debtShare.toFixed(0)}%</p>
+                        <p className="text-xs text-muted-foreground/60">of debt</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       )}
@@ -377,9 +355,11 @@ export default function Calculator() {
 
   const result = runCalc.data;
 
-  // Watch extra payment fields to pass live values to the portfolio panel
-  const watchedMonthly = form.watch("extraPaymentMonthly") ?? 0;
-  const watchedLumps = form.watch("extraPayments") ?? [];
+  // Watch form fields to pass live values to the portfolio panel
+  const watchedLoan      = Number(form.watch("loanAmount"))      || 0;
+  const watchedRate      = Number(form.watch("interestRate"))     || 0;
+  const watchedMonthly   = Number(form.watch("monthlyPayment"))   || 0;
+  const watchedTermYears = Number(form.watch("loanTermYears"))    || 0;
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-20">
@@ -570,8 +550,11 @@ export default function Calculator() {
 
           {/* Portfolio Impact panel — lives in the sidebar so it's always accessible */}
           <PortfolioImpact
-            extraPaymentMonthly={Number(watchedMonthly) || 0}
-            extraPayments={watchedLumps}
+            loanAmount={watchedLoan}
+            interestRate={watchedRate}
+            monthlyPayment={watchedMonthly}
+            loanTermYears={watchedTermYears}
+            totalInterest={result?.summary.totalInterest ?? null}
           />
         </div>
 
