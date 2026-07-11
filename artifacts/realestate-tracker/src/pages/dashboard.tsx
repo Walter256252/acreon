@@ -5,6 +5,7 @@ import { Link } from "wouter";
 import { Building, DollarSign, PieChart, Landmark } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { PortfolioChat } from "@/components/portfolio-chat";
 
 export default function Dashboard() {
   const { data, isLoading, isError } = useGetDashboard();
@@ -116,6 +117,8 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      <PortfolioChat />
     </div>
   );
 }
