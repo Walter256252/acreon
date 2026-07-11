@@ -149,26 +149,34 @@ export default function MapView() {
 
       {/* Portfolio summary strip */}
       {data && (
-        <div className="flex flex-wrap gap-px rounded-lg border overflow-hidden text-sm">
-          <div className="flex items-center gap-2 px-4 py-2.5 bg-card flex-1 min-w-[120px]">
-            <Building2 className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-            <span className="text-muted-foreground whitespace-nowrap">Properties</span>
-            <span className="font-semibold text-foreground ml-auto">{totals.count}</span>
+        <div className="flex flex-wrap gap-px rounded-lg border overflow-hidden">
+          <div className="flex flex-col gap-0.5 px-4 py-2.5 bg-card flex-1 min-w-[120px]">
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Building2 className="w-3 h-3 shrink-0" />
+              Properties
+            </span>
+            <span className="text-sm font-semibold text-foreground">{totals.count}</span>
           </div>
-          <div className="flex items-center gap-2 px-4 py-2.5 bg-card flex-1 min-w-[140px]">
-            <DollarSign className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-            <span className="text-muted-foreground whitespace-nowrap">Total Value</span>
-            <span className="font-semibold text-foreground ml-auto">{formatCurrency(totals.value)}</span>
+          <div className="flex flex-col gap-0.5 px-4 py-2.5 bg-card flex-1 min-w-[140px]">
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <DollarSign className="w-3 h-3 shrink-0" />
+              Total Value
+            </span>
+            <span className="text-sm font-semibold text-foreground">{formatCurrency(totals.value)}</span>
           </div>
-          <div className="flex items-center gap-2 px-4 py-2.5 bg-card flex-1 min-w-[140px]">
-            <TrendingUp className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-            <span className="text-muted-foreground whitespace-nowrap">Equity</span>
-            <span className="font-semibold text-emerald-700 dark:text-emerald-400 ml-auto">{formatCurrency(totals.equity)}</span>
+          <div className="flex flex-col gap-0.5 px-4 py-2.5 bg-card flex-1 min-w-[140px]">
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <TrendingUp className="w-3 h-3 shrink-0 text-emerald-600" />
+              Equity
+            </span>
+            <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">{formatCurrency(totals.equity)}</span>
           </div>
-          <div className="flex items-center gap-2 px-4 py-2.5 bg-card flex-1 min-w-[140px]">
-            <Landmark className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-            <span className="text-muted-foreground whitespace-nowrap">Total Debt</span>
-            <span className="font-semibold text-foreground ml-auto">{formatCurrency(totals.debt)}</span>
+          <div className="flex flex-col gap-0.5 px-4 py-2.5 bg-card flex-1 min-w-[140px]">
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Landmark className="w-3 h-3 shrink-0" />
+              Total Debt
+            </span>
+            <span className="text-sm font-semibold text-foreground">{formatCurrency(totals.debt)}</span>
           </div>
         </div>
       )}
