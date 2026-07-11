@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { ClerkProvider, SignIn, SignUp, Show, useClerk } from "@clerk/react";
+import { ClerkProvider, SignIn, SignUp, Show, useClerk, useUser } from "@clerk/react";
 import { publishableKeyFromHost } from "@clerk/react/internal";
 import { shadcn } from "@clerk/themes";
 import { Switch, Route, Redirect, useLocation, Router as WouterRouter } from "wouter";
@@ -21,6 +21,7 @@ import PropertyCommunications from "@/pages/property-communications";
 import SettingsPage from "@/pages/settings";
 import AdminDashboard from "@/pages/admin";
 import Comparison from "@/pages/comparison";
+import Onboarding from "@/pages/onboarding";
 import NotFound from "@/pages/not-found";
 
 // REQUIRED — copy verbatim.
@@ -135,29 +136,48 @@ function HomeRedirect() {
   );
 }
 
+// ── Onboarding gate — redirects new users before they reach the app ────────
+
+function OnboardingGate({ children }: { children: React.ReactNode }) {
+  const { user, isLoaded } = useUser();
+  const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    if (isLoaded && user && !user.unsafeMetadata?.onboardingComplete) {
+      setLocation("/onboarding");
+    }
+  }, [isLoaded, user, setLocation]);
+
+  if (!isLoaded) return null;
+  if (user && !user.unsafeMetadata?.onboardingComplete) return null;
+  return <>{children}</>;
+}
+
 // ── Protected app shell ────────────────────────────────────────────────────
 
 function AppRoute() {
   return (
     <>
       <Show when="signed-in">
-        <Shell>
-          <Switch>
-            <Route path="/app" component={Dashboard} />
-            <Route path="/app/properties" component={PropertiesList} />
-            <Route path="/app/properties/new" component={PropertyNew} />
-            <Route path="/app/properties/:id/edit" component={PropertyEdit} />
-            <Route path="/app/properties/:id" component={PropertyDetail} />
-            <Route path="/app/projections" component={Projections} />
-            <Route path="/app/communications/:id" component={PropertyCommunications} />
-            <Route path="/app/communications" component={Communications} />
-            <Route path="/app/calculator" component={Calculator} />
-            <Route path="/app/comparison" component={Comparison} />
-            <Route path="/app/settings" component={SettingsPage} />
-            <Route path="/app/admin" component={AdminDashboard} />
-            <Route component={NotFound} />
-          </Switch>
-        </Shell>
+        <OnboardingGate>
+          <Shell>
+            <Switch>
+              <Route path="/app" component={Dashboard} />
+              <Route path="/app/properties" component={PropertiesList} />
+              <Route path="/app/properties/new" component={PropertyNew} />
+              <Route path="/app/properties/:id/edit" component={PropertyEdit} />
+              <Route path="/app/properties/:id" component={PropertyDetail} />
+              <Route path="/app/projections" component={Projections} />
+              <Route path="/app/communications/:id" component={PropertyCommunications} />
+              <Route path="/app/communications" component={Communications} />
+              <Route path="/app/calculator" component={Calculator} />
+              <Route path="/app/comparison" component={Comparison} />
+              <Route path="/app/settings" component={SettingsPage} />
+              <Route path="/app/admin" component={AdminDashboard} />
+              <Route component={NotFound} />
+            </Switch>
+          </Shell>
+        </OnboardingGate>
       </Show>
       <Show when="signed-out">
         <Redirect to="/" />
@@ -225,6 +245,7 @@ function ClerkProviderWithRoutes() {
             <Route path="/" component={HomeRedirect} />
             <Route path="/sign-in/*?" component={SignInPage} />
             <Route path="/sign-up/*?" component={SignUpPage} />
+            <Route path="/onboarding" component={Onboarding} />
             <Route path="/app/*?" component={AppRoute} />
             <Route component={NotFound} />
           </Switch>
