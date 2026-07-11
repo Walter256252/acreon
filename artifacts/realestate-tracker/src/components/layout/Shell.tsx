@@ -7,11 +7,11 @@ import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
   { href: "/app", label: "Portfolio", icon: LayoutDashboard },
-  { href: "/app/properties", label: "Properties", icon: Building2 },
   { href: "/app/projections", label: "Projections", icon: TrendingUp },
-  { href: "/app/communications", label: "Communications", icon: Mail },
-  { href: "/app/comparison", label: "Smart Comparison", icon: Scale },
   { href: "/app/map", label: "Map View", icon: Map },
+  { href: "/app/properties", label: "Properties", icon: Building2 },
+  { href: "/app/comparison", label: "Smart Comparison", icon: Scale },
+  { href: "/app/communications", label: "Communications", icon: Mail },
   { href: "/app/properties/new", label: "Add Property", icon: PlusCircle },
   { href: "/app/calculator", label: "Calculator", icon: Calculator },
 ];
