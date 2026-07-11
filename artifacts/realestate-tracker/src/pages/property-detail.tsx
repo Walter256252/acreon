@@ -40,6 +40,8 @@ import {
   AlertCircle,
   RefreshCw,
   ExternalLink,
+  Pencil,
+  Check,
 } from "lucide-react";
 import { Link } from "wouter";
 import {
@@ -99,6 +101,25 @@ export default function PropertyDetail() {
   const deleteProperty = useDeleteProperty();
   const updateProperty = useUpdateProperty();
   const runCalculator = useRunCalculator();
+
+  // Inline current value editing
+  const [editingValue, setEditingValue] = useState(false);
+  const [valueInput, setValueInput] = useState("");
+  const valueInputRef = useRef<HTMLInputElement>(null);
+
+  const handleSaveValue = () => {
+    const n = parseFloat(valueInput.replace(/,/g, ""));
+    if (isNaN(n) || n <= 0) return;
+    updateProperty.mutate({ id, data: { currentValue: n } }, {
+      onSuccess: () => {
+        setEditingValue(false);
+        queryClient.invalidateQueries({ queryKey: getGetPropertyQueryKey(id) });
+        queryClient.invalidateQueries({ queryKey: getGetDashboardQueryKey() });
+        toast({ title: "Value updated", description: `Current value set to ${formatCurrency(n)}.` });
+      },
+      onError: () => toast({ title: "Error", description: "Failed to save value.", variant: "destructive" }),
+    });
+  };
 
   // View mode state
   const [viewMode, setViewMode] = useState<"all" | "current">("current");
@@ -446,12 +467,69 @@ export default function PropertyDetail() {
       })()}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          title="Current Value"
-          value={formatCurrency(property.currentValue)}
-          subtext={`Bought ${property.yearBought} for ${formatCurrency(property.purchasePrice)}`}
-          icon={<Building className="w-5 h-5 text-muted-foreground" />}
-        />
+        {/* Current Value — inline editable */}
+        <Card className="p-6 flex flex-col gap-2 relative overflow-hidden">
+          <div className="flex justify-between items-start">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Current Value</h3>
+            <div className="flex items-center gap-1">
+              {!editingValue && (
+                <button
+                  onClick={() => { setValueInput(String(property.currentValue)); setEditingValue(true); setTimeout(() => valueInputRef.current?.select(), 30); }}
+                  className="text-muted-foreground/50 hover:text-primary transition-colors p-0.5 rounded"
+                  title="Update current value"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                </button>
+              )}
+              <Building className="w-5 h-5 text-muted-foreground/50" />
+            </div>
+          </div>
+
+          {editingValue ? (
+            <div className="flex flex-col gap-2 mt-1">
+              <div className="flex items-center gap-1">
+                <span className="text-lg font-mono text-muted-foreground">$</span>
+                <input
+                  ref={valueInputRef}
+                  type="number"
+                  min="0"
+                  step="1000"
+                  value={valueInput}
+                  onChange={e => setValueInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") handleSaveValue(); if (e.key === "Escape") setEditingValue(false); }}
+                  className="flex-1 text-xl font-bold font-mono bg-transparent border-b-2 border-primary outline-none w-full min-w-0"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleSaveValue}
+                  disabled={updateProperty.isPending}
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
+                >
+                  <Check className="w-3 h-3" />
+                  {updateProperty.isPending ? "Saving…" : "Save"}
+                </button>
+                <button
+                  onClick={() => setEditingValue(false)}
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-baseline gap-2 mt-1">
+                <span className="text-3xl font-bold font-mono tracking-tight text-foreground">
+                  {formatCurrency(property.currentValue)}
+                </span>
+              </div>
+              <div className="text-sm text-muted-foreground mt-auto pt-2">
+                Bought {property.yearBought} for {formatCurrency(property.purchasePrice)}
+              </div>
+            </>
+          )}
+        </Card>
         <StatCard
           title="Loan Amount"
           value={formatCurrency(property.loanAmount)}
