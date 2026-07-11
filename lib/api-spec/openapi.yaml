@@ -20,6 +20,8 @@ tags:
     description: What-if mortgage calculations
   - name: openai
     description: OpenAI AI chat operations
+  - name: gmail
+    description: Gmail communications sync
 
 paths:
   /openai/conversations:
@@ -150,6 +152,120 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ProjectionsResponse"
+
+  /gmail/status:
+    get:
+      operationId: getGmailStatus
+      tags: [gmail]
+      summary: Check whether Gmail is connected
+      responses:
+        "200":
+          description: Gmail connection status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GmailStatus"
+
+  /gmail/settings:
+    get:
+      operationId: getGmailSettings
+      tags: [gmail]
+      summary: Get Gmail pull settings for all properties
+      responses:
+        "200":
+          description: Per-property Gmail settings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GmailPropertySettings"
+
+  /gmail/settings/{propertyId}:
+    put:
+      operationId: putGmailSettingsPropertyId
+      tags: [gmail]
+      summary: Save Gmail pull settings for a property
+      parameters:
+        - name: propertyId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GmailPropertySettingsInput"
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                required: [success]
+
+  /gmail/sync:
+    post:
+      operationId: postGmailSync
+      tags: [gmail]
+      summary: Sync Gmail for all properties
+      responses:
+        "200":
+          description: Sync result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GmailSyncResult"
+        "503":
+          description: Gmail not connected
+
+  /gmail/sync/{propertyId}:
+    post:
+      operationId: postGmailSyncPropertyId
+      tags: [gmail]
+      summary: Sync Gmail for a single property
+      parameters:
+        - name: propertyId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Sync result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GmailSyncResult"
+        "503":
+          description: Gmail not connected
+
+  /gmail/notes/{propertyId}:
+    get:
+      operationId: getGmailNotesPropertyId
+      tags: [gmail]
+      summary: Get AI email notes for a property grouped by month
+      parameters:
+        - name: propertyId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Notes grouped by month
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EmailNotesByMonth"
 
   /healthz:
     get:
@@ -784,6 +900,99 @@ components:
           type: number
         monthlyPaymentTotal:
           type: number
+
+    GmailStatus:
+      type: object
+      required: [connected]
+      properties:
+        connected:
+          type: boolean
+
+    GmailPropertySettings:
+      type: object
+      required: [propertyId, propertyName, propertyAddress, pullMode]
+      properties:
+        propertyId:
+          type: integer
+        propertyName:
+          type: string
+        propertyAddress:
+          type: string
+        pullMode:
+          type: string
+          description: "'label' or 'address'"
+        gmailLabel:
+          type: ["string", "null"]
+        lastSynced:
+          type: ["string", "null"]
+
+    GmailPropertySettingsInput:
+      type: object
+      required: [pullMode]
+      properties:
+        pullMode:
+          type: string
+        gmailLabel:
+          type: ["string", "null"]
+
+    GmailSyncResult:
+      type: object
+      required: [synced]
+      properties:
+        synced:
+          type: integer
+        propertyId:
+          type: integer
+
+    EmailNote:
+      type: object
+      required: [id, propertyId, threadId, subject, participants, monthYear, aiSummary, actionItems, keyDates, threadDate, syncedAt]
+      properties:
+        id:
+          type: integer
+        propertyId:
+          type: integer
+        threadId:
+          type: string
+        subject:
+          type: string
+        participants:
+          type: array
+          items:
+            type: string
+        monthYear:
+          type: string
+        aiSummary:
+          type: string
+        actionItems:
+          type: array
+          items:
+            type: string
+        keyDates:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+              description:
+                type: string
+            required: [date, description]
+        threadDate:
+          type: string
+        syncedAt:
+          type: string
+
+    EmailNotesByMonth:
+      type: object
+      required: [monthYear, notes]
+      properties:
+        monthYear:
+          type: string
+        notes:
+          type: array
+          items:
+            $ref: "#/components/schemas/EmailNote"
 
     OpenaiConversation:
       type: object

@@ -24,6 +24,11 @@ import type {
   CalculatorInput,
   CalculatorResult,
   DashboardStats,
+  EmailNotesByMonth,
+  GmailPropertySettings,
+  GmailPropertySettingsInput,
+  GmailStatus,
+  GmailSyncResult,
   HealthStatus,
   OpenaiConversation,
   OpenaiConversationInput,
@@ -36,7 +41,8 @@ import type {
   ProjectionsResponse,
   Property,
   PropertyInput,
-  PropertyUpdate
+  PropertyUpdate,
+  PutGmailSettingsPropertyId200
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -576,6 +582,451 @@ export function useGetProjections<TData = Awaited<ReturnType<typeof getProjectio
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetProjectionsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetGmailStatusUrl = () => {
+
+
+
+
+  return `/api/gmail/status`
+}
+
+/**
+ * @summary Check whether Gmail is connected
+ */
+export const getGmailStatus = async ( options?: RequestInit): Promise<GmailStatus> => {
+
+  return customFetch<GmailStatus>(getGetGmailStatusUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetGmailStatusQueryKey = () => {
+    return [
+    `/api/gmail/status`
+    ] as const;
+    }
+
+
+export const getGetGmailStatusQueryOptions = <TData = Awaited<ReturnType<typeof getGmailStatus>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGmailStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetGmailStatusQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getGmailStatus>>> = ({ signal }) => getGmailStatus({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getGmailStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetGmailStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getGmailStatus>>>
+export type GetGmailStatusQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Check whether Gmail is connected
+ */
+
+export function useGetGmailStatus<TData = Awaited<ReturnType<typeof getGmailStatus>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGmailStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetGmailStatusQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetGmailSettingsUrl = () => {
+
+
+
+
+  return `/api/gmail/settings`
+}
+
+/**
+ * @summary Get Gmail pull settings for all properties
+ */
+export const getGmailSettings = async ( options?: RequestInit): Promise<GmailPropertySettings[]> => {
+
+  return customFetch<GmailPropertySettings[]>(getGetGmailSettingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetGmailSettingsQueryKey = () => {
+    return [
+    `/api/gmail/settings`
+    ] as const;
+    }
+
+
+export const getGetGmailSettingsQueryOptions = <TData = Awaited<ReturnType<typeof getGmailSettings>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGmailSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetGmailSettingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getGmailSettings>>> = ({ signal }) => getGmailSettings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getGmailSettings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetGmailSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getGmailSettings>>>
+export type GetGmailSettingsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get Gmail pull settings for all properties
+ */
+
+export function useGetGmailSettings<TData = Awaited<ReturnType<typeof getGmailSettings>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGmailSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetGmailSettingsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getPutGmailSettingsPropertyIdUrl = (propertyId: number,) => {
+
+
+
+
+  return `/api/gmail/settings/${propertyId}`
+}
+
+/**
+ * @summary Save Gmail pull settings for a property
+ */
+export const putGmailSettingsPropertyId = async (propertyId: number,
+    gmailPropertySettingsInput: GmailPropertySettingsInput, options?: RequestInit): Promise<PutGmailSettingsPropertyId200> => {
+
+  return customFetch<PutGmailSettingsPropertyId200>(getPutGmailSettingsPropertyIdUrl(propertyId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(gmailPropertySettingsInput)
+  }
+);}
+
+
+
+
+
+export const getPutGmailSettingsPropertyIdMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof putGmailSettingsPropertyId>>, TError,{propertyId: number;data: BodyType<GmailPropertySettingsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof putGmailSettingsPropertyId>>, TError,{propertyId: number;data: BodyType<GmailPropertySettingsInput>}, TContext> => {
+
+const mutationKey = ['putGmailSettingsPropertyId'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof putGmailSettingsPropertyId>>, {propertyId: number;data: BodyType<GmailPropertySettingsInput>}> = (props) => {
+          const {propertyId,data} = props ?? {};
+
+          return  putGmailSettingsPropertyId(propertyId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PutGmailSettingsPropertyIdMutationResult = NonNullable<Awaited<ReturnType<typeof putGmailSettingsPropertyId>>>
+    export type PutGmailSettingsPropertyIdMutationBody = BodyType<GmailPropertySettingsInput>
+    export type PutGmailSettingsPropertyIdMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Save Gmail pull settings for a property
+ */
+export const usePutGmailSettingsPropertyId = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof putGmailSettingsPropertyId>>, TError,{propertyId: number;data: BodyType<GmailPropertySettingsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof putGmailSettingsPropertyId>>,
+        TError,
+        {propertyId: number;data: BodyType<GmailPropertySettingsInput>},
+        TContext
+      > => {
+      return useMutation(getPutGmailSettingsPropertyIdMutationOptions(options));
+    }
+
+export const getPostGmailSyncUrl = () => {
+
+
+
+
+  return `/api/gmail/sync`
+}
+
+/**
+ * @summary Sync Gmail for all properties
+ */
+export const postGmailSync = async ( options?: RequestInit): Promise<GmailSyncResult> => {
+
+  return customFetch<GmailSyncResult>(getPostGmailSyncUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getPostGmailSyncMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postGmailSync>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof postGmailSync>>, TError,void, TContext> => {
+
+const mutationKey = ['postGmailSync'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postGmailSync>>, void> = () => {
+
+
+          return  postGmailSync(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PostGmailSyncMutationResult = NonNullable<Awaited<ReturnType<typeof postGmailSync>>>
+
+    export type PostGmailSyncMutationError = ErrorType<void>
+
+    /**
+ * @summary Sync Gmail for all properties
+ */
+export const usePostGmailSync = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postGmailSync>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof postGmailSync>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getPostGmailSyncMutationOptions(options));
+    }
+
+export const getPostGmailSyncPropertyIdUrl = (propertyId: number,) => {
+
+
+
+
+  return `/api/gmail/sync/${propertyId}`
+}
+
+/**
+ * @summary Sync Gmail for a single property
+ */
+export const postGmailSyncPropertyId = async (propertyId: number, options?: RequestInit): Promise<GmailSyncResult> => {
+
+  return customFetch<GmailSyncResult>(getPostGmailSyncPropertyIdUrl(propertyId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getPostGmailSyncPropertyIdMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postGmailSyncPropertyId>>, TError,{propertyId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof postGmailSyncPropertyId>>, TError,{propertyId: number}, TContext> => {
+
+const mutationKey = ['postGmailSyncPropertyId'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postGmailSyncPropertyId>>, {propertyId: number}> = (props) => {
+          const {propertyId} = props ?? {};
+
+          return  postGmailSyncPropertyId(propertyId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PostGmailSyncPropertyIdMutationResult = NonNullable<Awaited<ReturnType<typeof postGmailSyncPropertyId>>>
+
+    export type PostGmailSyncPropertyIdMutationError = ErrorType<void>
+
+    /**
+ * @summary Sync Gmail for a single property
+ */
+export const usePostGmailSyncPropertyId = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postGmailSyncPropertyId>>, TError,{propertyId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof postGmailSyncPropertyId>>,
+        TError,
+        {propertyId: number},
+        TContext
+      > => {
+      return useMutation(getPostGmailSyncPropertyIdMutationOptions(options));
+    }
+
+export const getGetGmailNotesPropertyIdUrl = (propertyId: number,) => {
+
+
+
+
+  return `/api/gmail/notes/${propertyId}`
+}
+
+/**
+ * @summary Get AI email notes for a property grouped by month
+ */
+export const getGmailNotesPropertyId = async (propertyId: number, options?: RequestInit): Promise<EmailNotesByMonth[]> => {
+
+  return customFetch<EmailNotesByMonth[]>(getGetGmailNotesPropertyIdUrl(propertyId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetGmailNotesPropertyIdQueryKey = (propertyId: number,) => {
+    return [
+    `/api/gmail/notes/${propertyId}`
+    ] as const;
+    }
+
+
+export const getGetGmailNotesPropertyIdQueryOptions = <TData = Awaited<ReturnType<typeof getGmailNotesPropertyId>>, TError = ErrorType<unknown>>(propertyId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGmailNotesPropertyId>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetGmailNotesPropertyIdQueryKey(propertyId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getGmailNotesPropertyId>>> = ({ signal }) => getGmailNotesPropertyId(propertyId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: propertyId !== null && propertyId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getGmailNotesPropertyId>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetGmailNotesPropertyIdQueryResult = NonNullable<Awaited<ReturnType<typeof getGmailNotesPropertyId>>>
+export type GetGmailNotesPropertyIdQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get AI email notes for a property grouped by month
+ */
+
+export function useGetGmailNotesPropertyId<TData = Awaited<ReturnType<typeof getGmailNotesPropertyId>>, TError = ErrorType<unknown>>(
+ propertyId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGmailNotesPropertyId>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetGmailNotesPropertyIdQueryOptions(propertyId,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

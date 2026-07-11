@@ -138,6 +138,96 @@ export const GetProjectionsResponse = zod.object({
 
 
 /**
+ * @summary Check whether Gmail is connected
+ */
+export const GetGmailStatusResponse = zod.object({
+  "connected": zod.boolean()
+})
+
+
+/**
+ * @summary Get Gmail pull settings for all properties
+ */
+export const GetGmailSettingsResponseItem = zod.object({
+  "propertyId": zod.number(),
+  "propertyName": zod.string(),
+  "propertyAddress": zod.string(),
+  "pullMode": zod.string().describe('\'label\' or \'address\''),
+  "gmailLabel": zod.string().nullish(),
+  "lastSynced": zod.string().nullish()
+})
+export const GetGmailSettingsResponse = zod.array(GetGmailSettingsResponseItem)
+
+
+/**
+ * @summary Save Gmail pull settings for a property
+ */
+export const PutGmailSettingsPropertyIdParams = zod.object({
+  "propertyId": zod.coerce.number()
+})
+
+export const PutGmailSettingsPropertyIdBody = zod.object({
+  "pullMode": zod.string(),
+  "gmailLabel": zod.string().nullish()
+})
+
+export const PutGmailSettingsPropertyIdResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+/**
+ * @summary Sync Gmail for all properties
+ */
+export const PostGmailSyncResponse = zod.object({
+  "synced": zod.number(),
+  "propertyId": zod.number().optional()
+})
+
+
+/**
+ * @summary Sync Gmail for a single property
+ */
+export const PostGmailSyncPropertyIdParams = zod.object({
+  "propertyId": zod.coerce.number()
+})
+
+export const PostGmailSyncPropertyIdResponse = zod.object({
+  "synced": zod.number(),
+  "propertyId": zod.number().optional()
+})
+
+
+/**
+ * @summary Get AI email notes for a property grouped by month
+ */
+export const GetGmailNotesPropertyIdParams = zod.object({
+  "propertyId": zod.coerce.number()
+})
+
+export const GetGmailNotesPropertyIdResponseItem = zod.object({
+  "monthYear": zod.string(),
+  "notes": zod.array(zod.object({
+  "id": zod.number(),
+  "propertyId": zod.number(),
+  "threadId": zod.string(),
+  "subject": zod.string(),
+  "participants": zod.array(zod.string()),
+  "monthYear": zod.string(),
+  "aiSummary": zod.string(),
+  "actionItems": zod.array(zod.string()),
+  "keyDates": zod.array(zod.object({
+  "date": zod.string(),
+  "description": zod.string()
+})),
+  "threadDate": zod.string(),
+  "syncedAt": zod.string()
+}))
+})
+export const GetGmailNotesPropertyIdResponse = zod.array(GetGmailNotesPropertyIdResponseItem)
+
+
+/**
  * Returns server health status
  * @summary Health check
  */

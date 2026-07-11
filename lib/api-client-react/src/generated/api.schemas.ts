@@ -191,6 +191,57 @@ export interface ProjectionsResponse {
   currentTotals: CurrentTotals;
 }
 
+export interface GmailStatus {
+  connected: boolean;
+}
+
+export interface GmailPropertySettings {
+  propertyId: number;
+  propertyName: string;
+  propertyAddress: string;
+  /** 'label' or 'address' */
+  pullMode: string;
+  /** @nullable */
+  gmailLabel?: string | null;
+  /** @nullable */
+  lastSynced?: string | null;
+}
+
+export interface GmailPropertySettingsInput {
+  pullMode: string;
+  /** @nullable */
+  gmailLabel?: string | null;
+}
+
+export interface GmailSyncResult {
+  synced: number;
+  propertyId?: number;
+}
+
+export type EmailNoteKeyDatesItem = {
+  date: string;
+  description: string;
+};
+
+export interface EmailNote {
+  id: number;
+  propertyId: number;
+  threadId: string;
+  subject: string;
+  participants: string[];
+  monthYear: string;
+  aiSummary: string;
+  actionItems: string[];
+  keyDates: EmailNoteKeyDatesItem[];
+  threadDate: string;
+  syncedAt: string;
+}
+
+export interface EmailNotesByMonth {
+  monthYear: string;
+  notes: EmailNote[];
+}
+
 export interface OpenaiConversation {
   id: number;
   title: string;
@@ -223,4 +274,8 @@ export interface OpenaiConversationWithMessages {
 export interface OpenaiError {
   error: string;
 }
+
+export type PutGmailSettingsPropertyId200 = {
+  success: boolean;
+};
 

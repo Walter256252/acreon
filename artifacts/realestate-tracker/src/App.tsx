@@ -16,6 +16,8 @@ import PropertyEdit from "@/pages/property-edit";
 import Calculator from "@/pages/calculator";
 import Projections from "@/pages/projections";
 import PropertiesList from "@/pages/properties";
+import Communications from "@/pages/communications";
+import PropertyCommunications from "@/pages/property-communications";
 import NotFound from "@/pages/not-found";
 
 // REQUIRED — copy verbatim.
@@ -144,6 +146,8 @@ function AppRoute() {
             <Route path="/app/properties/:id/edit" component={PropertyEdit} />
             <Route path="/app/properties/:id" component={PropertyDetail} />
             <Route path="/app/projections" component={Projections} />
+            <Route path="/app/communications/:id" component={PropertyCommunications} />
+            <Route path="/app/communications" component={Communications} />
             <Route path="/app/calculator" component={Calculator} />
             <Route component={NotFound} />
           </Switch>

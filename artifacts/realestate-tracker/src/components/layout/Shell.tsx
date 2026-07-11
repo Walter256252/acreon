@@ -1,12 +1,13 @@
 import React from "react";
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, PlusCircle, Calculator, Building2, TrendingUp } from "lucide-react";
+import { LayoutDashboard, PlusCircle, Calculator, Building2, TrendingUp, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
   { href: "/app", label: "Portfolio", icon: LayoutDashboard },
   { href: "/app/properties", label: "Properties", icon: Building2 },
   { href: "/app/projections", label: "Projections", icon: TrendingUp },
+  { href: "/app/communications", label: "Communications", icon: Mail },
   { href: "/app/properties/new", label: "Add Property", icon: PlusCircle },
   { href: "/app/calculator", label: "Calculator", icon: Calculator },
 ];
