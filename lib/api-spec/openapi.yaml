@@ -20,8 +20,8 @@ tags:
     description: What-if mortgage calculations
   - name: openai
     description: OpenAI AI chat operations
-  - name: gmail
-    description: Gmail communications sync
+  - name: email
+    description: Per-user email communications sync (IMAP — works with any provider)
 
 paths:
   /openai/conversations:
@@ -153,39 +153,92 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProjectionsResponse"
 
-  /gmail/status:
+  /email/connection:
     get:
-      operationId: getGmailStatus
-      tags: [gmail]
-      summary: Check whether Gmail is connected
+      operationId: getEmailConnection
+      tags: [email]
+      summary: Get the current user's email connection details
       responses:
         "200":
-          description: Gmail connection status
+          description: Connection details (password excluded)
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/GmailStatus"
-
-  /gmail/settings:
-    get:
-      operationId: getGmailSettings
-      tags: [gmail]
-      summary: Get Gmail pull settings for all properties
+                $ref: "#/components/schemas/EmailConnectionDetail"
+        "401":
+          description: Not authenticated
+        "404":
+          description: No connection found
+    post:
+      operationId: postEmailConnect
+      tags: [email]
+      summary: Test and save IMAP credentials for the current user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailConnectInput"
       responses:
         "200":
-          description: Per-property Gmail settings
+          description: Connected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmailConnectResult"
+        "400":
+          description: Bad credentials or connection failure
+        "401":
+          description: Not authenticated
+    delete:
+      operationId: deleteEmailConnection
+      tags: [email]
+      summary: Disconnect the current user's email
+      responses:
+        "200":
+          description: Disconnected
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                required: [success]
+
+  /email/status:
+    get:
+      operationId: getEmailStatus
+      tags: [email]
+      summary: Check whether the current user has a connected email
+      responses:
+        "200":
+          description: Email connection status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmailStatus"
+
+  /email/settings:
+    get:
+      operationId: getEmailSettings
+      tags: [email]
+      summary: Get email pull settings for all properties (scoped to current user)
+      responses:
+        "200":
+          description: Per-property settings
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/GmailPropertySettings"
+                  $ref: "#/components/schemas/EmailPropertySettings"
 
-  /gmail/settings/{propertyId}:
+  /email/settings/{propertyId}:
     put:
-      operationId: putGmailSettingsPropertyId
-      tags: [gmail]
-      summary: Save Gmail pull settings for a property
+      operationId: putEmailSettingsPropertyId
+      tags: [email]
+      summary: Save email pull settings for a property
       parameters:
         - name: propertyId
           in: path
@@ -197,7 +250,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/GmailPropertySettingsInput"
+              $ref: "#/components/schemas/EmailPropertySettingsInput"
       responses:
         "200":
           description: Saved
@@ -210,26 +263,26 @@ paths:
                     type: boolean
                 required: [success]
 
-  /gmail/sync:
+  /email/sync:
     post:
-      operationId: postGmailSync
-      tags: [gmail]
-      summary: Sync Gmail for all properties
+      operationId: postEmailSync
+      tags: [email]
+      summary: Sync email for all properties (current user)
       responses:
         "200":
           description: Sync result
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/GmailSyncResult"
+                $ref: "#/components/schemas/EmailSyncResult"
         "503":
-          description: Gmail not connected
+          description: Email not connected
 
-  /gmail/sync/{propertyId}:
+  /email/sync/{propertyId}:
     post:
-      operationId: postGmailSyncPropertyId
-      tags: [gmail]
-      summary: Sync Gmail for a single property
+      operationId: postEmailSyncPropertyId
+      tags: [email]
+      summary: Sync email for a single property
       parameters:
         - name: propertyId
           in: path
@@ -242,14 +295,14 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/GmailSyncResult"
+                $ref: "#/components/schemas/EmailSyncResult"
         "503":
-          description: Gmail not connected
+          description: Email not connected
 
-  /gmail/notes/{propertyId}:
+  /email/notes/{propertyId}:
     get:
-      operationId: getGmailNotesPropertyId
-      tags: [gmail]
+      operationId: getEmailNotesPropertyId
+      tags: [email]
       summary: Get AI email notes for a property grouped by month
       parameters:
         - name: propertyId
@@ -901,14 +954,67 @@ components:
         monthlyPaymentTotal:
           type: number
 
-    GmailStatus:
+    EmailStatus:
       type: object
       required: [connected]
       properties:
         connected:
           type: boolean
+        email:
+          type: ["string", "null"]
 
-    GmailPropertySettings:
+    EmailConnectionDetail:
+      type: object
+      required: [id, displayEmail, provider, imapHost, imapPort, imapEmail, imapTls, verified, createdAt]
+      properties:
+        id:
+          type: integer
+        displayEmail:
+          type: string
+        provider:
+          type: string
+        imapHost:
+          type: string
+        imapPort:
+          type: integer
+        imapEmail:
+          type: string
+        imapTls:
+          type: boolean
+        verified:
+          type: boolean
+        lastError:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    EmailConnectInput:
+      type: object
+      required: [imapHost, imapEmail, imapPassword]
+      properties:
+        displayEmail:
+          type: string
+        imapHost:
+          type: string
+        imapPort:
+          type: integer
+        imapEmail:
+          type: string
+        imapPassword:
+          type: string
+        imapTls:
+          type: boolean
+
+    EmailConnectResult:
+      type: object
+      required: [success, displayEmail]
+      properties:
+        success:
+          type: boolean
+        displayEmail:
+          type: string
+
+    EmailPropertySettings:
       type: object
       required: [propertyId, propertyName, propertyAddress, pullMode]
       properties:
@@ -921,21 +1027,21 @@ components:
         pullMode:
           type: string
           description: "'label' or 'address'"
-        gmailLabel:
+        emailFolder:
           type: ["string", "null"]
         lastSynced:
           type: ["string", "null"]
 
-    GmailPropertySettingsInput:
+    EmailPropertySettingsInput:
       type: object
       required: [pullMode]
       properties:
         pullMode:
           type: string
-        gmailLabel:
+        emailFolder:
           type: ["string", "null"]
 
-    GmailSyncResult:
+    EmailSyncResult:
       type: object
       required: [synced]
       properties:

@@ -4,3 +4,4 @@ export * from "./conversations";
 export * from "./messages";
 export * from "./gmailSettings";
 export * from "./emailNotes";
+export * from "./emailConnections";

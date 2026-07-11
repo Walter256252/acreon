@@ -6,14 +6,14 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface GmailPropertySettings {
+export interface EmailPropertySettings {
   propertyId: number;
   propertyName: string;
   propertyAddress: string;
   /** 'label' or 'address' */
   pullMode: string;
   /** @nullable */
-  gmailLabel?: string | null;
+  emailFolder?: string | null;
   /** @nullable */
   lastSynced?: string | null;
 }

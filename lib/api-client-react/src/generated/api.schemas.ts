@@ -191,29 +191,59 @@ export interface ProjectionsResponse {
   currentTotals: CurrentTotals;
 }
 
-export interface GmailStatus {
+export interface EmailStatus {
   connected: boolean;
+  /** @nullable */
+  email?: string | null;
 }
 
-export interface GmailPropertySettings {
+export interface EmailConnectionDetail {
+  id: number;
+  displayEmail: string;
+  provider: string;
+  imapHost: string;
+  imapPort: number;
+  imapEmail: string;
+  imapTls: boolean;
+  verified: boolean;
+  /** @nullable */
+  lastError?: string | null;
+  createdAt: string;
+}
+
+export interface EmailConnectInput {
+  displayEmail?: string;
+  imapHost: string;
+  imapPort?: number;
+  imapEmail: string;
+  imapPassword: string;
+  imapTls?: boolean;
+}
+
+export interface EmailConnectResult {
+  success: boolean;
+  displayEmail: string;
+}
+
+export interface EmailPropertySettings {
   propertyId: number;
   propertyName: string;
   propertyAddress: string;
   /** 'label' or 'address' */
   pullMode: string;
   /** @nullable */
-  gmailLabel?: string | null;
+  emailFolder?: string | null;
   /** @nullable */
   lastSynced?: string | null;
 }
 
-export interface GmailPropertySettingsInput {
+export interface EmailPropertySettingsInput {
   pullMode: string;
   /** @nullable */
-  gmailLabel?: string | null;
+  emailFolder?: string | null;
 }
 
-export interface GmailSyncResult {
+export interface EmailSyncResult {
   synced: number;
   propertyId?: number;
 }
@@ -275,7 +305,11 @@ export interface OpenaiError {
   error: string;
 }
 
-export type PutGmailSettingsPropertyId200 = {
+export type DeleteEmailConnection200 = {
+  success: boolean;
+};
+
+export type PutEmailSettingsPropertyId200 = {
   success: boolean;
 };
 

@@ -6,8 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface GmailPropertySettingsInput {
+export interface EmailPropertySettingsInput {
   pullMode: string;
   /** @nullable */
-  gmailLabel?: string | null;
+  emailFolder?: string | null;
 }

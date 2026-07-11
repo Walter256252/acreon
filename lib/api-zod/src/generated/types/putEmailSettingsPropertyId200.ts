@@ -6,6 +6,6 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type PutGmailSettingsPropertyId200 = {
+export type PutEmailSettingsPropertyId200 = {
   success: boolean;
 };

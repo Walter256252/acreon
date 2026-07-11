@@ -138,61 +138,105 @@ export const GetProjectionsResponse = zod.object({
 
 
 /**
- * @summary Check whether Gmail is connected
+ * @summary Get the current user's email connection details
  */
-export const GetGmailStatusResponse = zod.object({
-  "connected": zod.boolean()
+export const GetEmailConnectionResponse = zod.object({
+  "id": zod.number(),
+  "displayEmail": zod.string(),
+  "provider": zod.string(),
+  "imapHost": zod.string(),
+  "imapPort": zod.number(),
+  "imapEmail": zod.string(),
+  "imapTls": zod.boolean(),
+  "verified": zod.boolean(),
+  "lastError": zod.string().nullish(),
+  "createdAt": zod.string()
 })
 
 
 /**
- * @summary Get Gmail pull settings for all properties
+ * @summary Test and save IMAP credentials for the current user
  */
-export const GetGmailSettingsResponseItem = zod.object({
-  "propertyId": zod.number(),
-  "propertyName": zod.string(),
-  "propertyAddress": zod.string(),
-  "pullMode": zod.string().describe('\'label\' or \'address\''),
-  "gmailLabel": zod.string().nullish(),
-  "lastSynced": zod.string().nullish()
+export const PostEmailConnectBody = zod.object({
+  "displayEmail": zod.string().optional(),
+  "imapHost": zod.string(),
+  "imapPort": zod.number().optional(),
+  "imapEmail": zod.string(),
+  "imapPassword": zod.string(),
+  "imapTls": zod.boolean().optional()
 })
-export const GetGmailSettingsResponse = zod.array(GetGmailSettingsResponseItem)
+
+export const PostEmailConnectResponse = zod.object({
+  "success": zod.boolean(),
+  "displayEmail": zod.string()
+})
 
 
 /**
- * @summary Save Gmail pull settings for a property
+ * @summary Disconnect the current user's email
  */
-export const PutGmailSettingsPropertyIdParams = zod.object({
-  "propertyId": zod.coerce.number()
-})
-
-export const PutGmailSettingsPropertyIdBody = zod.object({
-  "pullMode": zod.string(),
-  "gmailLabel": zod.string().nullish()
-})
-
-export const PutGmailSettingsPropertyIdResponse = zod.object({
+export const DeleteEmailConnectionResponse = zod.object({
   "success": zod.boolean()
 })
 
 
 /**
- * @summary Sync Gmail for all properties
+ * @summary Check whether the current user has a connected email
  */
-export const PostGmailSyncResponse = zod.object({
+export const GetEmailStatusResponse = zod.object({
+  "connected": zod.boolean(),
+  "email": zod.string().nullish()
+})
+
+
+/**
+ * @summary Get email pull settings for all properties (scoped to current user)
+ */
+export const GetEmailSettingsResponseItem = zod.object({
+  "propertyId": zod.number(),
+  "propertyName": zod.string(),
+  "propertyAddress": zod.string(),
+  "pullMode": zod.string().describe('\'label\' or \'address\''),
+  "emailFolder": zod.string().nullish(),
+  "lastSynced": zod.string().nullish()
+})
+export const GetEmailSettingsResponse = zod.array(GetEmailSettingsResponseItem)
+
+
+/**
+ * @summary Save email pull settings for a property
+ */
+export const PutEmailSettingsPropertyIdParams = zod.object({
+  "propertyId": zod.coerce.number()
+})
+
+export const PutEmailSettingsPropertyIdBody = zod.object({
+  "pullMode": zod.string(),
+  "emailFolder": zod.string().nullish()
+})
+
+export const PutEmailSettingsPropertyIdResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+/**
+ * @summary Sync email for all properties (current user)
+ */
+export const PostEmailSyncResponse = zod.object({
   "synced": zod.number(),
   "propertyId": zod.number().optional()
 })
 
 
 /**
- * @summary Sync Gmail for a single property
+ * @summary Sync email for a single property
  */
-export const PostGmailSyncPropertyIdParams = zod.object({
+export const PostEmailSyncPropertyIdParams = zod.object({
   "propertyId": zod.coerce.number()
 })
 
-export const PostGmailSyncPropertyIdResponse = zod.object({
+export const PostEmailSyncPropertyIdResponse = zod.object({
   "synced": zod.number(),
   "propertyId": zod.number().optional()
 })
@@ -201,11 +245,11 @@ export const PostGmailSyncPropertyIdResponse = zod.object({
 /**
  * @summary Get AI email notes for a property grouped by month
  */
-export const GetGmailNotesPropertyIdParams = zod.object({
+export const GetEmailNotesPropertyIdParams = zod.object({
   "propertyId": zod.coerce.number()
 })
 
-export const GetGmailNotesPropertyIdResponseItem = zod.object({
+export const GetEmailNotesPropertyIdResponseItem = zod.object({
   "monthYear": zod.string(),
   "notes": zod.array(zod.object({
   "id": zod.number(),
@@ -224,7 +268,7 @@ export const GetGmailNotesPropertyIdResponseItem = zod.object({
   "syncedAt": zod.string()
 }))
 })
-export const GetGmailNotesPropertyIdResponse = zod.array(GetGmailNotesPropertyIdResponseItem)
+export const GetEmailNotesPropertyIdResponse = zod.array(GetEmailNotesPropertyIdResponseItem)
 
 
 /**

@@ -6,13 +6,14 @@ export const emailNotesTable = pgTable("email_notes", {
   propertyId: integer("property_id")
     .notNull()
     .references(() => propertiesTable.id, { onDelete: "cascade" }),
-  threadId: text("thread_id").notNull(),
+  userId: text("user_id").notNull().default(""),
+  threadId: text("thread_id").notNull(), // IMAP mailbox:uid — unique per user
   subject: text("subject").notNull(),
-  participants: text("participants").notNull(), // JSON array of email strings
+  participants: text("participants").notNull(), // JSON array of strings
   monthYear: text("month_year").notNull(), // "2025-03"
   aiSummary: text("ai_summary").notNull(),
-  actionItems: text("action_items").notNull().default("[]"), // JSON array of strings
-  keyDates: text("key_dates").notNull().default("[]"), // JSON array of {date, description}
+  actionItems: text("action_items").notNull().default("[]"),
+  keyDates: text("key_dates").notNull().default("[]"),
   threadDate: timestamp("thread_date").notNull(),
   syncedAt: timestamp("synced_at").defaultNow().notNull(),
 });

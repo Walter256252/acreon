@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface GmailStatus {
-  connected: boolean;
+export interface EmailConnectResult {
+  success: boolean;
+  displayEmail: string;
 }
