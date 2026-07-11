@@ -313,9 +313,9 @@ export default function PropertyDetail() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
         <div>
-          <Link href="/app" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors">
+          <Link href="/app/properties" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors">
             <ArrowLeft className="w-4 h-4 mr-1" />
-            Back to Dashboard
+            Back to Properties
           </Link>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">{property.name}</h1>
           <div className="flex items-center gap-2 mt-2 text-muted-foreground">
