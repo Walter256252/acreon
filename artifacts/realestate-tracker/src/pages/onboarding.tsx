@@ -88,11 +88,14 @@ export default function Onboarding() {
     );
   }
 
-  // If already onboarded, bounce to app
-  if (user?.unsafeMetadata?.onboardingComplete) {
-    setLocation("/app");
-    return null;
-  }
+  // If already onboarded, bounce to app (via effect to avoid setState-during-render)
+  useEffect(() => {
+    if (isLoaded && user?.unsafeMetadata?.onboardingComplete) {
+      setLocation("/app");
+    }
+  }, [isLoaded, user, setLocation]);
+
+  if (isLoaded && user?.unsafeMetadata?.onboardingComplete) return null;
 
   function validatePhone(val: string) {
     const digits = val.replace(/\D/g, "");
@@ -121,7 +124,7 @@ export default function Onboarding() {
       });
 
       // 2. Store on Clerk user so the gate passes on next load
-      await user!.update({
+      await user!.updateMetadata({
         unsafeMetadata: {
           ...((user!.unsafeMetadata as Record<string, unknown>) ?? {}),
           phone: phone.trim(),

@@ -57,6 +57,10 @@ router.get("/dashboard", async (_req, res) => {
   const totalLoanBalance = summaries.reduce((sum, s) => sum + s.estimatedBalance, 0);
   const totalEquity = totalPortfolioValue - totalLoanBalance;
   const monthlyPaymentTotal = properties.reduce((sum, p) => sum + Number(p.monthlyPayment), 0);
+  const totalOriginalLoan = properties.reduce((sum, p) => sum + Number(p.loanAmount), 0);
+  const totalPrincipalPaid = totalOriginalLoan - totalLoanBalance;
+  const totalPurchasePrice = properties.reduce((sum, p) => sum + Number(p.purchasePrice), 0);
+  const totalAppreciation = totalPortfolioValue - totalPurchasePrice;
 
   res.json({
     totalProperties: properties.length,
@@ -64,6 +68,10 @@ router.get("/dashboard", async (_req, res) => {
     totalLoanBalance: round(totalLoanBalance),
     totalEquity: round(totalEquity),
     monthlyPaymentTotal: round(monthlyPaymentTotal),
+    totalOriginalLoan: round(totalOriginalLoan),
+    totalPrincipalPaid: round(totalPrincipalPaid),
+    totalPurchasePrice: round(totalPurchasePrice),
+    totalAppreciation: round(totalAppreciation),
     properties: summaries,
   });
 });

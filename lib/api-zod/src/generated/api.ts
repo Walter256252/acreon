@@ -648,6 +648,10 @@ export const GetDashboardResponse = zod.object({
   "totalLoanBalance": zod.number(),
   "totalEquity": zod.number(),
   "monthlyPaymentTotal": zod.number(),
+  "totalOriginalLoan": zod.number(),
+  "totalPrincipalPaid": zod.number(),
+  "totalPurchasePrice": zod.number(),
+  "totalAppreciation": zod.number(),
   "properties": zod.array(zod.object({
   "id": zod.number(),
   "name": zod.string(),
