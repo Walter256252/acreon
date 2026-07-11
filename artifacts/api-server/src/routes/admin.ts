@@ -30,6 +30,15 @@ async function requireAdmin(req: Request, res: Response, next: NextFunction) {
   }
 }
 
+// ── GET /admin/exists ──────────────────────────────────────────────────────
+// Public — tells the frontend whether any admin has been claimed yet.
+
+router.get("/admin/exists", async (_req, res) => {
+  const { data: allUsers } = await clerkClient.users.getUserList({ limit: 500 });
+  const adminExists = allUsers.some((u) => u.publicMetadata?.role === "admin");
+  res.json({ adminExists });
+});
+
 // ── POST /admin/become ─────────────────────────────────────────────────────
 // Bootstrap: first user to call this becomes admin IF no admin exists yet.
 
