@@ -1,12 +1,17 @@
+import { useState } from "react";
 import { useGetDashboard } from "@workspace/api-client-react";
 import { formatCurrency, formatPercent } from "@/lib/utils";
 import { Link } from "wouter";
-import { Building, PlusCircle } from "lucide-react";
+import { Building, PlusCircle, List, BarChart2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+type ViewMode = "simple" | "detailed";
 
 export default function Properties() {
   const { data, isLoading, isError } = useGetDashboard();
+  const [view, setView] = useState<ViewMode>("detailed");
 
   if (isLoading) {
     return (
@@ -31,7 +36,7 @@ export default function Properties() {
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Properties</h1>
@@ -41,12 +46,46 @@ export default function Properties() {
               : `${data.properties.length} propert${data.properties.length === 1 ? "y" : "ies"} in your portfolio.`}
           </p>
         </div>
-        <Button asChild>
-          <Link href="/app/properties/new">
-            <PlusCircle className="w-4 h-4 mr-2" />
-            Add Property
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          {data.properties.length > 0 && (
+            <div className="flex items-center gap-1 p-1 bg-muted rounded-lg">
+              <button
+                type="button"
+                onClick={() => setView("simple")}
+                title="Name & address only"
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
+                  view === "simple"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <List className="w-3.5 h-3.5" />
+                Simple
+              </button>
+              <button
+                type="button"
+                onClick={() => setView("detailed")}
+                title="Value, debt & equity"
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
+                  view === "detailed"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <BarChart2 className="w-3.5 h-3.5" />
+                Detailed
+              </button>
+            </div>
+          )}
+          <Button asChild>
+            <Link href="/app/properties/new">
+              <PlusCircle className="w-4 h-4 mr-2" />
+              Add Property
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {data.properties.length === 0 ? (
@@ -60,7 +99,7 @@ export default function Properties() {
             <Link href="/app/properties/new">Add your first property</Link>
           </Button>
         </div>
-      ) : (
+      ) : view === "detailed" ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {data.properties.map((prop) => (
             <Link key={prop.id} href={`/app/properties/${prop.id}`}>
@@ -95,6 +134,26 @@ export default function Properties() {
                 <div className="mt-4 pt-4 border-t flex items-center justify-between text-xs text-muted-foreground">
                   <span>View full amortization &rarr;</span>
                 </div>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      ) : (
+        /* Simple list view */
+        <div className="flex flex-col gap-2">
+          {data.properties.map((prop, i) => (
+            <Link key={prop.id} href={`/app/properties/${prop.id}`}>
+              <Card className="px-5 py-4 hover-elevate cursor-pointer flex items-center gap-4 group border-l-4 border-l-primary">
+                <span className="text-xs font-mono text-muted-foreground w-5 text-right flex-shrink-0">
+                  {i + 1}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-foreground group-hover:text-primary transition-colors truncate">
+                    {prop.name}
+                  </p>
+                  <p className="text-sm text-muted-foreground truncate">{prop.address}</p>
+                </div>
+                <span className="text-xs text-muted-foreground flex-shrink-0">&rarr;</span>
               </Card>
             </Link>
           ))}
