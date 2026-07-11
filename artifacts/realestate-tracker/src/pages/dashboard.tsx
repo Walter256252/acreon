@@ -32,14 +32,9 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Portfolio Overview</h1>
-          <p className="text-muted-foreground mt-1 text-sm">Real-time valuation and equity breakdown.</p>
-        </div>
-        <Button asChild>
-          <Link href="/properties/new">Add Property</Link>
-        </Button>
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight text-foreground">Portfolio Overview</h1>
+        <p className="text-muted-foreground mt-1 text-sm">Real-time valuation and equity breakdown.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
