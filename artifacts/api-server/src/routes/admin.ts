@@ -1,8 +1,8 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { getAuth, clerkClient } from "@clerk/express";
 import { db } from "@workspace/db";
-import { propertiesTable, userPreferencesTable, termsAcceptancesTable } from "@workspace/db";
-import { count, desc, sum } from "drizzle-orm";
+import { propertiesTable, userPreferencesTable, termsAcceptancesTable, feedbackTable } from "@workspace/db";
+import { count, desc, eq, sum } from "drizzle-orm";
 import { ReplitConnectors } from "@replit/connectors-sdk";
 import { buildRawEmail } from "../lib/digestSender";
 import { buildAmortizationSchedule } from "./payments";
@@ -313,6 +313,46 @@ router.post("/onboarding/complete", async (req, res) => {
   } catch {
     // Email notification is best-effort — don't fail the request
   }
+
+  res.json({ success: true });
+});
+
+// ── GET /admin/feedback ────────────────────────────────────────────────────
+
+router.get("/admin/feedback", requireAdmin, async (_req, res) => {
+  const rows = await db
+    .select()
+    .from(feedbackTable)
+    .orderBy(desc(feedbackTable.createdAt));
+  res.json(rows.map((r) => ({
+    id: r.id,
+    userId: r.userId,
+    userEmail: r.userEmail,
+    userName: r.userName,
+    category: r.category,
+    message: r.message,
+    status: r.status,
+    adminNote: r.adminNote ?? null,
+    createdAt: r.createdAt.toISOString(),
+  })));
+});
+
+// ── PATCH /admin/feedback/:id ──────────────────────────────────────────────
+
+router.patch("/admin/feedback/:id", requireAdmin, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!id) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const { status, adminNote } = req.body as { status?: string; adminNote?: string };
+
+  await db
+    .update(feedbackTable)
+    .set({
+      ...(status ? { status } : {}),
+      ...(adminNote !== undefined ? { adminNote } : {}),
+      updatedAt: new Date(),
+    })
+    .where(eq(feedbackTable.id, id));
 
   res.json({ success: true });
 });

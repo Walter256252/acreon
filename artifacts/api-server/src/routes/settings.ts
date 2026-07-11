@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { getAuth, clerkClient } from "@clerk/express";
 import { db } from "@workspace/db";
-import { userPreferencesTable } from "@workspace/db";
+import { userPreferencesTable, feedbackTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { generateDigest, sendMonthlyDigest } from "../lib/digestSender";
 
@@ -86,6 +86,30 @@ router.post("/user/digest/send", async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err instanceof Error ? err.message : "Failed to send digest" });
   }
+});
+
+// POST /user/feedback — submit feedback
+router.post("/user/feedback", async (req, res) => {
+  const userId = uid(req);
+  if (!userId) { res.status(401).json({ error: "Not authenticated" }); return; }
+
+  const { category, message } = req.body as { category?: string; message?: string };
+  if (!message?.trim()) { res.status(400).json({ error: "message is required" }); return; }
+
+  const user = await clerkClient.users.getUser(userId);
+  const userEmail = user.emailAddresses.find((e) => e.id === user.primaryEmailAddressId)?.emailAddress ?? "";
+  const userName = [user.firstName, user.lastName].filter(Boolean).join(" ") || userEmail;
+
+  await db.insert(feedbackTable).values({
+    userId,
+    userEmail,
+    userName,
+    category: category ?? "general",
+    message: message.trim(),
+    status: "new",
+  });
+
+  res.json({ success: true });
 });
 
 export default router;

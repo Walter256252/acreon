@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useUser } from "@clerk/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ShieldCheck, Users, Building2, Mail, Crown, UserX, Loader2,
   RefreshCw, Activity, Search, Send, FileCheck, DollarSign, TrendingUp, Landmark, MapPin,
+  MessageSquare, CheckCheck, Clock, AlertCircle, ChevronDown, ChevronUp,
 } from "lucide-react";
 import { formatCurrency, formatPercent } from "@/lib/utils";
 import { StatCard } from "@/components/ui/stat-card";
@@ -363,6 +364,193 @@ function PropertiesMapTab({ isAdmin }: { isAdmin: boolean }) {
   );
 }
 
+// ── Feedback tab ───────────────────────────────────────────────────────────
+
+interface FeedbackItem {
+  id: number;
+  userId: string;
+  userEmail: string;
+  userName: string;
+  category: string;
+  message: string;
+  status: string;
+  adminNote: string | null;
+  createdAt: string;
+}
+
+const CATEGORY_LABELS: Record<string, string> = {
+  general: "General",
+  bug: "🐛 Bug",
+  feature: "✨ Feature",
+  question: "❓ Question",
+};
+
+const STATUS_CONFIG: Record<string, { label: string; icon: React.ReactNode; className: string }> = {
+  new: { label: "New", icon: <AlertCircle className="w-3.5 h-3.5" />, className: "text-primary bg-primary/10 border-primary/20" },
+  read: { label: "Read", icon: <Clock className="w-3.5 h-3.5" />, className: "text-amber-600 bg-amber-50 border-amber-200" },
+  addressed: { label: "Addressed", icon: <CheckCheck className="w-3.5 h-3.5" />, className: "text-emerald-600 bg-emerald-50 border-emerald-200" },
+};
+
+function FeedbackTab({ isAdmin }: { isAdmin: boolean }) {
+  const queryClient = useQueryClient();
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [noteInputs, setNoteInputs] = useState<Record<number, string>>({});
+  const [saving, setSaving] = useState<number | null>(null);
+
+  const { data: items = [], isLoading } = useQuery<FeedbackItem[]>({
+    queryKey: ["admin-feedback"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/feedback");
+      if (!res.ok) throw new Error("Failed to load feedback");
+      return res.json();
+    },
+    enabled: isAdmin,
+    staleTime: 30_000,
+  });
+
+  const newCount = items.filter((f) => f.status === "new").length;
+
+  const updateFeedback = async (id: number, patch: { status?: string; adminNote?: string }) => {
+    setSaving(id);
+    try {
+      await fetch(`/api/admin/feedback/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      queryClient.invalidateQueries({ queryKey: ["admin-feedback"] });
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <p className="text-sm text-muted-foreground">
+          {items.length} submission{items.length !== 1 ? "s" : ""}
+          {newCount > 0 && (
+            <span className="ml-2 inline-flex items-center gap-1 text-xs font-semibold text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-full">
+              <AlertCircle className="w-3 h-3" /> {newCount} new
+            </span>
+          )}
+        </p>
+      </div>
+
+      {items.length === 0 && (
+        <div className="text-center py-16 text-muted-foreground">
+          <MessageSquare className="w-10 h-10 mx-auto mb-3 opacity-20" />
+          <p className="text-sm font-medium">No feedback yet</p>
+          <p className="text-xs mt-1">Submissions from users will appear here.</p>
+        </div>
+      )}
+
+      <div className="rounded-lg border divide-y overflow-hidden">
+        {items.map((item) => {
+          const isOpen = expandedId === item.id;
+          const statusCfg = STATUS_CONFIG[item.status] ?? STATUS_CONFIG.new;
+          return (
+            <div key={item.id} className="bg-card">
+              {/* Row header */}
+              <button
+                onClick={() => {
+                  setExpandedId(isOpen ? null : item.id);
+                  if (!isOpen && item.status === "new") updateFeedback(item.id, { status: "read" });
+                }}
+                className="w-full flex items-start gap-4 px-5 py-4 text-left hover:bg-muted/30 transition-colors"
+              >
+                {/* Category + status badges */}
+                <div className="flex flex-col gap-1.5 shrink-0 pt-0.5">
+                  <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                    {CATEGORY_LABELS[item.category] ?? item.category}
+                  </span>
+                  <span className={`inline-flex items-center gap-1 text-xs font-medium border px-2 py-0.5 rounded-full ${statusCfg.className}`}>
+                    {statusCfg.icon} {statusCfg.label}
+                  </span>
+                </div>
+
+                {/* Message preview */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <p className="text-sm font-semibold text-foreground truncate">{item.userName}</p>
+                    <span className="text-xs text-muted-foreground shrink-0">
+                      {new Date(item.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground truncate">{item.userEmail}</p>
+                  <p className="text-sm text-foreground mt-1 line-clamp-2">{item.message}</p>
+                </div>
+
+                {isOpen
+                  ? <ChevronUp className="w-4 h-4 text-muted-foreground shrink-0 mt-1" />
+                  : <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0 mt-1" />}
+              </button>
+
+              {/* Expanded detail */}
+              {isOpen && (
+                <div className="px-5 pb-5 pt-2 border-t bg-muted/10 space-y-4">
+                  {/* Full message */}
+                  <div className="rounded-lg bg-background border border-border p-4">
+                    <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{item.message}</p>
+                  </div>
+
+                  {/* Status controls */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-medium text-muted-foreground">Mark as:</span>
+                    {(["new", "read", "addressed"] as const).map((s) => {
+                      const cfg = STATUS_CONFIG[s];
+                      return (
+                        <button
+                          key={s}
+                          disabled={item.status === s || saving === item.id}
+                          onClick={() => updateFeedback(item.id, { status: s })}
+                          className={`inline-flex items-center gap-1.5 text-xs font-medium border px-3 py-1 rounded-full transition-colors disabled:opacity-40 ${
+                            item.status === s ? cfg.className : "bg-background text-muted-foreground border-border hover:bg-muted"
+                          }`}
+                        >
+                          {cfg.icon} {cfg.label}
+                        </button>
+                      );
+                    })}
+                    {saving === item.id && <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />}
+                  </div>
+
+                  {/* Admin note */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-muted-foreground">Private note (admin only)</label>
+                    <textarea
+                      rows={2}
+                      value={noteInputs[item.id] ?? item.adminNote ?? ""}
+                      onChange={(e) => setNoteInputs((p) => ({ ...p, [item.id]: e.target.value }))}
+                      placeholder="Add a note for your own reference…"
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+                    />
+                    <button
+                      onClick={() => updateFeedback(item.id, { adminNote: noteInputs[item.id] ?? "" })}
+                      disabled={saving === item.id}
+                      className="text-xs font-medium text-primary hover:text-primary/80 transition-colors disabled:opacity-50"
+                    >
+                      Save note
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ── Main component ─────────────────────────────────────────────────────────
 
 export default function AdminDashboard() {
@@ -534,6 +722,9 @@ export default function AdminDashboard() {
           </TabsTrigger>
           <TabsTrigger value="map" className="gap-2">
             <MapPin className="w-4 h-4" /> Properties Map
+          </TabsTrigger>
+          <TabsTrigger value="feedback" className="gap-2">
+            <MessageSquare className="w-4 h-4" /> Feedback
           </TabsTrigger>
         </TabsList>
 
@@ -845,6 +1036,11 @@ export default function AdminDashboard() {
         {/* ── Properties Map tab ─────────────────────────────────────────── */}
         <TabsContent value="map" className="mt-4">
           <PropertiesMapTab isAdmin={isAdmin} />
+        </TabsContent>
+
+        {/* ── Feedback tab ───────────────────────────────────────────────── */}
+        <TabsContent value="feedback" className="mt-4">
+          <FeedbackTab isAdmin={isAdmin} />
         </TabsContent>
       </Tabs>
     </div>

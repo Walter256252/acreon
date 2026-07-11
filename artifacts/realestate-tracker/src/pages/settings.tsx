@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { useUser, useClerk } from "@clerk/react";
 import {
   User, Mail, Bell, ChevronRight, CheckCircle2, Loader2, Send,
-  Sparkles, Eye, TrendingUp, ShieldCheck, RefreshCw, WifiOff, Wifi,
+  Sparkles, Eye, TrendingUp, ShieldCheck, RefreshCw, WifiOff, Wifi, MessageSquare,
 } from "lucide-react";
 import {
   useGetUserPreferences,
@@ -165,6 +165,34 @@ export default function Settings() {
   const [showSample, setShowSample] = useState(false);
   const [sendSuccess, setSendSuccess] = useState<string | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
+
+  // Feedback state
+  const [feedbackCategory, setFeedbackCategory] = useState("general");
+  const [feedbackMessage, setFeedbackMessage] = useState("");
+  const [feedbackSending, setFeedbackSending] = useState(false);
+  const [feedbackSuccess, setFeedbackSuccess] = useState(false);
+  const [feedbackError, setFeedbackError] = useState<string | null>(null);
+
+  const handleSendFeedback = async () => {
+    if (!feedbackMessage.trim()) return;
+    setFeedbackSending(true);
+    setFeedbackError(null);
+    setFeedbackSuccess(false);
+    try {
+      const res = await fetch("/api/user/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ category: feedbackCategory, message: feedbackMessage.trim() }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Failed");
+      setFeedbackSuccess(true);
+      setFeedbackMessage("");
+    } catch (err) {
+      setFeedbackError(err instanceof Error ? err.message : "Failed to send feedback");
+    } finally {
+      setFeedbackSending(false);
+    }
+  };
 
   const enabled = prefs?.monthlyDigestEnabled ?? false;
 
@@ -405,6 +433,73 @@ export default function Settings() {
               <SampleDigestCard />
             </div>
           )}
+        </div>
+      </section>
+
+      {/* ── Feedback ────────────────────────────────────────────── */}
+      <section className="rounded-xl border border-border bg-card overflow-hidden">
+        <div className="px-5 py-4 border-b border-border flex items-center gap-2">
+          <MessageSquare className="w-4 h-4 text-muted-foreground" />
+          <h2 className="font-semibold text-foreground">Send Feedback</h2>
+        </div>
+        <div className="p-5 space-y-4">
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Have a suggestion, found a bug, or just want to share how things are going? Send it directly — we read every message.
+          </p>
+
+          {/* Category pills */}
+          <div className="flex flex-wrap gap-2">
+            {[
+              { value: "general", label: "General" },
+              { value: "bug", label: "🐛 Bug report" },
+              { value: "feature", label: "✨ Feature idea" },
+              { value: "question", label: "❓ Question" },
+            ].map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setFeedbackCategory(opt.value)}
+                className={cn(
+                  "px-3 py-1.5 rounded-full text-xs font-medium border transition-colors",
+                  feedbackCategory === opt.value
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background text-muted-foreground border-border hover:border-primary/50"
+                )}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Message */}
+          <textarea
+            value={feedbackMessage}
+            onChange={(e) => { setFeedbackMessage(e.target.value); setFeedbackSuccess(false); }}
+            placeholder="What's on your mind?"
+            rows={4}
+            className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+          />
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleSendFeedback}
+              disabled={feedbackSending || !feedbackMessage.trim()}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+            >
+              {feedbackSending ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Sending…</>
+              ) : (
+                <><Send className="w-4 h-4" /> Send Feedback</>
+              )}
+            </button>
+            {feedbackSuccess && (
+              <span className="flex items-center gap-1.5 text-sm text-emerald-600">
+                <CheckCircle2 className="w-4 h-4" /> Sent — thanks!
+              </span>
+            )}
+            {feedbackError && (
+              <span className="text-sm text-destructive">{feedbackError}</span>
+            )}
+          </div>
         </div>
       </section>
     </div>
