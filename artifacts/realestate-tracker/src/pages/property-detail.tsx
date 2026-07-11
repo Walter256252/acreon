@@ -661,28 +661,30 @@ export default function PropertyDetail() {
         return (
           <Card>
             <CardContent className="pt-4 pb-4">
-              <button
-                type="button"
-                onClick={() => setSnapCollapsed(v => !v)}
-                className="flex items-center gap-2 w-full text-left mb-4 group"
-              >
-                <Receipt className="w-4 h-4 text-primary shrink-0" />
-                <h3 className="text-sm font-semibold text-foreground">Monthly Snapshot</h3>
-                {snapCollapsed && hasRent && (
-                  <span className={cn(
-                    "text-xs font-semibold ml-2 px-2 py-0.5 rounded-full",
-                    net >= 0 ? "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400" : "bg-red-100 text-red-600 dark:bg-red-950/40 dark:text-red-400",
-                  )}>
-                    {net >= 0 ? "+" : ""}{formatCurrency(net)}/mo
-                  </span>
-                )}
-                <span className="text-xs text-muted-foreground ml-auto mr-1 hidden group-hover:inline">
-                  {snapCollapsed ? "expand" : "collapse"}
-                </span>
-                {snapCollapsed
-                  ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                  : <ChevronUp className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
-              </button>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Receipt className="w-4 h-4 text-primary shrink-0" />
+                  <h3 className="text-sm font-semibold text-foreground">Monthly Snapshot</h3>
+                  {snapCollapsed && hasRent && (
+                    <span className={cn(
+                      "text-xs font-semibold px-2 py-0.5 rounded-full",
+                      net >= 0 ? "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400" : "bg-red-100 text-red-600 dark:bg-red-950/40 dark:text-red-400",
+                    )}>
+                      {net >= 0 ? "+" : ""}{formatCurrency(net)}/mo
+                    </span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSnapCollapsed(v => !v)}
+                  className="p-1.5 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                  title={snapCollapsed ? "Expand" : "Collapse"}
+                >
+                  {snapCollapsed
+                    ? <ChevronDown className="w-4 h-4" />
+                    : <ChevronUp className="w-4 h-4" />}
+                </button>
+              </div>
               {!snapCollapsed && (
                 <>
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
