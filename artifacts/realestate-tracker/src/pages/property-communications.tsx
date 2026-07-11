@@ -2,11 +2,26 @@ import { useState } from "react";
 import { Link, useParams } from "wouter";
 import {
   ArrowLeft, RefreshCw, Mail, Users, Calendar, Lightbulb, ChevronDown, ChevronUp,
-  Inbox, Loader2, Wrench, FileText, DollarSign, Search, Scale, Sparkles,
+  Inbox, Loader2, Wrench, FileText, DollarSign, Search, Scale, Sparkles, Clock,
 } from "lucide-react";
 import {
-  useGetProperty, useGetEmailNotesPropertyId, usePostEmailSyncPropertyId, useGetEmailStatus,
+  useGetProperty, useGetEmailNotesPropertyId, usePostEmailSyncPropertyId,
+  useGetEmailStatus, useGetEmailSettings,
 } from "@workspace/api-client-react";
+
+// ── Relative time ─────────────────────────────────────────────────────────
+
+function relativeTime(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins} min${mins !== 1 ? "s" : ""} ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs} hour${hrs !== 1 ? "s" : ""} ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days} day${days !== 1 ? "s" : ""} ago`;
+  return new Date(dateStr).toLocaleDateString();
+}
 import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 
@@ -333,9 +348,12 @@ export default function PropertyCommunications() {
   const { data: property } = useGetProperty(propertyId);
   const { data: notesByMonth, isLoading } = useGetEmailNotesPropertyId(propertyId);
   const { data: status } = useGetEmailStatus();
+  const { data: allSettings } = useGetEmailSettings();
   const syncMutation = usePostEmailSyncPropertyId();
   const [isSyncing, setIsSyncing] = useState(false);
   const [groupMode, setGroupMode] = useState<GroupMode>("monthly");
+
+  const lastSynced = allSettings?.find((s) => s.propertyId === propertyId)?.lastSynced ?? null;
 
   const connected = status?.connected ?? false;
 
@@ -370,9 +388,16 @@ export default function PropertyCommunications() {
           <p className="text-muted-foreground text-sm mt-0.5">{property?.address}</p>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-sm text-muted-foreground">
-            {showExample ? `${totalNotes} example emails` : `${totalNotes} email${totalNotes !== 1 ? "s" : ""} synced`}
-          </span>
+          <div className="text-right">
+            <span className="text-sm text-muted-foreground">
+              {showExample ? `${totalNotes} example emails` : `${totalNotes} email${totalNotes !== 1 ? "s" : ""} synced`}
+            </span>
+            {lastSynced && !showExample && (
+              <p className="flex items-center justify-end gap-1 text-xs text-muted-foreground/60 mt-0.5">
+                <Clock className="w-3 h-3" /> Last synced {relativeTime(lastSynced)}
+              </p>
+            )}
+          </div>
           <button
             onClick={handleSync}
             disabled={!connected || isSyncing}
