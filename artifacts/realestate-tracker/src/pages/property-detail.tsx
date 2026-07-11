@@ -116,8 +116,12 @@ export default function PropertyDetail() {
   const [valueInput, setValueInput] = useState("");
 
   const handleSaveValue = () => {
-    const n = Number(valueInput);
-    if (!valueInput || isNaN(n) || n <= 0) return;
+    const raw = valueInput.trim().replace(/[$,\s]/g, "");
+    const n = parseFloat(raw);
+    if (!raw || isNaN(n) || n <= 0) {
+      toast({ title: "Invalid value", description: "Please enter a number greater than zero.", variant: "destructive" });
+      return;
+    }
     updateValue.mutate({ id, data: { currentValue: n } }, {
       onSuccess: () => {
         setValuePopoverOpen(false);
@@ -521,9 +525,9 @@ export default function PropertyDetail() {
               <Label htmlFor="current-value-input">New value ($)</Label>
               <Input
                 id="current-value-input"
-                type="number"
-                min="0"
-                step="1000"
+                type="text"
+                inputMode="numeric"
+                placeholder="e.g. 650000"
                 value={valueInput}
                 onChange={e => setValueInput(e.target.value)}
                 onKeyDown={e => { if (e.key === "Enter") handleSaveValue(); }}
