@@ -497,6 +497,30 @@ function FeedbackTab({ isAdmin }: { isAdmin: boolean }) {
               {/* Expanded detail */}
               {isOpen && (
                 <div className="px-5 pb-5 pt-2 border-t bg-muted/10 space-y-4">
+                  {/* Sender info */}
+                  <div className="flex items-center gap-3 py-2">
+                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0 text-sm font-semibold text-primary">
+                      {item.userName.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-foreground">{item.userName}</p>
+                      <a
+                        href={`mailto:${item.userEmail}`}
+                        className="text-xs text-primary hover:underline font-medium"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {item.userEmail}
+                      </a>
+                    </div>
+                    <a
+                      href={`mailto:${item.userEmail}?subject=Re: Your RealTrack feedback`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-border bg-background hover:bg-muted transition-colors shrink-0"
+                    >
+                      <Mail className="w-3.5 h-3.5" /> Reply via email
+                    </a>
+                  </div>
+
                   {/* Full message */}
                   <div className="rounded-lg bg-background border border-border p-4">
                     <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{item.message}</p>
