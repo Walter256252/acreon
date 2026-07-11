@@ -5,6 +5,7 @@
  * Real Estate Tracker API
  * OpenAPI spec version: 0.1.0
  */
+import type { ExtraPaymentEntry } from './extraPaymentEntry';
 
 export interface PropertyUpdate {
   name?: string;
@@ -19,4 +20,9 @@ export interface PropertyUpdate {
   monthlyPayment?: number;
   /** @nullable */
   notes?: string | null;
+  autoPayEnabled?: boolean;
+  /** @nullable */
+  savedExtraMonthly?: number | null;
+  /** @nullable */
+  savedExtraPayments?: ExtraPaymentEntry[] | null;
 }

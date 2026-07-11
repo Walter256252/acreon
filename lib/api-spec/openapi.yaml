@@ -672,6 +672,17 @@ components:
           type: number
         notes:
           type: ["string", "null"]
+        autoPayEnabled:
+          type: boolean
+          description: When true, assume all past payments have been made on schedule
+        savedExtraMonthly:
+          type: ["number", "null"]
+          description: Persistent extra principal added to every monthly payment
+        savedExtraPayments:
+          type: ["array", "null"]
+          items:
+            $ref: "#/components/schemas/ExtraPaymentEntry"
+          description: Persistent one-time extra payments by payment number
         createdAt:
           type: string
         updatedAt:
@@ -772,6 +783,14 @@ components:
           type: number
         notes:
           type: ["string", "null"]
+        autoPayEnabled:
+          type: boolean
+        savedExtraMonthly:
+          type: ["number", "null"]
+        savedExtraPayments:
+          type: ["array", "null"]
+          items:
+            $ref: "#/components/schemas/ExtraPaymentEntry"
 
     Payment:
       type: object

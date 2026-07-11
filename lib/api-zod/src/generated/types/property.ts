@@ -5,6 +5,7 @@
  * Real Estate Tracker API
  * OpenAPI spec version: 0.1.0
  */
+import type { ExtraPaymentEntry } from './extraPaymentEntry';
 
 export interface Property {
   id: number;
@@ -22,6 +23,18 @@ export interface Property {
   monthlyPayment: number;
   /** @nullable */
   notes?: string | null;
+  /** When true, assume all past payments have been made on schedule */
+  autoPayEnabled?: boolean;
+  /**
+     * Persistent extra principal added to every monthly payment
+     * @nullable
+     */
+  savedExtraMonthly?: number | null;
+  /**
+     * Persistent one-time extra payments by payment number
+     * @nullable
+     */
+  savedExtraPayments?: ExtraPaymentEntry[] | null;
   createdAt: string;
   updatedAt: string;
 }

@@ -63,6 +63,9 @@ router.put("/properties/:id", async (req, res) => {
   if (body.loanStartDate !== undefined) updates.loanStartDate = body.loanStartDate;
   if (body.monthlyPayment !== undefined) updates.monthlyPayment = String(body.monthlyPayment);
   if ("notes" in body) updates.notes = body.notes ?? null;
+  if (body.autoPayEnabled !== undefined) updates.autoPayEnabled = body.autoPayEnabled;
+  if ("savedExtraMonthly" in body) updates.savedExtraMonthly = body.savedExtraMonthly != null ? String(body.savedExtraMonthly) : null;
+  if ("savedExtraPayments" in body) updates.savedExtraPayments = body.savedExtraPayments ?? null;
 
   const [row] = await db.update(propertiesTable).set(updates).where(eq(propertiesTable.id, id)).returning();
   if (!row) { res.status(404).json({ error: "Property not found" }); return; }
@@ -123,6 +126,9 @@ function toApiProperty(row: typeof propertiesTable.$inferSelect) {
     loanStartDate: row.loanStartDate,
     monthlyPayment: Number(row.monthlyPayment),
     notes: row.notes ?? null,
+    autoPayEnabled: row.autoPayEnabled,
+    savedExtraMonthly: row.savedExtraMonthly != null ? Number(row.savedExtraMonthly) : null,
+    savedExtraPayments: (row.savedExtraPayments as Array<{ paymentNumber: number; amount: number }> | null) ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

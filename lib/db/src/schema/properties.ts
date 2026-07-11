@@ -1,4 +1,4 @@
-import { pgTable, serial, text, numeric, integer, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, numeric, integer, timestamp, boolean, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -15,6 +15,10 @@ export const propertiesTable = pgTable("properties", {
   loanStartDate: text("loan_start_date").notNull(),
   monthlyPayment: numeric("monthly_payment", { precision: 15, scale: 2 }).notNull(),
   notes: text("notes"),
+  // Payment tracking
+  autoPayEnabled: boolean("auto_pay_enabled").default(true).notNull(),
+  savedExtraMonthly: numeric("saved_extra_monthly", { precision: 15, scale: 2 }),
+  savedExtraPayments: jsonb("saved_extra_payments").$type<Array<{ paymentNumber: number; amount: number }>>(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

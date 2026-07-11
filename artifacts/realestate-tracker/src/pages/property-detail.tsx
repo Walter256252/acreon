@@ -6,6 +6,7 @@ import {
   useGetAmortizationSchedule,
   getGetAmortizationScheduleQueryKey,
   useDeleteProperty,
+  useUpdateProperty,
   getGetDashboardQueryKey,
   getListPropertiesQueryKey,
   useRunCalculator,
@@ -33,6 +34,10 @@ import {
   Clock,
   Plus,
   X,
+  Zap,
+  ZapOff,
+  Sparkles,
+  AlertCircle,
 } from "lucide-react";
 import { Link } from "wouter";
 import {
@@ -55,6 +60,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 interface OneTimeExtra {
   paymentNumber: string;
@@ -77,6 +83,7 @@ export default function PropertyDetail() {
   });
 
   const deleteProperty = useDeleteProperty();
+  const updateProperty = useUpdateProperty();
   const runCalculator = useRunCalculator();
 
   // View mode state
@@ -90,6 +97,22 @@ export default function PropertyDetail() {
   const [oneTimeExtras, setOneTimeExtras] = useState<OneTimeExtra[]>([{ paymentNumber: "", amount: "" }]);
   const [scenarioResult, setScenarioResult] = useState<ReturnType<typeof useRunCalculator>["data"] | null>(null);
   const [showingScenario, setShowingScenario] = useState(false);
+
+  // Seed scenario inputs from saved extras when panel opens
+  useEffect(() => {
+    if (scenarioOpen && property) {
+      if (property.savedExtraMonthly) setExtraMonthly(String(property.savedExtraMonthly));
+      if (property.savedExtraPayments?.length) {
+        setOneTimeExtras(
+          property.savedExtraPayments.map(e => ({
+            paymentNumber: String(e.paymentNumber),
+            amount: String(e.amount),
+          }))
+        );
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scenarioOpen]);
 
   const handleDelete = () => {
     deleteProperty.mutate({ id }, {
@@ -125,7 +148,10 @@ export default function PropertyDetail() {
       onSuccess: (result) => {
         setScenarioResult(result);
         setShowingScenario(true);
-        toast({ title: "Scenario calculated", description: `You'd save ${result.summary.monthsSaved} months and ${formatCurrency(result.summary.interestSaved)} in interest.` });
+        toast({
+          title: "Scenario calculated",
+          description: `Save ${result.summary.monthsSaved} months and ${formatCurrency(result.summary.interestSaved)} in interest.`,
+        });
       },
       onError: () => {
         toast({ title: "Error", description: "Failed to run scenario.", variant: "destructive" });
@@ -133,11 +159,73 @@ export default function PropertyDetail() {
     });
   };
 
+  const handleApplyScenario = () => {
+    if (!property || !scenarioResult) return;
+    const validExtras = oneTimeExtras
+      .filter(e => e.paymentNumber && e.amount && Number(e.amount) > 0)
+      .map(e => ({ paymentNumber: Number(e.paymentNumber), amount: Number(e.amount) }));
+
+    updateProperty.mutate({
+      id,
+      data: {
+        savedExtraMonthly: extraMonthly ? Number(extraMonthly) : null,
+        savedExtraPayments: validExtras.length > 0 ? validExtras : null,
+      },
+    }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getGetPropertyQueryKey(id) });
+        queryClient.invalidateQueries({ queryKey: getGetAmortizationScheduleQueryKey(id) });
+        queryClient.invalidateQueries({ queryKey: getGetDashboardQueryKey() });
+        setShowingScenario(false);
+        setScenarioOpen(false);
+        toast({
+          title: "Extra payments applied",
+          description: "This property's schedule now reflects your extra payments.",
+        });
+      },
+      onError: () => {
+        toast({ title: "Error", description: "Failed to save extra payments.", variant: "destructive" });
+      },
+    });
+  };
+
+  const handleClearExtraPayments = () => {
+    updateProperty.mutate({
+      id,
+      data: { savedExtraMonthly: null, savedExtraPayments: null },
+    }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getGetPropertyQueryKey(id) });
+        queryClient.invalidateQueries({ queryKey: getGetAmortizationScheduleQueryKey(id) });
+        queryClient.invalidateQueries({ queryKey: getGetDashboardQueryKey() });
+        toast({ title: "Extra payments cleared", description: "Schedule reset to standard payments." });
+      },
+    });
+  };
+
+  const handleToggleAutoPay = (enabled: boolean) => {
+    updateProperty.mutate({ id, data: { autoPayEnabled: enabled } }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getGetPropertyQueryKey(id) });
+        toast({
+          title: enabled ? "Auto-pay assumed" : "Auto-pay paused",
+          description: enabled
+            ? "All past payments are assumed made on schedule."
+            : "Past payments are no longer assumed — equity reflects any missed months.",
+        });
+      },
+    });
+  };
+
   const clearScenario = () => {
     setScenarioResult(null);
     setShowingScenario(false);
-    setExtraMonthly("");
-    setOneTimeExtras([{ paymentNumber: "", amount: "" }]);
+    setExtraMonthly(property?.savedExtraMonthly ? String(property.savedExtraMonthly) : "");
+    setOneTimeExtras(
+      property?.savedExtraPayments?.length
+        ? property.savedExtraPayments.map(e => ({ paymentNumber: String(e.paymentNumber), amount: String(e.amount) }))
+        : [{ paymentNumber: "", amount: "" }]
+    );
   };
 
   const addOneTime = () => {
@@ -201,6 +289,9 @@ export default function PropertyDetail() {
   const currentBalance = baseSchedule.length > 0 ? baseSchedule[baseSchedule.length - 1]?.remainingBalance ?? 0 : property.loanAmount;
   const estimatedEquity = property.currentValue - currentBalance;
 
+  const hasSavedExtras = property.savedExtraMonthly || property.savedExtraPayments?.length;
+  const scenarioHasInputs = !!extraMonthly || oneTimeExtras.some(e => e.amount);
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-20">
       {/* Header */}
@@ -217,7 +308,26 @@ export default function PropertyDetail() {
           </div>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          {/* Auto-pay toggle */}
+          <button
+            type="button"
+            onClick={() => handleToggleAutoPay(!property.autoPayEnabled)}
+            disabled={updateProperty.isPending}
+            title={property.autoPayEnabled ? "Click to mark payments as not all made" : "Click to assume all payments made on schedule"}
+            className={cn(
+              "inline-flex items-center gap-2 px-3 py-2 rounded-md border text-sm font-medium transition-all",
+              property.autoPayEnabled
+                ? "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/30 dark:border-emerald-800 dark:text-emerald-400"
+                : "bg-muted border-border text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {property.autoPayEnabled
+              ? <Zap className="w-3.5 h-3.5" />
+              : <ZapOff className="w-3.5 h-3.5" />}
+            {property.autoPayEnabled ? "Payments on track" : "Payments paused"}
+          </button>
+
           <Button variant="outline" asChild>
             <Link href={`/properties/${id}/edit`}>
               <Edit className="w-4 h-4 mr-2" />
@@ -249,6 +359,44 @@ export default function PropertyDetail() {
           </AlertDialog>
         </div>
       </div>
+
+      {/* Auto-pay off warning */}
+      {!property.autoPayEnabled && (
+        <div className="flex items-start gap-3 px-4 py-3 rounded-lg border border-amber-200 bg-amber-50 text-amber-800 text-sm dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-400">
+          <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+          <span>
+            Payments are marked as paused. The amortization schedule shows the theoretical projection — equity figures may differ from actual balance.
+            <button
+              onClick={() => handleToggleAutoPay(true)}
+              className="ml-2 underline font-medium hover:no-underline"
+            >
+              Resume
+            </button>
+          </span>
+        </div>
+      )}
+
+      {/* Saved extra payments banner */}
+      {hasSavedExtras && (
+        <div className="flex items-center gap-3 px-4 py-3 rounded-lg border border-primary/20 bg-primary/5 text-sm">
+          <Sparkles className="w-4 h-4 text-primary flex-shrink-0" />
+          <span className="flex-1 text-foreground">
+            <span className="font-medium">Extra payments applied:</span>{" "}
+            {property.savedExtraMonthly ? `+${formatCurrency(property.savedExtraMonthly)}/month` : ""}
+            {property.savedExtraMonthly && property.savedExtraPayments?.length ? " · " : ""}
+            {property.savedExtraPayments?.length
+              ? `${property.savedExtraPayments.length} one-time extra${property.savedExtraPayments.length > 1 ? "s" : ""}`
+              : ""}
+            {" — schedule reflects accelerated payoff."}
+          </span>
+          <button
+            onClick={handleClearExtraPayments}
+            className="text-xs text-muted-foreground hover:text-destructive transition-colors underline whitespace-nowrap"
+          >
+            Clear
+          </button>
+        </div>
+      )}
 
       {/* Stats Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -286,6 +434,9 @@ export default function PropertyDetail() {
               <CardTitle className="text-xl">Amortization Schedule</CardTitle>
               <p className="text-sm text-muted-foreground mt-1">
                 {baseSchedule.length} payments &mdash; payoff {baseSchedule.length > 0 ? formatDate(baseSchedule[baseSchedule.length - 1].paymentDate) : "—"}
+                {hasSavedExtras && (
+                  <span className="ml-2 text-primary font-medium">(with extra payments)</span>
+                )}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -320,7 +471,7 @@ export default function PropertyDetail() {
                 data-testid="button-toggle-scenario"
               >
                 {scenarioOpen ? <ChevronUp className="w-4 h-4 mr-2" /> : <ChevronDown className="w-4 h-4 mr-2" />}
-                Try a Scenario
+                {hasSavedExtras ? "Edit Extra Payments" : "Try a Scenario"}
               </Button>
             </div>
           </div>
@@ -329,7 +480,12 @@ export default function PropertyDetail() {
           {scenarioOpen && (
             <div className="rounded-xl border border-border bg-muted/30 p-5 space-y-5">
               <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-sm text-foreground">What-If Scenario</h3>
+                <div>
+                  <h3 className="font-semibold text-sm text-foreground">Extra Payment Scenario</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Run a what-if, then apply it permanently to this property's schedule.
+                  </p>
+                </div>
                 {scenarioResult && (
                   <Button variant="ghost" size="sm" onClick={clearScenario} className="text-muted-foreground hover:text-foreground">
                     <X className="w-3 h-3 mr-1" /> Clear
@@ -398,18 +554,41 @@ export default function PropertyDetail() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-wrap">
                 <Button
                   onClick={handleRunScenario}
-                  disabled={runCalculator.isPending || (!extraMonthly && oneTimeExtras.every(e => !e.amount))}
+                  disabled={runCalculator.isPending || !scenarioHasInputs}
+                  variant="outline"
                   data-testid="button-run-scenario"
                 >
-                  {runCalculator.isPending ? "Calculating..." : "Calculate Scenario"}
+                  {runCalculator.isPending ? "Calculating..." : "Preview Scenario"}
                 </Button>
+
+                {scenarioResult && (
+                  <Button
+                    onClick={handleApplyScenario}
+                    disabled={updateProperty.isPending}
+                    className="gap-2"
+                    data-testid="button-apply-scenario"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    {updateProperty.isPending ? "Saving…" : "Apply to This Property"}
+                  </Button>
+                )}
+
+                {hasSavedExtras && !scenarioResult && (
+                  <button
+                    onClick={handleClearExtraPayments}
+                    className="text-xs text-muted-foreground hover:text-destructive underline"
+                  >
+                    Clear saved extra payments
+                  </button>
+                )}
+
                 {showingScenario && (
                   <button
                     onClick={() => setShowingScenario(!showingScenario)}
-                    className="text-xs text-muted-foreground hover:text-foreground underline"
+                    className="text-xs text-muted-foreground hover:text-foreground underline ml-auto"
                   >
                     {showingScenario ? "Hide comparison" : "Show comparison"}
                   </button>
@@ -494,6 +673,7 @@ export default function PropertyDetail() {
                   const paymentNum = base?.paymentNumber ?? (scen?.paymentNumber ?? idx + 1);
                   const isCurrent = paymentNum === currentPaymentNumber;
                   const isPast = paymentNum < currentPaymentNumber;
+                  const hasExtra = base && base.paymentAmount > property.monthlyPayment + 1;
 
                   // In "current" mode, hide past payments
                   if (viewMode === "current" && isPast) return null;
@@ -531,7 +711,12 @@ export default function PropertyDetail() {
                         )}
                       </TableCell>
                       <TableCell className="text-right font-mono text-sm">
-                        {base ? formatCurrency(base.paymentAmount) : "—"}
+                        {base ? (
+                          <span className={hasExtra ? "text-primary font-semibold" : ""}>
+                            {formatCurrency(base.paymentAmount)}
+                            {hasExtra && <span className="ml-1 text-xs opacity-70">+extra</span>}
+                          </span>
+                        ) : "—"}
                       </TableCell>
                       <TableCell className="text-right font-mono text-sm">
                         {base ? formatCurrency(base.principalAmount) : "—"}

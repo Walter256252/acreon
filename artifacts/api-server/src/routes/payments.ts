@@ -60,12 +60,16 @@ router.get("/properties/:id/amortization", async (req, res) => {
 
   const loggedByNumber = new Set(loggedPayments.map(p => p.paymentNumber).filter(Boolean));
 
+  const savedExtras = (prop.savedExtraPayments as Array<{ paymentNumber: number; amount: number }> | null) ?? [];
+
   const schedule = buildAmortizationSchedule({
     loanAmount: Number(prop.loanAmount),
     interestRate: Number(prop.interestRate),
     loanTermYears: prop.loanTermYears,
     loanStartDate: prop.loanStartDate,
     monthlyPayment: Number(prop.monthlyPayment),
+    extraPaymentMonthly: prop.savedExtraMonthly != null ? Number(prop.savedExtraMonthly) : 0,
+    extraPayments: savedExtras,
     loggedByNumber,
   });
 

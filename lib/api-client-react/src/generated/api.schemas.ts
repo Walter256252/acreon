@@ -9,6 +9,11 @@ export interface HealthStatus {
   status: string;
 }
 
+export interface ExtraPaymentEntry {
+  paymentNumber: number;
+  amount: number;
+}
+
 export interface Property {
   id: number;
   name: string;
@@ -25,6 +30,18 @@ export interface Property {
   monthlyPayment: number;
   /** @nullable */
   notes?: string | null;
+  /** When true, assume all past payments have been made on schedule */
+  autoPayEnabled?: boolean;
+  /**
+     * Persistent extra principal added to every monthly payment
+     * @nullable
+     */
+  savedExtraMonthly?: number | null;
+  /**
+     * Persistent one-time extra payments by payment number
+     * @nullable
+     */
+  savedExtraPayments?: ExtraPaymentEntry[] | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -73,6 +90,11 @@ export interface PropertyUpdate {
   monthlyPayment?: number;
   /** @nullable */
   notes?: string | null;
+  autoPayEnabled?: boolean;
+  /** @nullable */
+  savedExtraMonthly?: number | null;
+  /** @nullable */
+  savedExtraPayments?: ExtraPaymentEntry[] | null;
 }
 
 export interface Payment {
@@ -127,11 +149,6 @@ export interface DashboardStats {
   totalEquity: number;
   monthlyPaymentTotal: number;
   properties: PropertySummary[];
-}
-
-export interface ExtraPaymentEntry {
-  paymentNumber: number;
-  amount: number;
 }
 
 export interface CalculatorInput {

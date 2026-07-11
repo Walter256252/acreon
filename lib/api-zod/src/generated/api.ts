@@ -350,6 +350,12 @@ export const ListPropertiesResponseItem = zod.object({
   "loanStartDate": zod.string().describe('ISO date string (YYYY-MM-DD)'),
   "monthlyPayment": zod.number(),
   "notes": zod.string().nullish(),
+  "autoPayEnabled": zod.boolean().optional().describe('When true, assume all past payments have been made on schedule'),
+  "savedExtraMonthly": zod.number().nullish().describe('Persistent extra principal added to every monthly payment'),
+  "savedExtraPayments": zod.array(zod.object({
+  "paymentNumber": zod.number(),
+  "amount": zod.number()
+})).nullish().describe('Persistent one-time extra payments by payment number'),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -390,6 +396,12 @@ export const CreatePropertyResponse = zod.object({
   "loanStartDate": zod.string().describe('ISO date string (YYYY-MM-DD)'),
   "monthlyPayment": zod.number(),
   "notes": zod.string().nullish(),
+  "autoPayEnabled": zod.boolean().optional().describe('When true, assume all past payments have been made on schedule'),
+  "savedExtraMonthly": zod.number().nullish().describe('Persistent extra principal added to every monthly payment'),
+  "savedExtraPayments": zod.array(zod.object({
+  "paymentNumber": zod.number(),
+  "amount": zod.number()
+})).nullish().describe('Persistent one-time extra payments by payment number'),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -448,6 +460,12 @@ export const GetPropertyResponse = zod.object({
   "loanStartDate": zod.string().describe('ISO date string (YYYY-MM-DD)'),
   "monthlyPayment": zod.number(),
   "notes": zod.string().nullish(),
+  "autoPayEnabled": zod.boolean().optional().describe('When true, assume all past payments have been made on schedule'),
+  "savedExtraMonthly": zod.number().nullish().describe('Persistent extra principal added to every monthly payment'),
+  "savedExtraPayments": zod.array(zod.object({
+  "paymentNumber": zod.number(),
+  "amount": zod.number()
+})).nullish().describe('Persistent one-time extra payments by payment number'),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -471,7 +489,13 @@ export const UpdatePropertyBody = zod.object({
   "loanTermYears": zod.number().optional(),
   "loanStartDate": zod.string().optional(),
   "monthlyPayment": zod.number().optional(),
-  "notes": zod.string().nullish()
+  "notes": zod.string().nullish(),
+  "autoPayEnabled": zod.boolean().optional(),
+  "savedExtraMonthly": zod.number().nullish(),
+  "savedExtraPayments": zod.array(zod.object({
+  "paymentNumber": zod.number(),
+  "amount": zod.number()
+})).nullish()
 })
 
 export const UpdatePropertyResponse = zod.object({
@@ -487,6 +511,12 @@ export const UpdatePropertyResponse = zod.object({
   "loanStartDate": zod.string().describe('ISO date string (YYYY-MM-DD)'),
   "monthlyPayment": zod.number(),
   "notes": zod.string().nullish(),
+  "autoPayEnabled": zod.boolean().optional().describe('When true, assume all past payments have been made on schedule'),
+  "savedExtraMonthly": zod.number().nullish().describe('Persistent extra principal added to every monthly payment'),
+  "savedExtraPayments": zod.array(zod.object({
+  "paymentNumber": zod.number(),
+  "amount": zod.number()
+})).nullish().describe('Persistent one-time extra payments by payment number'),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
