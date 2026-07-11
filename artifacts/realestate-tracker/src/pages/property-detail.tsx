@@ -1,16 +1,14 @@
 import { useState } from "react";
 import { useLocation, useParams } from "wouter";
-import { 
-  useGetProperty, 
+import {
+  useGetProperty,
   getGetPropertyQueryKey,
   useGetAmortizationSchedule,
   getGetAmortizationScheduleQueryKey,
   useDeleteProperty,
   getGetDashboardQueryKey,
   getListPropertiesQueryKey,
-  useLogPayment,
-  useListPayments,
-  getListPaymentsQueryKey
+  useRunCalculator,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -19,15 +17,22 @@ import { StatCard } from "@/components/ui/stat-card";
 import { formatCurrency, formatPercent, formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { 
-  ArrowLeft, 
-  Edit, 
-  Trash2, 
-  CheckCircle2, 
-  MapPin, 
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  ArrowLeft,
+  Edit,
+  Trash2,
+  MapPin,
   Calendar,
   Building,
-  DollarSign
+  DollarSign,
+  ChevronDown,
+  ChevronUp,
+  TrendingDown,
+  Clock,
+  Plus,
+  X,
 } from "lucide-react";
 import { Link } from "wouter";
 import {
@@ -49,16 +54,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+
+interface OneTimeExtra {
+  paymentNumber: string;
+  amount: string;
+}
 
 export default function PropertyDetail() {
   const params = useParams();
@@ -67,25 +68,23 @@ export default function PropertyDetail() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: property, isLoading: propLoading } = useGetProperty(id, { 
-    query: { enabled: !!id, queryKey: getGetPropertyQueryKey(id) } 
-  });
-  
-  const { data: schedule, isLoading: schedLoading } = useGetAmortizationSchedule(id, {
-    query: { enabled: !!id, queryKey: getGetAmortizationScheduleQueryKey(id) }
+  const { data: property, isLoading: propLoading } = useGetProperty(id, {
+    query: { enabled: !!id, queryKey: getGetPropertyQueryKey(id) },
   });
 
-  const { data: payments } = useListPayments(id, {
-    query: { enabled: !!id, queryKey: getListPaymentsQueryKey(id) }
+  const { data: schedule, isLoading: schedLoading } = useGetAmortizationSchedule(id, {
+    query: { enabled: !!id, queryKey: getGetAmortizationScheduleQueryKey(id) },
   });
 
   const deleteProperty = useDeleteProperty();
-  const logPayment = useLogPayment();
+  const runCalculator = useRunCalculator();
 
-  const [isLogPaymentOpen, setIsLogPaymentOpen] = useState(false);
-  const [paymentAmount, setPaymentAmount] = useState<string>("");
-  const [extraPayment, setExtraPayment] = useState<string>("0");
-  const [paymentDate, setPaymentDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  // Scenario state
+  const [scenarioOpen, setScenarioOpen] = useState(false);
+  const [extraMonthly, setExtraMonthly] = useState("");
+  const [oneTimeExtras, setOneTimeExtras] = useState<OneTimeExtra[]>([{ paymentNumber: "", amount: "" }]);
+  const [scenarioResult, setScenarioResult] = useState<ReturnType<typeof useRunCalculator>["data"] | null>(null);
+  const [showingScenario, setShowingScenario] = useState(false);
 
   const handleDelete = () => {
     deleteProperty.mutate({ id }, {
@@ -97,72 +96,82 @@ export default function PropertyDetail() {
       },
       onError: () => {
         toast({ title: "Error", description: "Failed to delete property.", variant: "destructive" });
-      }
+      },
     });
   };
 
-  // Pre-fill payment amount when modal opens based on next unlogged row
-  const handleOpenLogPayment = () => {
-    if (schedule && schedule.length > 0) {
-      const nextUnlogged = schedule.find(r => !r.isLogged);
-      if (nextUnlogged) {
-        setPaymentAmount(nextUnlogged.paymentAmount.toString());
-      } else if (property) {
-        setPaymentAmount(property.monthlyPayment.toString());
-      }
-    }
-    setIsLogPaymentOpen(true);
-  };
+  const handleRunScenario = () => {
+    if (!property) return;
+    const validExtras = oneTimeExtras
+      .filter(e => e.paymentNumber && e.amount && Number(e.amount) > 0)
+      .map(e => ({ paymentNumber: Number(e.paymentNumber), amount: Number(e.amount) }));
 
-  const submitLogPayment = () => {
-    if (!schedule || !property) return;
-    
-    const amount = Number(paymentAmount);
-    const extra = Number(extraPayment);
-    const nextUnlogged = schedule.find(r => !r.isLogged);
-    
-    if (!nextUnlogged) return;
-
-    logPayment.mutate({
-      id,
+    runCalculator.mutate({
       data: {
-        paymentDate,
-        paymentAmount: amount,
-        principalAmount: nextUnlogged.principalAmount,
-        interestAmount: nextUnlogged.interestAmount,
-        extraPayment: extra > 0 ? extra : undefined,
-        remainingBalance: nextUnlogged.remainingBalance - extra,
-        paymentNumber: nextUnlogged.paymentNumber
-      }
+        loanAmount: property.loanAmount,
+        interestRate: property.interestRate,
+        loanTermYears: property.loanTermYears,
+        loanStartDate: property.loanStartDate,
+        monthlyPayment: property.monthlyPayment,
+        extraPaymentMonthly: extraMonthly ? Number(extraMonthly) : 0,
+        extraPayments: validExtras.length > 0 ? validExtras : undefined,
+      },
     }, {
-      onSuccess: () => {
-        toast({ title: "Payment Logged", description: "Payment has been recorded." });
-        setIsLogPaymentOpen(false);
-        setExtraPayment("0");
-        queryClient.invalidateQueries({ queryKey: getListPaymentsQueryKey(id) });
-        queryClient.invalidateQueries({ queryKey: getGetAmortizationScheduleQueryKey(id) });
-        queryClient.invalidateQueries({ queryKey: getGetDashboardQueryKey() });
+      onSuccess: (result) => {
+        setScenarioResult(result);
+        setShowingScenario(true);
+        toast({ title: "Scenario calculated", description: `You'd save ${result.summary.monthsSaved} months and ${formatCurrency(result.summary.interestSaved)} in interest.` });
       },
       onError: () => {
-        toast({ title: "Error", description: "Failed to log payment.", variant: "destructive" });
-      }
+        toast({ title: "Error", description: "Failed to run scenario.", variant: "destructive" });
+      },
     });
+  };
+
+  const clearScenario = () => {
+    setScenarioResult(null);
+    setShowingScenario(false);
+    setExtraMonthly("");
+    setOneTimeExtras([{ paymentNumber: "", amount: "" }]);
+  };
+
+  const addOneTime = () => {
+    if (oneTimeExtras.length < 5) {
+      setOneTimeExtras([...oneTimeExtras, { paymentNumber: "", amount: "" }]);
+    }
+  };
+
+  const removeOneTime = (i: number) => {
+    setOneTimeExtras(oneTimeExtras.filter((_, idx) => idx !== i));
+  };
+
+  const updateOneTime = (i: number, field: keyof OneTimeExtra, value: string) => {
+    setOneTimeExtras(oneTimeExtras.map((e, idx) => idx === i ? { ...e, [field]: value } : e));
   };
 
   if (propLoading || schedLoading) {
     return (
       <div className="space-y-6">
-        <div className="h-10 w-32 bg-muted animate-pulse rounded mb-4"></div>
-        <div className="h-32 bg-muted animate-pulse rounded-xl"></div>
+        <div className="h-10 w-32 bg-muted animate-pulse rounded mb-4" />
+        <div className="h-32 bg-muted animate-pulse rounded-xl" />
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map(i => <div key={i} className="h-24 bg-muted animate-pulse rounded-xl"></div>)}
+          {[1, 2, 3, 4].map(i => <div key={i} className="h-24 bg-muted animate-pulse rounded-xl" />)}
         </div>
-        <div className="h-96 bg-muted animate-pulse rounded-xl"></div>
+        <div className="h-96 bg-muted animate-pulse rounded-xl" />
       </div>
     );
   }
 
   if (!property) return <div className="p-8 text-center text-destructive font-bold">Property not found.</div>;
+
+  // Merge base schedule with scenario schedule for side-by-side comparison
+  const baseSchedule = schedule ?? [];
+  const scenarioSchedule = scenarioResult?.schedule ?? [];
+  const scenarioSummary = scenarioResult?.summary;
+  const maxRows = Math.max(baseSchedule.length, showingScenario ? scenarioSchedule.length : 0);
+
+  const currentBalance = baseSchedule.length > 0 ? baseSchedule[baseSchedule.length - 1]?.remainingBalance ?? 0 : property.loanAmount;
+  const estimatedEquity = property.currentValue - currentBalance;
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-20">
@@ -179,7 +188,7 @@ export default function PropertyDetail() {
             <span className="text-sm">{property.address}</span>
           </div>
         </div>
-        
+
         <div className="flex gap-2">
           <Button variant="outline" asChild>
             <Link href={`/properties/${id}/edit`}>
@@ -187,7 +196,7 @@ export default function PropertyDetail() {
               Edit
             </Link>
           </Button>
-          
+
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="destructive" className="bg-destructive/10 text-destructive hover:bg-destructive hover:text-destructive-foreground">
@@ -199,13 +208,14 @@ export default function PropertyDetail() {
               <AlertDialogHeader>
                 <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This action cannot be undone. This will permanently delete the property
-                  and all associated payment records from your tracker.
+                  This action cannot be undone. This will permanently delete the property and all associated data.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">Delete Property</AlertDialogAction>
+                <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
+                  Delete Property
+                </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
@@ -227,140 +237,248 @@ export default function PropertyDetail() {
           icon={<DollarSign className="w-5 h-5 text-muted-foreground" />}
         />
         <StatCard
-          title="Est. Balance"
-          value={schedule ? formatCurrency(schedule.find(r => !r.isLogged)?.remainingBalance ?? 0) : "..."}
-          subtext="Based on schedule"
+          title="Current Balance"
+          value={formatCurrency(currentBalance)}
+          subtext="End of projected schedule"
           icon={<Calendar className="w-5 h-5 text-muted-foreground" />}
         />
         <StatCard
-          title="Monthly P&I"
-          value={formatCurrency(property.monthlyPayment)}
+          title="Estimated Equity"
+          value={formatCurrency(estimatedEquity)}
+          subtext={formatPercent(property.currentValue > 0 ? (estimatedEquity / property.currentValue) * 100 : 0) + " of value"}
           icon={<DollarSign className="w-5 h-5 text-muted-foreground" />}
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Main Content - Schedule */}
-        <div className="lg:col-span-2 space-y-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="text-xl">Amortization Schedule</CardTitle>
-                <p className="text-sm text-muted-foreground mt-1">Projected payoff timeline and interest breakdown</p>
-              </div>
-              <Dialog open={isLogPaymentOpen} onOpenChange={setIsLogPaymentOpen}>
-                <DialogTrigger asChild>
-                  <Button onClick={handleOpenLogPayment}>Log Payment</Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Log Payment</DialogTitle>
-                    <DialogDescription>
-                      Record a payment made towards this mortgage.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="date">Date Paid</Label>
-                      <Input id="date" type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="amount">Base Payment Amount ($)</Label>
-                      <Input id="amount" type="number" step="0.01" value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="extra">Extra Principal ($)</Label>
-                      <Input id="extra" type="number" step="0.01" value={extraPayment} onChange={e => setExtraPayment(e.target.value)} />
-                    </div>
-                  </div>
-                  <Button onClick={submitLogPayment} className="w-full" disabled={logPayment.isPending}>
-                    {logPayment.isPending ? "Logging..." : "Confirm Payment"}
+      {/* Amortization + Scenario */}
+      <Card>
+        <CardHeader className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-xl">Amortization Schedule</CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                {baseSchedule.length} payments &mdash; payoff {baseSchedule.length > 0 ? formatDate(baseSchedule[baseSchedule.length - 1].paymentDate) : "—"}
+              </p>
+            </div>
+            <Button
+              variant={scenarioOpen ? "default" : "outline"}
+              size="sm"
+              onClick={() => setScenarioOpen(!scenarioOpen)}
+              data-testid="button-toggle-scenario"
+            >
+              {scenarioOpen ? <ChevronUp className="w-4 h-4 mr-2" /> : <ChevronDown className="w-4 h-4 mr-2" />}
+              Try a Scenario
+            </Button>
+          </div>
+
+          {/* Scenario Panel */}
+          {scenarioOpen && (
+            <div className="rounded-xl border border-border bg-muted/30 p-5 space-y-5">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-sm text-foreground">What-If Scenario</h3>
+                {scenarioResult && (
+                  <Button variant="ghost" size="sm" onClick={clearScenario} className="text-muted-foreground hover:text-foreground">
+                    <X className="w-3 h-3 mr-1" /> Clear
                   </Button>
-                </DialogContent>
-              </Dialog>
-            </CardHeader>
-            <CardContent>
-              <div className="rounded-md border border-border h-[600px] overflow-auto">
-                <Table>
-                  <TableHeader className="bg-muted/50 sticky top-0 z-10 backdrop-blur-sm">
-                    <TableRow>
-                      <TableHead className="w-[80px]">No.</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead className="text-right">Payment</TableHead>
-                      <TableHead className="text-right">Principal</TableHead>
-                      <TableHead className="text-right">Interest</TableHead>
-                      <TableHead className="text-right text-foreground font-semibold">Balance</TableHead>
-                      <TableHead className="w-[60px]"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {schedule?.map((row) => (
-                      <TableRow 
-                        key={row.paymentNumber}
-                        className={row.isLogged ? "bg-primary/5 hover:bg-primary/10 transition-colors" : ""}
-                      >
-                        <TableCell className="font-mono text-xs text-muted-foreground">{row.paymentNumber}</TableCell>
-                        <TableCell className="text-sm">{formatDate(row.paymentDate)}</TableCell>
-                        <TableCell className="text-right font-mono text-sm">{formatCurrency(row.paymentAmount)}</TableCell>
-                        <TableCell className="text-right font-mono text-sm">{formatCurrency(row.principalAmount)}</TableCell>
-                        <TableCell className="text-right font-mono text-sm text-muted-foreground">{formatCurrency(row.interestAmount)}</TableCell>
-                        <TableCell className="text-right font-mono text-sm font-semibold">{formatCurrency(row.remainingBalance)}</TableCell>
-                        <TableCell>
-                          {row.isLogged && <CheckCircle2 className="w-4 h-4 text-primary ml-auto" />}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                )}
               </div>
-            </CardContent>
-          </Card>
-        </div>
 
-        {/* Sidebar Content - Info & History */}
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Property Notes</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {property.notes ? (
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{property.notes}</p>
-              ) : (
-                <p className="text-sm text-muted-foreground italic">No notes added.</p>
-              )}
-            </CardContent>
-          </Card>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="extra-monthly" className="text-xs font-medium">Extra Monthly Payment ($)</Label>
+                  <Input
+                    id="extra-monthly"
+                    type="number"
+                    min="0"
+                    step="50"
+                    placeholder="e.g. 300"
+                    value={extraMonthly}
+                    onChange={e => setExtraMonthly(e.target.value)}
+                    data-testid="input-extra-monthly"
+                  />
+                  <p className="text-xs text-muted-foreground">Added to every monthly payment</p>
+                </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Payment History</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {(!payments || payments.length === 0) ? (
-                <p className="text-sm text-muted-foreground italic">No payments logged yet.</p>
-              ) : (
-                <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
-                  {payments.slice().reverse().map((pay) => (
-                    <div key={pay.id} className="flex justify-between items-center text-sm border-b pb-2 last:border-0">
-                      <div>
-                        <p className="font-medium">{formatDate(pay.paymentDate)}</p>
-                        {pay.extraPayment && pay.extraPayment > 0 && (
-                          <p className="text-xs text-primary">+{formatCurrency(pay.extraPayment)} extra</p>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-medium">One-Time Extra Payments</Label>
+                    {oneTimeExtras.length < 5 && (
+                      <button
+                        onClick={addOneTime}
+                        className="text-xs text-primary hover:underline flex items-center gap-0.5"
+                        data-testid="button-add-onetime"
+                      >
+                        <Plus className="w-3 h-3" /> Add
+                      </button>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    {oneTimeExtras.map((entry, i) => (
+                      <div key={i} className="flex gap-2 items-center">
+                        <Input
+                          type="number"
+                          min="1"
+                          placeholder="Payment #"
+                          value={entry.paymentNumber}
+                          onChange={e => updateOneTime(i, "paymentNumber", e.target.value)}
+                          className="w-28 text-sm"
+                          data-testid={`input-onetime-number-${i}`}
+                        />
+                        <Input
+                          type="number"
+                          min="0"
+                          placeholder="Amount $"
+                          value={entry.amount}
+                          onChange={e => updateOneTime(i, "amount", e.target.value)}
+                          className="flex-1 text-sm"
+                          data-testid={`input-onetime-amount-${i}`}
+                        />
+                        {oneTimeExtras.length > 1 && (
+                          <button onClick={() => removeOneTime(i)} className="text-muted-foreground hover:text-destructive transition-colors">
+                            <X className="w-4 h-4" />
+                          </button>
                         )}
                       </div>
-                      <div className="text-right">
-                        <p className="font-mono font-medium">{formatCurrency(pay.paymentAmount + (pay.extraPayment || 0))}</p>
-                        <p className="text-xs text-muted-foreground font-mono">Bal: {formatCurrency(pay.remainingBalance)}</p>
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <Button
+                  onClick={handleRunScenario}
+                  disabled={runCalculator.isPending || (!extraMonthly && oneTimeExtras.every(e => !e.amount))}
+                  data-testid="button-run-scenario"
+                >
+                  {runCalculator.isPending ? "Calculating..." : "Calculate Scenario"}
+                </Button>
+                {showingScenario && (
+                  <button
+                    onClick={() => setShowingScenario(!showingScenario)}
+                    className="text-xs text-muted-foreground hover:text-foreground underline"
+                  >
+                    {showingScenario ? "Hide comparison" : "Show comparison"}
+                  </button>
+                )}
+              </div>
+
+              {/* Scenario Summary */}
+              {scenarioSummary && showingScenario && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2 border-t border-border">
+                  <div className="bg-background rounded-lg p-3 border border-border">
+                    <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+                      <Clock className="w-3 h-3" /> Months Saved
+                    </p>
+                    <p className="text-lg font-bold text-primary">{scenarioSummary.monthsSaved}</p>
+                  </div>
+                  <div className="bg-background rounded-lg p-3 border border-border">
+                    <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+                      <TrendingDown className="w-3 h-3" /> Interest Saved
+                    </p>
+                    <p className="text-lg font-bold text-primary">{formatCurrency(scenarioSummary.interestSaved)}</p>
+                  </div>
+                  <div className="bg-background rounded-lg p-3 border border-border">
+                    <p className="text-xs text-muted-foreground mb-1">Payoff Date</p>
+                    <p className="text-lg font-bold">{formatDate(scenarioSummary.payoffDate)}</p>
+                  </div>
+                  <div className="bg-background rounded-lg p-3 border border-border">
+                    <p className="text-xs text-muted-foreground mb-1">Total Payments</p>
+                    <p className="text-lg font-bold">{scenarioSummary.totalPayments}</p>
+                  </div>
                 </div>
               )}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+            </div>
+          )}
+        </CardHeader>
+
+        <CardContent>
+          {showingScenario && scenarioResult && (
+            <div className="flex items-center gap-3 mb-3 text-xs">
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block w-3 h-3 rounded-sm bg-muted border border-border" />
+                Base schedule
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block w-3 h-3 rounded-sm bg-primary/20 border border-primary/40" />
+                Scenario
+              </span>
+              <Badge variant="secondary" className="text-xs ml-auto">
+                Scenario ends {scenarioSummary?.monthsSaved ?? 0} months earlier
+              </Badge>
+            </div>
+          )}
+
+          <div className="rounded-md border border-border h-[600px] overflow-auto">
+            <Table>
+              <TableHeader className="bg-muted/50 sticky top-0 z-10 backdrop-blur-sm">
+                <TableRow>
+                  <TableHead className="w-[60px]">No.</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead className="text-right">Payment</TableHead>
+                  <TableHead className="text-right">Principal</TableHead>
+                  <TableHead className="text-right">Interest</TableHead>
+                  <TableHead className="text-right font-semibold text-foreground">Balance</TableHead>
+                  {showingScenario && scenarioResult && (
+                    <TableHead className="text-right text-primary font-semibold border-l border-primary/20 bg-primary/5">
+                      Scenario Bal.
+                    </TableHead>
+                  )}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {Array.from({ length: showingScenario ? maxRows : baseSchedule.length }, (_, idx) => {
+                  const base = baseSchedule[idx];
+                  const scen = showingScenario ? scenarioSchedule[idx] : undefined;
+                  const isScenarioPaidOff = showingScenario && !scen && !!base;
+                  const paymentNum = base?.paymentNumber ?? (scen?.paymentNumber ?? idx + 1);
+
+                  return (
+                    <TableRow
+                      key={paymentNum}
+                      className={isScenarioPaidOff ? "opacity-40" : ""}
+                      data-testid={`row-amortization-${paymentNum}`}
+                    >
+                      <TableCell className="font-mono text-xs text-muted-foreground">{paymentNum}</TableCell>
+                      <TableCell className="text-sm">{formatDate(base?.paymentDate ?? scen?.paymentDate ?? "")}</TableCell>
+                      <TableCell className="text-right font-mono text-sm">
+                        {base ? formatCurrency(base.paymentAmount) : "—"}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-sm">
+                        {base ? formatCurrency(base.principalAmount) : "—"}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-sm text-muted-foreground">
+                        {base ? formatCurrency(base.interestAmount) : "—"}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-sm font-semibold">
+                        {base ? formatCurrency(base.remainingBalance) : "—"}
+                      </TableCell>
+                      {showingScenario && scenarioResult && (
+                        <TableCell className="text-right font-mono text-sm font-semibold border-l border-primary/20 bg-primary/5 text-primary">
+                          {scen ? formatCurrency(scen.remainingBalance) : (
+                            <span className="text-xs text-muted-foreground font-normal">Paid off</span>
+                          )}
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Property Notes */}
+      {property.notes && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Notes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground whitespace-pre-wrap">{property.notes}</p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
