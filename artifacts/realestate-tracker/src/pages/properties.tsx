@@ -11,7 +11,7 @@ type ViewMode = "simple" | "detailed";
 
 export default function Properties() {
   const { data, isLoading, isError } = useGetDashboard();
-  const [view, setView] = useState<ViewMode>("detailed");
+  const [view, setView] = useState<ViewMode>("simple");
 
   if (isLoading) {
     return (

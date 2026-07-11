@@ -87,7 +87,7 @@ export default function PropertyDetail() {
   const runCalculator = useRunCalculator();
 
   // View mode state
-  const [viewMode, setViewMode] = useState<"all" | "current">("all");
+  const [viewMode, setViewMode] = useState<"all" | "current">("current");
   const currentRowRef = useRef<HTMLTableRowElement>(null);
   const tableScrollRef = useRef<HTMLDivElement>(null);
 
@@ -443,16 +443,6 @@ export default function PropertyDetail() {
               {/* View mode toggle */}
               <div className="flex items-center rounded-lg border border-border bg-muted/40 p-0.5 text-xs">
                 <button
-                  onClick={() => setViewMode("all")}
-                  className={`px-3 py-1.5 rounded-md transition-colors font-medium ${
-                    viewMode === "all"
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  All Payments
-                </button>
-                <button
                   onClick={() => setViewMode("current")}
                   className={`px-3 py-1.5 rounded-md transition-colors font-medium ${
                     viewMode === "current"
@@ -461,6 +451,16 @@ export default function PropertyDetail() {
                   }`}
                 >
                   Current &amp; Forward
+                </button>
+                <button
+                  onClick={() => setViewMode("all")}
+                  className={`px-3 py-1.5 rounded-md transition-colors font-medium ${
+                    viewMode === "all"
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  All Payments
                 </button>
               </div>
 
