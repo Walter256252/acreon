@@ -752,19 +752,7 @@ export default function PropertyDetail() {
         <CardHeader className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <div>
-              <div className="flex items-center gap-1.5">
-                <CardTitle className="text-xl">Amortization Schedule</CardTitle>
-                <button
-                  type="button"
-                  onClick={() => setSchedCollapsed(v => !v)}
-                  className="p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                  title={schedCollapsed ? "Expand" : "Collapse"}
-                >
-                  {schedCollapsed
-                    ? <ChevronDown className="w-4 h-4" />
-                    : <ChevronUp className="w-4 h-4" />}
-                </button>
-              </div>
+              <CardTitle className="text-xl">Amortization Schedule</CardTitle>
               <p className="text-sm text-muted-foreground mt-1">
                 {baseSchedule.length} payments &mdash; payoff {baseSchedule.length > 0 ? formatDate(baseSchedule[baseSchedule.length - 1].paymentDate) : "—"}
                 {hasSavedExtras && (
@@ -773,6 +761,16 @@ export default function PropertyDetail() {
               </p>
             </div>
             <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setSchedCollapsed(v => !v)}
+                className="p-1.5 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                title={schedCollapsed ? "Expand" : "Collapse"}
+              >
+                {schedCollapsed
+                  ? <ChevronDown className="w-4 h-4" />
+                  : <ChevronUp className="w-4 h-4" />}
+              </button>
               {/* View mode toggle */}
               <div className="flex items-center rounded-lg border border-border bg-muted/40 p-0.5 text-xs">
                 <button
