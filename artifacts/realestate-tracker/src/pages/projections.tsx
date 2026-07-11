@@ -11,6 +11,16 @@ import {
   ChevronUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
 
 const MILESTONES = [5, 10, 15, 20, 30];
 
@@ -44,6 +54,25 @@ export default function Projections() {
   const { properties, totals, currentTotals, asOf } = data;
   const totalDebtStart = currentTotals.totalBalance;
   const totalValueStart = currentTotals.totalValue;
+
+  // Build chart data: today + each milestone
+  const chartData = [
+    {
+      label: "Today",
+      equity: currentTotals.totalEquity,
+      debt: currentTotals.totalBalance,
+      interestPaid: 0,
+    },
+    ...MILESTONES.map((yr) => {
+      const t = totals.find((t) => t.years === yr)!;
+      return {
+        label: `${yr}yr`,
+        equity: t.totalEquity,
+        debt: t.totalRemainingBalance,
+        interestPaid: t.totalInterestPaid,
+      };
+    }),
+  ];
 
   return (
     <div className="space-y-10 animate-in fade-in duration-500 pb-12">
@@ -88,6 +117,103 @@ export default function Projections() {
           <p className="font-bold font-mono text-foreground">{properties.length}</p>
         </div>
       </div>
+
+      {/* Portfolio trajectory chart */}
+      <section>
+        <h2 className="text-base font-semibold text-foreground mb-4">Portfolio Trajectory</h2>
+        <div className="rounded-xl border border-border bg-card p-5">
+          <ResponsiveContainer width="100%" height={280}>
+            <AreaChart data={chartData} margin={{ top: 8, right: 16, left: 16, bottom: 0 }}>
+              <defs>
+                <linearGradient id="gradEquity" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.25} />
+                  <stop offset="95%" stopColor="#10b981" stopOpacity={0.02} />
+                </linearGradient>
+                <linearGradient id="gradDebt" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.2} />
+                  <stop offset="95%" stopColor="#f43f5e" stopOpacity={0.02} />
+                </linearGradient>
+                <linearGradient id="gradInterest" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.2} />
+                  <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.02} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.6} />
+              <XAxis
+                dataKey="label"
+                tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                tickFormatter={(v) =>
+                  v >= 1_000_000
+                    ? `${(v / 1_000_000).toFixed(1)}M`
+                    : `${(v / 1_000).toFixed(0)}K`
+                }
+                tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                axisLine={false}
+                tickLine={false}
+                width={64}
+              />
+              <Tooltip
+                formatter={(value: number, name: string) => [
+                  formatCurrency(value),
+                  name === "equity"
+                    ? "Total Equity"
+                    : name === "debt"
+                    ? "Debt Remaining"
+                    : "Interest Paid",
+                ]}
+                contentStyle={{
+                  background: "hsl(var(--card))",
+                  border: "1px solid hsl(var(--border))",
+                  borderRadius: "8px",
+                  fontSize: "12px",
+                }}
+                labelStyle={{ fontWeight: 600, marginBottom: 4 }}
+              />
+              <Legend
+                formatter={(value) =>
+                  value === "equity"
+                    ? "Total Equity"
+                    : value === "debt"
+                    ? "Debt Remaining"
+                    : "Interest Paid"
+                }
+                wrapperStyle={{ fontSize: "12px", paddingTop: "12px" }}
+              />
+              <Area
+                type="monotone"
+                dataKey="equity"
+                stroke="#10b981"
+                strokeWidth={2}
+                fill="url(#gradEquity)"
+                dot={{ r: 4, fill: "#10b981", strokeWidth: 0 }}
+                activeDot={{ r: 5 }}
+              />
+              <Area
+                type="monotone"
+                dataKey="debt"
+                stroke="#f43f5e"
+                strokeWidth={2}
+                fill="url(#gradDebt)"
+                dot={{ r: 4, fill: "#f43f5e", strokeWidth: 0 }}
+                activeDot={{ r: 5 }}
+              />
+              <Area
+                type="monotone"
+                dataKey="interestPaid"
+                stroke="#f59e0b"
+                strokeWidth={2}
+                fill="url(#gradInterest)"
+                dot={{ r: 4, fill: "#f59e0b", strokeWidth: 0 }}
+                activeDot={{ r: 5 }}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </section>
 
       {/* Milestone cards — one per horizon */}
       <section>
