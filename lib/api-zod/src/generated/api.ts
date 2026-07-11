@@ -351,6 +351,7 @@ export const ListPropertiesResponseItem = zod.object({
   "monthlyPayment": zod.number(),
   "notes": zod.string().nullish(),
   "valueLastUpdatedAt": zod.string().nullish().describe('ISO timestamp of when currentValue was last manually refreshed'),
+  "zillowUrl": zod.string().nullish().describe('Direct Zillow listing URL for this property'),
   "autoPayEnabled": zod.boolean().optional().describe('When true, assume all past payments have been made on schedule'),
   "savedExtraMonthly": zod.number().nullish().describe('Persistent extra principal added to every monthly payment'),
   "savedExtraPayments": zod.array(zod.object({
@@ -398,6 +399,7 @@ export const CreatePropertyResponse = zod.object({
   "monthlyPayment": zod.number(),
   "notes": zod.string().nullish(),
   "valueLastUpdatedAt": zod.string().nullish().describe('ISO timestamp of when currentValue was last manually refreshed'),
+  "zillowUrl": zod.string().nullish().describe('Direct Zillow listing URL for this property'),
   "autoPayEnabled": zod.boolean().optional().describe('When true, assume all past payments have been made on schedule'),
   "savedExtraMonthly": zod.number().nullish().describe('Persistent extra principal added to every monthly payment'),
   "savedExtraPayments": zod.array(zod.object({
@@ -463,6 +465,7 @@ export const GetPropertyResponse = zod.object({
   "monthlyPayment": zod.number(),
   "notes": zod.string().nullish(),
   "valueLastUpdatedAt": zod.string().nullish().describe('ISO timestamp of when currentValue was last manually refreshed'),
+  "zillowUrl": zod.string().nullish().describe('Direct Zillow listing URL for this property'),
   "autoPayEnabled": zod.boolean().optional().describe('When true, assume all past payments have been made on schedule'),
   "savedExtraMonthly": zod.number().nullish().describe('Persistent extra principal added to every monthly payment'),
   "savedExtraPayments": zod.array(zod.object({
@@ -499,7 +502,8 @@ export const UpdatePropertyBody = zod.object({
   "paymentNumber": zod.number(),
   "amount": zod.number()
 })).nullish(),
-  "valueLastUpdatedAt": zod.string().nullish()
+  "valueLastUpdatedAt": zod.string().nullish(),
+  "zillowUrl": zod.string().nullish()
 })
 
 export const UpdatePropertyResponse = zod.object({
@@ -516,6 +520,7 @@ export const UpdatePropertyResponse = zod.object({
   "monthlyPayment": zod.number(),
   "notes": zod.string().nullish(),
   "valueLastUpdatedAt": zod.string().nullish().describe('ISO timestamp of when currentValue was last manually refreshed'),
+  "zillowUrl": zod.string().nullish().describe('Direct Zillow listing URL for this property'),
   "autoPayEnabled": zod.boolean().optional().describe('When true, assume all past payments have been made on schedule'),
   "savedExtraMonthly": zod.number().nullish().describe('Persistent extra principal added to every monthly payment'),
   "savedExtraPayments": zod.array(zod.object({
@@ -627,7 +632,9 @@ export const GetDashboardResponse = zod.object({
   "currentValue": zod.number(),
   "estimatedBalance": zod.number(),
   "equity": zod.number(),
-  "equityPercent": zod.number()
+  "equityPercent": zod.number(),
+  "valueLastUpdatedAt": zod.string().nullish(),
+  "zillowUrl": zod.string().nullish()
 }))
 })
 

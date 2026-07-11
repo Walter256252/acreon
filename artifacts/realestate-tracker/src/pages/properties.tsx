@@ -7,8 +7,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-function zillowUrl(address: string) {
-  return `https://www.zillow.com/homes/${encodeURIComponent(address)}_rb/`;
+function zillowUrl(prop: { zillowUrl?: string | null; address: string }) {
+  return prop.zillowUrl || `https://www.zillow.com/homes/${encodeURIComponent(prop.address)}_rb/`;
 }
 
 function valueStaleDays(iso: string | null | undefined): number | null {
@@ -148,7 +148,7 @@ export default function Properties() {
                     if (!stale) return null;
                     return (
                       <a
-                        href={zillowUrl(prop.address)}
+                        href={zillowUrl(prop)}
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={e => e.stopPropagation()}

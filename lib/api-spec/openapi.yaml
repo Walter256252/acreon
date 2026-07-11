@@ -675,6 +675,9 @@ components:
         valueLastUpdatedAt:
           type: ["string", "null"]
           description: ISO timestamp of when currentValue was last manually refreshed
+        zillowUrl:
+          type: ["string", "null"]
+          description: Direct Zillow listing URL for this property
         autoPayEnabled:
           type: boolean
           description: When true, assume all past payments have been made on schedule
@@ -795,6 +798,8 @@ components:
           items:
             $ref: "#/components/schemas/ExtraPaymentEntry"
         valueLastUpdatedAt:
+          type: ["string", "null"]
+        zillowUrl:
           type: ["string", "null"]
 
     Payment:
@@ -935,6 +940,10 @@ components:
           type: number
         equityPercent:
           type: number
+        valueLastUpdatedAt:
+          type: ["string", "null"]
+        zillowUrl:
+          type: ["string", "null"]
 
     CalculatorInput:
       type: object

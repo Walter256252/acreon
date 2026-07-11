@@ -28,6 +28,11 @@ export interface Property {
      * @nullable
      */
   valueLastUpdatedAt?: string | null;
+  /**
+     * Direct Zillow listing URL for this property
+     * @nullable
+     */
+  zillowUrl?: string | null;
   /** When true, assume all past payments have been made on schedule */
   autoPayEnabled?: boolean;
   /**

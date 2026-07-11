@@ -27,4 +27,6 @@ export interface PropertyUpdate {
   savedExtraPayments?: ExtraPaymentEntry[] | null;
   /** @nullable */
   valueLastUpdatedAt?: string | null;
+  /** @nullable */
+  zillowUrl?: string | null;
 }

@@ -35,6 +35,11 @@ export interface Property {
      * @nullable
      */
   valueLastUpdatedAt?: string | null;
+  /**
+     * Direct Zillow listing URL for this property
+     * @nullable
+     */
+  zillowUrl?: string | null;
   /** When true, assume all past payments have been made on schedule */
   autoPayEnabled?: boolean;
   /**
@@ -102,6 +107,8 @@ export interface PropertyUpdate {
   savedExtraPayments?: ExtraPaymentEntry[] | null;
   /** @nullable */
   valueLastUpdatedAt?: string | null;
+  /** @nullable */
+  zillowUrl?: string | null;
 }
 
 export interface Payment {
@@ -147,6 +154,10 @@ export interface PropertySummary {
   estimatedBalance: number;
   equity: number;
   equityPercent: number;
+  /** @nullable */
+  valueLastUpdatedAt?: string | null;
+  /** @nullable */
+  zillowUrl?: string | null;
 }
 
 export interface DashboardStats {

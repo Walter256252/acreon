@@ -14,4 +14,8 @@ export interface PropertySummary {
   estimatedBalance: number;
   equity: number;
   equityPercent: number;
+  /** @nullable */
+  valueLastUpdatedAt?: string | null;
+  /** @nullable */
+  zillowUrl?: string | null;
 }

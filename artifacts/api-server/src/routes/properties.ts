@@ -67,6 +67,7 @@ router.put("/properties/:id", async (req, res) => {
   if ("savedExtraMonthly" in body) updates.savedExtraMonthly = body.savedExtraMonthly != null ? String(body.savedExtraMonthly) : null;
   if ("savedExtraPayments" in body) updates.savedExtraPayments = body.savedExtraPayments ?? null;
   if (body.currentValue !== undefined) updates.valueLastUpdatedAt = new Date();
+  if ("zillowUrl" in body) updates.zillowUrl = body.zillowUrl ?? null;
 
   const [row] = await db.update(propertiesTable).set(updates).where(eq(propertiesTable.id, id)).returning();
   if (!row) { res.status(404).json({ error: "Property not found" }); return; }
@@ -131,6 +132,7 @@ function toApiProperty(row: typeof propertiesTable.$inferSelect) {
     savedExtraMonthly: row.savedExtraMonthly != null ? Number(row.savedExtraMonthly) : null,
     savedExtraPayments: (row.savedExtraPayments as Array<{ paymentNumber: number; amount: number }> | null) ?? null,
     valueLastUpdatedAt: row.valueLastUpdatedAt ? row.valueLastUpdatedAt.toISOString() : null,
+    zillowUrl: row.zillowUrl ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

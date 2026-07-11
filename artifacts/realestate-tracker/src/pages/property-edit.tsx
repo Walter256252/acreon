@@ -42,6 +42,7 @@ const formSchema = z.object({
   loanStartDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD"),
   monthlyPayment: z.coerce.number().min(0, "Must be positive"),
   notes: z.string().optional().nullable(),
+  zillowUrl: z.string().url("Must be a valid URL").optional().nullable().or(z.literal("")),
 });
 
 export default function PropertyEdit() {
@@ -89,6 +90,7 @@ export default function PropertyEdit() {
         loanStartDate: property.loanStartDate,
         monthlyPayment: property.monthlyPayment,
         notes: property.notes || "",
+        zillowUrl: property.zillowUrl || "",
       });
     }
   }, [property, form]);
@@ -96,7 +98,7 @@ export default function PropertyEdit() {
   const updateProperty = useUpdateProperty();
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    updateProperty.mutate({ id, data: values }, {
+    updateProperty.mutate({ id, data: { ...values, zillowUrl: values.zillowUrl || null } }, {
       onSuccess: () => {
         toast({
           title: "Property Updated",
@@ -283,6 +285,31 @@ export default function PropertyEdit() {
                   )}
                 />
               </div>
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold border-b pb-2">Valuation</h3>
+              <FormField
+                control={form.control}
+                name="zillowUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Zillow Listing URL</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="url"
+                        placeholder="https://www.zillow.com/homes/..."
+                        {...field}
+                        value={field.value || ""}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Paste the exact Zillow listing page for this property. "Check on Zillow" buttons will link directly to it.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
 
             <div className="space-y-4">

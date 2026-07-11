@@ -64,8 +64,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-function zillowUrl(address: string) {
-  return `https://www.zillow.com/homes/${encodeURIComponent(address)}_rb/`;
+function zillowUrl(property: { zillowUrl?: string | null; address: string }) {
+  return property.zillowUrl || `https://www.zillow.com/homes/${encodeURIComponent(property.address)}_rb/`;
 }
 
 function valueStaleness(iso: string | null | undefined): { days: number | null; level: "fresh" | "aging" | "stale" | "never" } {
@@ -300,7 +300,9 @@ export default function PropertyDetail() {
   const scenarioSummary = scenarioResult?.summary;
   const maxRows = Math.max(baseSchedule.length, showingScenario ? scenarioSchedule.length : 0);
 
-  const currentBalance = baseSchedule.length > 0 ? baseSchedule[baseSchedule.length - 1]?.remainingBalance ?? 0 : property.loanAmount;
+  // Current balance = amortized balance at today's payment number, not the final payoff row
+  const currentBalanceRow = baseSchedule[currentPaymentNumber - 1];
+  const currentBalance = currentBalanceRow?.remainingBalance ?? Number(property.loanAmount);
   const estimatedEquity = property.currentValue - currentBalance;
 
   const hasSavedExtras = property.savedExtraMonthly || property.savedExtraPayments?.length;
@@ -430,13 +432,13 @@ export default function PropertyDetail() {
                 : `Value last updated ${stale.days} day${stale.days === 1 ? "" : "s"} ago${stale.level === "stale" ? " — consider refreshing for accurate equity." : "."}`}
             </span>
             <a
-              href={zillowUrl(property.address)}
+              href={zillowUrl(property)}
               target="_blank"
               rel="noopener noreferrer"
               onClick={e => e.stopPropagation()}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-background border border-border text-xs font-medium text-foreground hover:bg-muted transition-colors whitespace-nowrap"
             >
-              Check on Zillow
+              {property.zillowUrl ? "View on Zillow" : "Search on Zillow"}
               <ExternalLink className="w-3 h-3" />
             </a>
           </div>
@@ -459,7 +461,7 @@ export default function PropertyDetail() {
         <StatCard
           title="Current Balance"
           value={formatCurrency(currentBalance)}
-          subtext="End of projected schedule"
+          subtext={`Payment #${currentPaymentNumber} of ${baseSchedule.length}`}
           icon={<Calendar className="w-5 h-5 text-muted-foreground" />}
         />
         <StatCard

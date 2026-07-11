@@ -17,6 +17,7 @@ export const propertiesTable = pgTable("properties", {
   notes: text("notes"),
   // Valuation tracking
   valueLastUpdatedAt: timestamp("value_last_updated_at"),
+  zillowUrl: text("zillow_url"),
   // Payment tracking
   autoPayEnabled: boolean("auto_pay_enabled").default(true).notNull(),
   savedExtraMonthly: numeric("saved_extra_monthly", { precision: 15, scale: 2 }),
