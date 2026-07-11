@@ -345,7 +345,7 @@ export default function PropertyDetail() {
           </button>
 
           <Button variant="outline" asChild>
-            <Link href={`/properties/${id}/edit`}>
+            <Link href={`/app/properties/${id}/edit`}>
               <Edit className="w-4 h-4 mr-2" />
               Edit
             </Link>
