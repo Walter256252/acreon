@@ -269,6 +269,9 @@ function SpreadsheetImport({ onDone }: { onDone: () => void }) {
           setResult(res);
           queryClient.invalidateQueries({ queryKey: getListPropertiesQueryKey() });
           queryClient.invalidateQueries({ queryKey: getGetDashboardQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getGetProjectionsQueryKey() });
+          queryClient.invalidateQueries({ queryKey: ["properties-geo-user"] });
+          queryClient.invalidateQueries({ queryKey: ["occupancy"] });
         },
         onError: () => {
           toast({ title: "Import failed", description: "Something went wrong. Please try again.", variant: "destructive" });
@@ -498,6 +501,8 @@ export default function PropertyNew() {
         queryClient.invalidateQueries({ queryKey: getListPropertiesQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetDashboardQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetProjectionsQueryKey() });
+        queryClient.invalidateQueries({ queryKey: ["properties-geo-user"] });
+        queryClient.invalidateQueries({ queryKey: ["occupancy"] });
         setLocation(`/properties/${property.id}`);
       },
       onError: () => {

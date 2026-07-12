@@ -110,6 +110,8 @@ export default function PropertyEdit() {
         queryClient.invalidateQueries({ queryKey: getGetDashboardQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetAmortizationScheduleQueryKey(id) });
         queryClient.invalidateQueries({ queryKey: getGetProjectionsQueryKey() });
+        queryClient.invalidateQueries({ queryKey: ["properties-geo-user"] });
+        queryClient.invalidateQueries({ queryKey: ["occupancy"] });
         setLocation(`/app/properties/${id}`);
       },
       onError: () => {

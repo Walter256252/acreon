@@ -131,6 +131,7 @@ export default function PropertyDetail() {
         queryClient.invalidateQueries({ queryKey: getGetDashboardQueryKey() });
         queryClient.invalidateQueries({ queryKey: getListPropertiesQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetProjectionsQueryKey() });
+        queryClient.invalidateQueries({ queryKey: ["properties-geo-user"] });
         toast({ title: "Value updated", description: `Current value set to ${formatCurrency(n)}.` });
       },
       onError: () => toast({ title: "Error", description: "Failed to save value.", variant: "destructive" }),
@@ -247,6 +248,8 @@ export default function PropertyDetail() {
         queryClient.invalidateQueries({ queryKey: getListPropertiesQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetDashboardQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetProjectionsQueryKey() });
+        queryClient.invalidateQueries({ queryKey: ["properties-geo-user"] });
+        queryClient.invalidateQueries({ queryKey: ["occupancy"] });
         setLocation("/app/properties");
       },
       onError: () => {
@@ -305,6 +308,7 @@ export default function PropertyDetail() {
         queryClient.invalidateQueries({ queryKey: getGetDashboardQueryKey() });
         queryClient.invalidateQueries({ queryKey: getListPropertiesQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetProjectionsQueryKey() });
+        queryClient.invalidateQueries({ queryKey: ["properties-geo-user"] });
         setShowingScenario(false);
         setScenarioOpen(false);
         toast({
@@ -329,6 +333,7 @@ export default function PropertyDetail() {
         queryClient.invalidateQueries({ queryKey: getGetDashboardQueryKey() });
         queryClient.invalidateQueries({ queryKey: getListPropertiesQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetProjectionsQueryKey() });
+        queryClient.invalidateQueries({ queryKey: ["properties-geo-user"] });
         toast({ title: "Extra payments cleared", description: "Schedule reset to standard payments." });
       },
     });
@@ -341,6 +346,7 @@ export default function PropertyDetail() {
         queryClient.invalidateQueries({ queryKey: getGetDashboardQueryKey() });
         queryClient.invalidateQueries({ queryKey: getListPropertiesQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetProjectionsQueryKey() });
+        queryClient.invalidateQueries({ queryKey: ["properties-geo-user"] });
         toast({
           title: enabled ? "Auto-pay assumed" : "Auto-pay paused",
           description: enabled
