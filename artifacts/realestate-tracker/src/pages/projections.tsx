@@ -14,19 +14,45 @@ import { cn } from "@/lib/utils";
 import {
   AreaChart,
   Area,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   Legend,
   ResponsiveContainer,
+  ComposedChart,
 } from "recharts";
 
 const MILESTONES = [5, 10, 15, 20, 30];
 
+const GROWTH_RATES = [
+  { rate: 2, label: "2%", color: "#38bdf8", gradId: "gradGrowth2" },
+  { rate: 4, label: "4%", color: "#a78bfa", gradId: "gradGrowth4" },
+  { rate: 6, label: "6%", color: "#fb923c", gradId: "gradGrowth6" },
+] as const;
+
+type GrowthRate = 2 | 4 | 6;
+
+/** Apply compound annual growth to a base value over N years. */
+function applyGrowth(baseValue: number, ratePercent: number, years: number): number {
+  return baseValue * Math.pow(1 + ratePercent / 100, years);
+}
+
 export default function Projections() {
   const { data, isLoading, isError } = useGetProjections();
   const [expandedProperty, setExpandedProperty] = useState<number | null>(null);
+  const [activeRates, setActiveRates] = useState<Set<GrowthRate>>(new Set());
+
+  function toggleRate(rate: GrowthRate) {
+    setActiveRates((prev) => {
+      const next = new Set(prev);
+      if (next.has(rate)) next.delete(rate);
+      else next.add(rate);
+      return next;
+    });
+  }
 
   if (isLoading) {
     return (
@@ -55,24 +81,35 @@ export default function Projections() {
   const totalDebtStart = currentTotals.totalBalance;
   const totalValueStart = currentTotals.totalValue;
 
-  // Build chart data: today + each milestone
+  // Build chart data: today + each milestone, including growth scenarios
   const chartData = [
     {
       label: "Today",
       equity: currentTotals.totalEquity,
       debt: currentTotals.totalBalance,
       interestPaid: 0,
+      // Growth scenarios all start at current equity (no years elapsed)
+      equity2: currentTotals.totalEquity,
+      equity4: currentTotals.totalEquity,
+      equity6: currentTotals.totalEquity,
     },
     ...MILESTONES.map((yr) => {
       const t = totals.find((t) => t.years === yr)!;
+      const growthEquity = (rate: number) =>
+        applyGrowth(totalValueStart, rate, yr) - t.totalRemainingBalance;
       return {
         label: `${yr}yr`,
         equity: t.totalEquity,
         debt: t.totalRemainingBalance,
         interestPaid: t.totalInterestPaid,
+        equity2: growthEquity(2),
+        equity4: growthEquity(4),
+        equity6: growthEquity(6),
       };
     }),
   ];
+
+  const anyGrowthActive = activeRates.size > 0;
 
   return (
     <div className="space-y-10 animate-in fade-in duration-500 pb-12">
@@ -85,6 +122,53 @@ export default function Projections() {
         <p className="text-muted-foreground text-sm">
           Portfolio outlook at 5, 10, 15, 20 &amp; 30 year milestones — as of {asOf}
         </p>
+      </div>
+
+      {/* ── Growth rate toggles ─────────────────────────────────────────────── */}
+      <div className="rounded-xl border border-border bg-card px-5 py-4">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-foreground">Market Appreciation Scenarios</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Toggle annual growth rates to overlay projected property value appreciation
+              from inflation and market growth onto the chart and milestone cards.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0 sm:ml-auto">
+            {GROWTH_RATES.map(({ rate, label, color }) => {
+              const isOn = activeRates.has(rate as GrowthRate);
+              return (
+                <button
+                  key={rate}
+                  onClick={() => toggleRate(rate as GrowthRate)}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-semibold border transition-all duration-150",
+                    isOn
+                      ? "text-white border-transparent shadow-sm"
+                      : "bg-background border-border text-muted-foreground hover:text-foreground hover:border-foreground/30"
+                  )}
+                  style={isOn ? { backgroundColor: color, borderColor: color } : {}}
+                >
+                  <span
+                    className={cn(
+                      "w-2 h-2 rounded-full transition-opacity",
+                      isOn ? "opacity-100 bg-white/60" : "opacity-0"
+                    )}
+                  />
+                  {label} / yr
+                </button>
+              );
+            })}
+            {anyGrowthActive && (
+              <button
+                onClick={() => setActiveRates(new Set())}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors px-1"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* TODAY baseline */}
@@ -120,10 +204,17 @@ export default function Projections() {
 
       {/* Portfolio trajectory chart */}
       <section>
-        <h2 className="text-base font-semibold text-foreground mb-4">Portfolio Trajectory</h2>
+        <h2 className="text-base font-semibold text-foreground mb-1">Portfolio Trajectory</h2>
+        {anyGrowthActive && (
+          <p className="text-xs text-muted-foreground mb-4">
+            Dashed lines show projected equity with annual property value appreciation applied.
+            Debt paydown schedule is unchanged.
+          </p>
+        )}
+        {!anyGrowthActive && <div className="mb-4" />}
         <div className="rounded-xl border border-border bg-card p-5">
-          <ResponsiveContainer width="100%" height={280}>
-            <AreaChart data={chartData} margin={{ top: 8, right: 16, left: 16, bottom: 0 }}>
+          <ResponsiveContainer width="100%" height={300}>
+            <ComposedChart data={chartData} margin={{ top: 8, right: 16, left: 16, bottom: 0 }}>
               <defs>
                 <linearGradient id="gradEquity" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#10b981" stopOpacity={0.25} />
@@ -157,14 +248,17 @@ export default function Projections() {
                 width={64}
               />
               <Tooltip
-                formatter={(value: number, name: string) => [
-                  formatCurrency(value),
-                  name === "equity"
-                    ? "Total Equity"
-                    : name === "debt"
-                    ? "Debt Remaining"
-                    : "Interest Paid",
-                ]}
+                formatter={(value: number, name: string) => {
+                  const labels: Record<string, string> = {
+                    equity: "Equity (no growth)",
+                    debt: "Debt Remaining",
+                    interestPaid: "Interest Paid",
+                    equity2: "Equity @ 2%/yr growth",
+                    equity4: "Equity @ 4%/yr growth",
+                    equity6: "Equity @ 6%/yr growth",
+                  };
+                  return [formatCurrency(value), labels[name] ?? name];
+                }}
                 contentStyle={{
                   background: "hsl(var(--card))",
                   border: "1px solid hsl(var(--border))",
@@ -174,15 +268,21 @@ export default function Projections() {
                 labelStyle={{ fontWeight: 600, marginBottom: 4 }}
               />
               <Legend
-                formatter={(value) =>
-                  value === "equity"
-                    ? "Total Equity"
-                    : value === "debt"
-                    ? "Debt Remaining"
-                    : "Interest Paid"
-                }
+                formatter={(value) => {
+                  const labels: Record<string, string> = {
+                    equity: "Equity (no growth)",
+                    debt: "Debt Remaining",
+                    interestPaid: "Interest Paid",
+                    equity2: "Equity @ 2%/yr",
+                    equity4: "Equity @ 4%/yr",
+                    equity6: "Equity @ 6%/yr",
+                  };
+                  return labels[value] ?? value;
+                }}
                 wrapperStyle={{ fontSize: "12px", paddingTop: "12px" }}
               />
+
+              {/* Base equity area */}
               <Area
                 type="monotone"
                 dataKey="equity"
@@ -192,6 +292,7 @@ export default function Projections() {
                 dot={{ r: 4, fill: "#10b981", strokeWidth: 0 }}
                 activeDot={{ r: 5 }}
               />
+              {/* Debt area */}
               <Area
                 type="monotone"
                 dataKey="debt"
@@ -201,6 +302,7 @@ export default function Projections() {
                 dot={{ r: 4, fill: "#f43f5e", strokeWidth: 0 }}
                 activeDot={{ r: 5 }}
               />
+              {/* Interest area */}
               <Area
                 type="monotone"
                 dataKey="interestPaid"
@@ -210,7 +312,42 @@ export default function Projections() {
                 dot={{ r: 4, fill: "#f59e0b", strokeWidth: 0 }}
                 activeDot={{ r: 5 }}
               />
-            </AreaChart>
+
+              {/* Growth scenario lines — only rendered when toggled on */}
+              {activeRates.has(2) && (
+                <Line
+                  type="monotone"
+                  dataKey="equity2"
+                  stroke="#38bdf8"
+                  strokeWidth={2.5}
+                  strokeDasharray="6 3"
+                  dot={{ r: 4, fill: "#38bdf8", strokeWidth: 0 }}
+                  activeDot={{ r: 5 }}
+                />
+              )}
+              {activeRates.has(4) && (
+                <Line
+                  type="monotone"
+                  dataKey="equity4"
+                  stroke="#a78bfa"
+                  strokeWidth={2.5}
+                  strokeDasharray="6 3"
+                  dot={{ r: 4, fill: "#a78bfa", strokeWidth: 0 }}
+                  activeDot={{ r: 5 }}
+                />
+              )}
+              {activeRates.has(6) && (
+                <Line
+                  type="monotone"
+                  dataKey="equity6"
+                  stroke="#fb923c"
+                  strokeWidth={2.5}
+                  strokeDasharray="6 3"
+                  dot={{ r: 4, fill: "#fb923c", strokeWidth: 0 }}
+                  activeDot={{ r: 5 }}
+                />
+              )}
+            </ComposedChart>
           </ResponsiveContainer>
         </div>
       </section>
@@ -225,6 +362,12 @@ export default function Projections() {
             const debtReduced = totalDebtStart - t.totalRemainingBalance;
             const debtReducedPct = totalDebtStart > 0 ? (debtReduced / totalDebtStart) * 100 : 0;
             const allPaidOff = t.totalRemainingBalance === 0;
+
+            // Growth-adjusted equity = appreciated value - remaining debt
+            const growthEquity = (rate: number) =>
+              applyGrowth(totalValueStart, rate, yr) - t.totalRemainingBalance;
+            const growthValue = (rate: number) =>
+              applyGrowth(totalValueStart, rate, yr);
 
             return (
               <div
@@ -265,7 +408,50 @@ export default function Projections() {
                       {formatCurrency(t.totalEquity)}
                     </p>
                     <p className="text-xs text-muted-foreground mt-0.5">{formatPercent(equityPct)} of value</p>
+
+                    {/* Growth scenario equity rows */}
+                    {anyGrowthActive && (
+                      <div className="mt-2 space-y-1 border-t border-border pt-2">
+                        {GROWTH_RATES.filter(({ rate }) => activeRates.has(rate as GrowthRate)).map(({ rate, label, color }) => (
+                          <div key={rate} className="flex items-center justify-between gap-1">
+                            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <span className="w-2 h-2 rounded-full inline-block shrink-0" style={{ backgroundColor: color }} />
+                              {label}/yr
+                            </span>
+                            <span className="text-xs font-semibold font-mono" style={{ color }}>
+                              {formatCurrency(growthEquity(rate))}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
+
+                  {/* Portfolio value with growth */}
+                  {anyGrowthActive && (
+                    <div>
+                      <p className="text-xs text-muted-foreground uppercase font-semibold tracking-wider mb-1 flex items-center gap-1">
+                        <TrendingUp className="w-3 h-3" /> Projected Value
+                      </p>
+                      <p className="text-sm font-semibold font-mono text-foreground">
+                        {formatCurrency(t.totalValue)}
+                        <span className="text-xs font-normal text-muted-foreground ml-1">baseline</span>
+                      </p>
+                      <div className="mt-1 space-y-1">
+                        {GROWTH_RATES.filter(({ rate }) => activeRates.has(rate as GrowthRate)).map(({ rate, label, color }) => (
+                          <div key={rate} className="flex items-center justify-between gap-1">
+                            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <span className="w-2 h-2 rounded-full inline-block shrink-0" style={{ backgroundColor: color }} />
+                              {label}/yr
+                            </span>
+                            <span className="text-xs font-semibold font-mono" style={{ color }}>
+                              {formatCurrency(growthValue(rate))}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Debt remaining */}
                   <div>
@@ -287,24 +473,28 @@ export default function Projections() {
                   </div>
 
                   {/* Interest paid to date */}
-                  <div>
-                    <p className="text-xs text-muted-foreground uppercase font-semibold tracking-wider mb-1 flex items-center gap-1">
-                      <TrendingUp className="w-3 h-3" /> Interest Paid
-                    </p>
-                    <p className="text-sm font-bold font-mono text-destructive/80">
-                      {formatCurrency(t.totalInterestPaid)}
-                    </p>
-                  </div>
+                  {!anyGrowthActive && (
+                    <div>
+                      <p className="text-xs text-muted-foreground uppercase font-semibold tracking-wider mb-1 flex items-center gap-1">
+                        <TrendingUp className="w-3 h-3" /> Interest Paid
+                      </p>
+                      <p className="text-sm font-bold font-mono text-destructive/80">
+                        {formatCurrency(t.totalInterestPaid)}
+                      </p>
+                    </div>
+                  )}
 
                   {/* Principal paid */}
-                  <div>
-                    <p className="text-xs text-muted-foreground uppercase font-semibold tracking-wider mb-1 flex items-center gap-1">
-                      <Building className="w-3 h-3" /> Principal Paid
-                    </p>
-                    <p className="text-sm font-bold font-mono text-foreground">
-                      {formatCurrency(t.totalPrincipalPaid)}
-                    </p>
-                  </div>
+                  {!anyGrowthActive && (
+                    <div>
+                      <p className="text-xs text-muted-foreground uppercase font-semibold tracking-wider mb-1 flex items-center gap-1">
+                        <Building className="w-3 h-3" /> Principal Paid
+                      </p>
+                      <p className="text-sm font-bold font-mono text-foreground">
+                        {formatCurrency(t.totalPrincipalPaid)}
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Equity progress bar */}
@@ -397,7 +587,7 @@ export default function Projections() {
                           ))}
                         </tr>
                         <tr className="hover:bg-muted/20">
-                          <td className="px-5 py-3 text-muted-foreground">Equity</td>
+                          <td className="px-5 py-3 text-muted-foreground">Equity (no growth)</td>
                           {prop.snapshots.map((s) => (
                             <td
                               key={s.years}
@@ -412,6 +602,26 @@ export default function Projections() {
                             </td>
                           ))}
                         </tr>
+                        {/* Per-property growth equity rows */}
+                        {GROWTH_RATES.filter(({ rate }) => activeRates.has(rate as GrowthRate)).map(({ rate, label, color }) => (
+                          <tr key={rate} className="hover:bg-muted/20">
+                            <td className="px-5 py-3">
+                              <span className="flex items-center gap-1.5 text-muted-foreground">
+                                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                                Equity @ {label}/yr
+                              </span>
+                            </td>
+                            {prop.snapshots.map((s) => {
+                              const projectedValue = applyGrowth(prop.currentValue, rate, s.years);
+                              const projectedEquity = projectedValue - s.remainingBalance;
+                              return (
+                                <td key={s.years} className="px-5 py-3 text-right font-mono font-semibold" style={{ color }}>
+                                  {formatCurrency(projectedEquity)}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
                         <tr className="hover:bg-muted/20">
                           <td className="px-5 py-3 text-muted-foreground">Equity %</td>
                           {prop.snapshots.map((s) => {
