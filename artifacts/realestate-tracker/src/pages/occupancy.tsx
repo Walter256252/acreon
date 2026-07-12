@@ -532,42 +532,6 @@ export default function Occupancy() {
           })}
         </div>
       )}
-
-      {/* Summary footer */}
-      {filtered.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2">
-          {filtered
-            .filter(p => p.rentalType === "long-term")
-            .map(p => {
-              const occupied = p.occupancyRecords.filter(r => r.occupied && r.period.startsWith(`${year}-`) && r.period.length === 7).length;
-              return { name: p.name, pct: Math.round((occupied / 12) * 100), type: "long-term" };
-            })
-            .concat(
-              filtered
-                .filter(p => p.rentalType === "short-term")
-                .map(p => {
-                  const daysInMonth = new Date(year, month + 1, 0).getDate();
-                  const monthStr = `${year}-${String(month + 1).padStart(2, "0")}`;
-                  const occupied = p.occupancyRecords.filter(r => r.occupied && r.period.startsWith(`${monthStr}-`)).length;
-                  return { name: p.name, pct: Math.round((occupied / daysInMonth) * 100), type: "short-term" };
-                })
-            )
-            .filter(s => s.pct !== undefined)
-            .slice(0, 4)
-            .map((s, i) => (
-              <div key={i} className="rounded-xl border border-border bg-card p-3 space-y-1">
-                <p className="text-xs text-muted-foreground truncate">{s.name}</p>
-                <p className="text-lg font-bold text-foreground">{s.pct}%</p>
-                <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                  <div
-                    className={cn("h-full rounded-full transition-all", s.type === "long-term" ? "bg-emerald-500" : "bg-blue-500")}
-                    style={{ width: `${s.pct}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-        </div>
-      )}
     </div>
   );
 }
