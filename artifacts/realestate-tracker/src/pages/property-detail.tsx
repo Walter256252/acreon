@@ -144,6 +144,7 @@ export default function PropertyDetail() {
 
   // Collapse state for the two collapsible sections
   const [snapCollapsed, setSnapCollapsed] = useState(false);
+  const [showTaxInsurance, setShowTaxInsurance] = useState(false);
   const [schedCollapsed, setSchedCollapsed] = useState(false);
 
   // Tax estimator state
@@ -877,6 +878,20 @@ export default function PropertyDetail() {
                   All Payments
                 </button>
               </div>
+              {(property.monthlyTaxes || property.monthlyInsurance) && (
+                <button
+                  type="button"
+                  onClick={() => setShowTaxInsurance(v => !v)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
+                    showTaxInsurance
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-background text-muted-foreground border-border hover:text-foreground hover:border-primary/50"
+                  }`}
+                >
+                  <Receipt className="w-3.5 h-3.5" />
+                  Taxes &amp; Insurance
+                </button>
+              )}
               <Button
                 variant={scenarioOpen ? "default" : "outline"}
                 size="sm"
@@ -1071,6 +1086,15 @@ export default function PropertyDetail() {
                   <TableHead className="text-right">Principal</TableHead>
                   <TableHead className="text-right">Interest</TableHead>
                   <TableHead className="text-right font-semibold text-foreground">Balance</TableHead>
+                  {showTaxInsurance && property.monthlyTaxes != null && (
+                    <TableHead className="text-right text-amber-600 border-l border-amber-200/60 bg-amber-50/40">Taxes</TableHead>
+                  )}
+                  {showTaxInsurance && property.monthlyInsurance != null && (
+                    <TableHead className="text-right text-blue-600 border-l border-blue-200/60 bg-blue-50/40">Insurance</TableHead>
+                  )}
+                  {showTaxInsurance && (property.monthlyTaxes != null || property.monthlyInsurance != null) && (
+                    <TableHead className="text-right font-semibold border-l border-border">Total Out</TableHead>
+                  )}
                   {showingScenario && scenarioResult && (
                     <TableHead className="text-right text-primary font-semibold border-l border-primary/20 bg-primary/5">
                       Scenario Bal.
@@ -1140,6 +1164,25 @@ export default function PropertyDetail() {
                       <TableCell className="text-right font-mono text-sm font-semibold">
                         {base ? formatCurrency(base.remainingBalance) : "—"}
                       </TableCell>
+                      {showTaxInsurance && property.monthlyTaxes != null && (
+                        <TableCell className="text-right font-mono text-sm text-amber-700 border-l border-amber-200/60 bg-amber-50/20">
+                          {formatCurrency(property.monthlyTaxes)}
+                        </TableCell>
+                      )}
+                      {showTaxInsurance && property.monthlyInsurance != null && (
+                        <TableCell className="text-right font-mono text-sm text-blue-700 border-l border-blue-200/60 bg-blue-50/20">
+                          {formatCurrency(property.monthlyInsurance)}
+                        </TableCell>
+                      )}
+                      {showTaxInsurance && (property.monthlyTaxes != null || property.monthlyInsurance != null) && (
+                        <TableCell className="text-right font-mono text-sm font-semibold border-l border-border">
+                          {base ? formatCurrency(
+                            base.paymentAmount +
+                            (property.monthlyTaxes ?? 0) +
+                            (property.monthlyInsurance ?? 0)
+                          ) : "—"}
+                        </TableCell>
+                      )}
                       {showingScenario && scenarioResult && (
                         <TableCell className="text-right font-mono text-sm font-semibold border-l border-primary/20 bg-primary/5 text-primary">
                           {scen ? formatCurrency(scen.remainingBalance) : (
