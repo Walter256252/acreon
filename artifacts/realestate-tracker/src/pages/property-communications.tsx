@@ -76,64 +76,6 @@ const TOPIC_COLOR: Record<string, string> = {
   "General":               "bg-muted text-muted-foreground border-border",
 };
 
-// ── Example / preview data ─────────────────────────────────────────────────
-
-const EXAMPLE_NOTES: Note[] = [
-  {
-    id: -1,
-    subject: "Water heater replacement quote — approval needed",
-    participants: ["tenant@example.com", "plumber@quickfix.com"],
-    threadDate: "2025-06-12",
-    aiSummary: "Tenant reported the water heater stopped working. Two plumbers were contacted; QuickFix Plumbing quoted $1,250 for a 50-gal unit with installation. Tenant requests expedited repair before weekend.",
-    actionItems: ["Approve QuickFix Plumbing quote for $1,250", "Schedule installation before Friday June 14", "Keep receipt for insurance reimbursement"],
-    keyDates: [{ date: "Jun 14, 2025", description: "Scheduled installation window" }],
-  },
-  {
-    id: -2,
-    subject: "Lease renewal — counter-offer from Mike Johnson",
-    participants: ["mike.johnson@email.com"],
-    threadDate: "2025-05-03",
-    aiSummary: "Tenant Mike Johnson agreed to a 12-month renewal but countered the proposed 5% rent increase with 3%. He cited strong payment history and plans for minor cosmetic improvements at his own expense.",
-    actionItems: ["Decide on final rent increase percentage", "Send updated lease agreement", "Confirm move-in date for any new clauses"],
-    keyDates: [{ date: "Jul 1, 2025", description: "New lease start date" }, { date: "Jun 15, 2025", description: "Counter-offer response deadline" }],
-  },
-  {
-    id: -3,
-    subject: "April rent received — ACH confirmation",
-    participants: ["noreply@rentpayments.com"],
-    threadDate: "2025-04-02",
-    aiSummary: "ACH transfer of $2,400 received for April rent. Transaction ID RT-2025-04-8821. No late fee applied. YTD payments on time.",
-    actionItems: [],
-    keyDates: [{ date: "Apr 2, 2025", description: "Payment cleared" }],
-  },
-  {
-    id: -4,
-    subject: "Annual property inspection — scheduled for March 20",
-    participants: ["inspector@homeguard.com"],
-    threadDate: "2025-03-08",
-    aiSummary: "HomeGuard Inspections confirmed the annual walkthrough for March 20 at 10am. Tenant has been notified. Prior report noted minor caulking needed around master bath; inspector will re-check.",
-    actionItems: ["Confirm tenant availability for March 20", "Repair master bath caulking before inspection", "Request copy of report within 5 days"],
-    keyDates: [{ date: "Mar 20, 2025", description: "Annual inspection at 10am" }],
-  },
-  {
-    id: -5,
-    subject: "HOA assessment — special levy $450",
-    participants: ["hoa@ridgeviewhoa.org"],
-    threadDate: "2025-02-18",
-    aiSummary: "Ridgeview HOA issued a special assessment of $450 to fund parking lot resurfacing. Payment due by March 31, 2025. Late fee of $50 applies after that date.",
-    actionItems: ["Pay HOA special assessment of $450 by Mar 31", "Record as deductible expense"],
-    keyDates: [{ date: "Mar 31, 2025", description: "HOA assessment due" }],
-  },
-  {
-    id: -6,
-    subject: "HVAC seasonal service — completed",
-    participants: ["service@coolairpro.com"],
-    threadDate: "2025-01-15",
-    aiSummary: "Cool Air Pro completed the annual HVAC service. Technician replaced the air filter, cleaned coils, and topped off refrigerant. System is in good condition. Next recommended service: July 2025.",
-    actionItems: ["Book next HVAC service for July 2025", "File service invoice for tax records"],
-    keyDates: [{ date: "Jul 2025", description: "Next recommended HVAC service" }],
-  },
-];
 
 // ── Grouping helpers ───────────────────────────────────────────────────────
 
@@ -181,12 +123,12 @@ function groupNotes(notes: Note[], mode: GroupMode): { label: string; icon?: Rea
 
 // ── NoteCard ───────────────────────────────────────────────────────────────
 
-function NoteCard({ note, isExample }: { note: Note; isExample?: boolean }) {
+function NoteCard({ note }: { note: Note }) {
   const [expanded, setExpanded] = useState(false);
   const topic = detectTopic(note);
 
   return (
-    <div className={cn("rounded-lg border bg-background overflow-hidden", isExample ? "border-dashed border-border/60" : "border-border")}>
+    <div className={cn("rounded-lg border bg-background overflow-hidden", "border-border")}>
       <button
         onClick={() => setExpanded((v) => !v)}
         className="w-full flex items-start gap-3 p-4 text-left hover:bg-muted/30 transition-colors"
@@ -305,13 +247,13 @@ function GroupToggles({ value, onChange }: { value: GroupMode; onChange: (v: Gro
 
 // ── Notes feed ─────────────────────────────────────────────────────────────
 
-function NotesFeed({ notes, groupMode, isExample }: { notes: Note[]; groupMode: GroupMode; isExample?: boolean }) {
+function NotesFeed({ notes, groupMode }: { notes: Note[]; groupMode: GroupMode }) {
   const groups = groupNotes(notes, groupMode);
 
   if (groupMode === "all") {
     return (
       <div className="space-y-2">
-        {groups[0].notes.map((n) => <NoteCard key={n.id} note={n} isExample={isExample} />)}
+        {groups[0].notes.map((n) => <NoteCard key={n.id} note={n} />)}
       </div>
     );
   }
@@ -331,7 +273,7 @@ function NotesFeed({ notes, groupMode, isExample }: { notes: Note[]; groupMode: 
             <span className="text-xs text-muted-foreground">{g.notes.length} email{g.notes.length !== 1 ? "s" : ""}</span>
           </div>
           <div className="space-y-2">
-            {g.notes.map((n) => <NoteCard key={n.id} note={n} isExample={isExample} />)}
+            {g.notes.map((n) => <NoteCard key={n.id} note={n} />)}
           </div>
         </div>
       ))}
@@ -359,11 +301,7 @@ export default function PropertyCommunications() {
 
   // Flatten grouped-by-month API response into a single array
   const realNotes: Note[] = (notesByMonth ?? []).flatMap((m) => m.notes);
-  const hasReal = realNotes.length > 0;
-  const showExample = !hasReal;
-
-  const displayNotes = showExample ? EXAMPLE_NOTES : realNotes;
-  const totalNotes = hasReal ? realNotes.length : EXAMPLE_NOTES.length;
+  const hasNotes = realNotes.length > 0;
 
   const handleSync = async () => {
     setIsSyncing(true);
@@ -389,10 +327,12 @@ export default function PropertyCommunications() {
         </div>
         <div className="flex items-center gap-3">
           <div className="text-right">
-            <span className="text-sm text-muted-foreground">
-              {showExample ? `${totalNotes} example emails` : `${totalNotes} email${totalNotes !== 1 ? "s" : ""} synced`}
-            </span>
-            {lastSynced && !showExample && (
+            {hasNotes && (
+              <span className="text-sm text-muted-foreground">
+                {realNotes.length} email{realNotes.length !== 1 ? "s" : ""} synced
+              </span>
+            )}
+            {lastSynced && hasNotes && (
               <p className="flex items-center justify-end gap-1 text-xs text-muted-foreground/60 mt-0.5">
                 <Clock className="w-3 h-3" /> Last synced {relativeTime(lastSynced)}
               </p>
@@ -414,23 +354,21 @@ export default function PropertyCommunications() {
 
       {isLoading ? (
         <div className="space-y-4">{[1, 2, 3].map((i) => <div key={i} className="h-24 rounded-xl bg-muted animate-pulse" />)}</div>
+      ) : !hasNotes ? (
+        /* Empty state */
+        <div className="flex flex-col items-center justify-center py-16 text-center rounded-xl border border-dashed border-border">
+          <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
+            <Inbox className="w-6 h-6 text-muted-foreground" />
+          </div>
+          <p className="font-medium text-foreground mb-1">No emails synced yet</p>
+          <p className="text-sm text-muted-foreground max-w-xs">
+            {connected
+              ? "Click \"Sync Now\" to pull in emails for this property."
+              : <>Connect your email on the <Link href="/app/communications" className="text-primary hover:underline">Communications page</Link>, then sync to see real emails here.</>}
+          </p>
+        </div>
       ) : (
         <div className="space-y-5">
-          {/* Example data banner */}
-          {showExample && (
-            <div className="flex items-start gap-3 rounded-xl border border-dashed border-primary/30 bg-primary/5 px-4 py-3">
-              <Sparkles className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-              <div className="text-sm">
-                <span className="font-medium text-primary">Sample data — </span>
-                <span className="text-muted-foreground">
-                  {connected
-                    ? "Sync your email to replace this with real communications for this property."
-                    : <>Connect your email on the <Link href="/app/communications" className="text-primary hover:underline">Communications page</Link>, then sync to see real emails here.</>}
-                </span>
-              </div>
-            </div>
-          )}
-
           {/* Grouping toggles + count */}
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <p className="text-sm text-muted-foreground">
@@ -440,7 +378,7 @@ export default function PropertyCommunications() {
           </div>
 
           {/* Feed */}
-          <NotesFeed notes={displayNotes} groupMode={groupMode} isExample={showExample} />
+          <NotesFeed notes={realNotes} groupMode={groupMode} />
         </div>
       )}
     </div>

@@ -15,71 +15,6 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 
-// ── Sample digest preview (static) ───────────────────────────────────────
-
-function SampleDigestCard() {
-  return (
-    <div className="rounded-xl border border-border overflow-hidden text-sm">
-      {/* Email header */}
-      <div className="bg-stone-900 px-5 py-4">
-        <p className="text-orange-400 text-xs font-bold tracking-widest uppercase mb-1">July 2026 Update</p>
-        <p className="text-white font-bold text-base">Your RealTrack Portfolio</p>
-      </div>
-      {/* Stats bar */}
-      <div className="bg-orange-500 px-5 py-3 flex items-center gap-6">
-        {[
-          { label: "Properties", value: "3" },
-          { label: "Total Equity", value: "$247k" },
-          { label: "Avg LTV", value: "68%" },
-        ].map((s) => (
-          <div key={s.label}>
-            <p className="text-orange-100 text-xs font-semibold uppercase tracking-wide">{s.label}</p>
-            <p className="text-white font-bold text-lg leading-tight">{s.value}</p>
-          </div>
-        ))}
-      </div>
-      {/* Body */}
-      <div className="p-5 space-y-4 bg-white">
-        <p className="text-gray-800">Hi Alex,</p>
-        <p className="text-gray-600 leading-relaxed">
-          July was a solid month across your portfolio. You've now built $247k in total equity — up 4.2% from last month — and your average LTV has dropped to 68%, putting you in a healthy position across all three properties.
-        </p>
-        {/* Highlights */}
-        <div className="rounded-lg bg-green-50 border border-green-100 p-4 space-y-3">
-          <p className="font-bold text-green-800 text-xs uppercase tracking-wider">✅ Great Things Going On</p>
-          <div className="pl-3 border-l-2 border-green-500 space-y-1">
-            <p className="font-semibold text-green-900">Strong equity at 123 Main St</p>
-            <p className="text-green-700 text-xs leading-relaxed">You've built $94k in equity — 38% of the property's current value. Appreciation is outpacing expectations.</p>
-          </div>
-          <div className="pl-3 border-l-2 border-green-500 space-y-1">
-            <p className="font-semibold text-green-900">Oak Ave is ahead of schedule</p>
-            <p className="text-green-700 text-xs leading-relaxed">Your extra payments have put you 9 months ahead on the Oak Ave mortgage, saving you an estimated $8,400 in interest.</p>
-          </div>
-        </div>
-        {/* Watch items */}
-        <div className="rounded-lg bg-amber-50 border border-amber-100 p-4 space-y-3">
-          <p className="font-bold text-amber-800 text-xs uppercase tracking-wider">👁 Keep an Eye On</p>
-          <div className="pl-3 border-l-2 border-amber-500 space-y-1">
-            <p className="font-semibold text-amber-900">Refinance window on Maple Drive</p>
-            <p className="text-amber-700 text-xs leading-relaxed">Rates have dropped 0.4% since you locked in. A 15-min call with your lender could save ~$180/month.</p>
-          </div>
-          <div className="pl-3 border-l-2 border-amber-500 space-y-1">
-            <p className="font-semibold text-amber-900">Maple Drive LTV still above 80%</p>
-            <p className="text-amber-700 text-xs leading-relaxed">At 82% LTV you'd still owe PMI on a refi. You're about 8 months away from crossing that threshold naturally.</p>
-          </div>
-        </div>
-        <p className="text-gray-600 leading-relaxed">You're tracking well for a $310k total equity milestone by end of 2027 — keep it up.</p>
-        <div className="inline-block bg-orange-500 rounded-lg px-4 py-2">
-          <span className="text-white font-semibold text-sm">View My Full Portfolio →</span>
-        </div>
-      </div>
-      <div className="bg-gray-50 border-t border-gray-100 px-5 py-3">
-        <p className="text-xs text-gray-400">You're receiving this because you enabled monthly digests in RealTrack.</p>
-      </div>
-    </div>
-  );
-}
-
 // ── Live preview card ─────────────────────────────────────────────────────
 
 interface LivePreview {
@@ -162,7 +97,6 @@ export default function Settings() {
   const previewMutation = usePostUserDigestPreview();
 
   const [livePreview, setLivePreview] = useState<LivePreview | null>(null);
-  const [showSample, setShowSample] = useState(false);
   const [sendSuccess, setSendSuccess] = useState<string | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
 
@@ -397,12 +331,6 @@ export default function Settings() {
               )}
             </button>
 
-            <button
-              onClick={() => { setShowSample((v) => !v); setLivePreview(null); }}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-background hover:bg-muted text-sm font-medium text-foreground transition-colors"
-            >
-              <Eye className="w-4 h-4" /> {showSample ? "Hide Sample" : "Show Sample"}
-            </button>
           </div>
 
           {/* Status messages */}
@@ -425,12 +353,6 @@ export default function Settings() {
                 <Sparkles className="w-3.5 h-3.5" /> Live preview — generated from your actual portfolio
               </p>
               <LivePreviewCard preview={livePreview} />
-            </div>
-          )}
-          {showSample && !livePreview && (
-            <div className="space-y-2">
-              <p className="text-xs font-medium text-muted-foreground">Sample — showing example data</p>
-              <SampleDigestCard />
             </div>
           )}
         </div>
