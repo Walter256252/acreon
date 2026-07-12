@@ -552,7 +552,12 @@ export default function Occupancy() {
                     <div className="flex items-center gap-2">
                       <Building2 className="w-4 h-4 text-primary shrink-0" />
                       <div>
-                        <p className="font-semibold text-foreground leading-tight">{property.name}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-semibold text-foreground leading-tight">{property.name}</p>
+                          {pctLabel && (
+                            <span className="text-xs font-semibold text-muted-foreground">{pctLabel}</span>
+                          )}
+                        </div>
                         <p className="text-xs text-muted-foreground">{property.address}</p>
                       </div>
                     </div>
@@ -562,11 +567,8 @@ export default function Occupancy() {
                         <button
                           type="button"
                           onClick={() => toggleCollapse(property.id)}
-                          className="flex items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                          className="rounded-md border border-border bg-muted/40 p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                         >
-                          {isCollapsed && pctLabel && (
-                            <span className="text-foreground font-semibold">{pctLabel}</span>
-                          )}
                           <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-200", isCollapsed && "-rotate-90")} />
                         </button>
                       )}
