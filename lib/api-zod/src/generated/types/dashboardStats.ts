@@ -5,6 +5,11 @@
  * Real Estate Tracker API
  * OpenAPI spec version: 0.1.0
  */
+import type { DashboardStatsBestAppreciation } from './dashboardStatsBestAppreciation';
+import type { DashboardStatsHighestLTV } from './dashboardStatsHighestLTV';
+import type { DashboardStatsLeastEquity } from './dashboardStatsLeastEquity';
+import type { DashboardStatsMostEquity } from './dashboardStatsMostEquity';
+import type { DashboardStatsNextPayoff } from './dashboardStatsNextPayoff';
 import type { PropertySummary } from './propertySummary';
 
 export interface DashboardStats {
@@ -13,5 +18,11 @@ export interface DashboardStats {
   totalLoanBalance: number;
   totalEquity: number;
   monthlyPaymentTotal: number;
+  avgEquityPercent?: number;
+  mostEquity?: DashboardStatsMostEquity;
+  leastEquity?: DashboardStatsLeastEquity;
+  nextPayoff?: DashboardStatsNextPayoff;
+  bestAppreciation?: DashboardStatsBestAppreciation;
+  highestLTV?: DashboardStatsHighestLTV;
   properties: PropertySummary[];
 }

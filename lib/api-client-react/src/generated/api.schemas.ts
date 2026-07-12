@@ -147,6 +147,41 @@ export interface AmortizationRow {
   isLogged?: boolean;
 }
 
+export type DashboardStatsMostEquity = {
+  id?: number;
+  name?: string;
+  equity?: number;
+  equityPercent?: number;
+} | null;
+
+export type DashboardStatsLeastEquity = {
+  id?: number;
+  name?: string;
+  equity?: number;
+  equityPercent?: number;
+} | null;
+
+export type DashboardStatsNextPayoff = {
+  id?: number;
+  name?: string;
+  payoffDate?: string | null;
+  estimatedBalance?: number;
+} | null;
+
+export type DashboardStatsBestAppreciation = {
+  id?: number;
+  name?: string;
+  appreciation?: number;
+  appreciationPercent?: number;
+} | null;
+
+export type DashboardStatsHighestLTV = {
+  id?: number;
+  name?: string;
+  ltv?: number;
+  estimatedBalance?: number;
+} | null;
+
 export interface PropertySummary {
   id: number;
   name: string;
@@ -167,6 +202,12 @@ export interface DashboardStats {
   totalLoanBalance: number;
   totalEquity: number;
   monthlyPaymentTotal: number;
+  avgEquityPercent?: number;
+  mostEquity?: DashboardStatsMostEquity;
+  leastEquity?: DashboardStatsLeastEquity;
+  nextPayoff?: DashboardStatsNextPayoff;
+  bestAppreciation?: DashboardStatsBestAppreciation;
+  highestLTV?: DashboardStatsHighestLTV;
   properties: PropertySummary[];
 }
 

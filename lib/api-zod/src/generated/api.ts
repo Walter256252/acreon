@@ -358,10 +358,6 @@ export const ListPropertiesResponseItem = zod.object({
   "paymentNumber": zod.number(),
   "amount": zod.number()
 })).nullish().describe('Persistent one-time extra payments by payment number'),
-  "monthlyTaxes": zod.number().nullish(),
-  "monthlyInsurance": zod.number().nullish(),
-  "monthlyRent": zod.number().nullish(),
-  "currentLoanBalance": zod.number().nullish().describe('Override starting balance when entering a property mid-loan'),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -387,8 +383,7 @@ export const CreatePropertyBody = zod.object({
   "loanStartDate": zod.string(),
   "monthlyPayment": zod.number(),
   "notes": zod.string().optional(),
-  "zillowUrl": zod.string().optional(),
-  "currentLoanBalance": zod.number().optional()
+  "zillowUrl": zod.string().optional()
 })
 
 export const CreatePropertyResponse = zod.object({
@@ -412,10 +407,6 @@ export const CreatePropertyResponse = zod.object({
   "paymentNumber": zod.number(),
   "amount": zod.number()
 })).nullish().describe('Persistent one-time extra payments by payment number'),
-  "monthlyTaxes": zod.number().nullish(),
-  "monthlyInsurance": zod.number().nullish(),
-  "monthlyRent": zod.number().nullish(),
-  "currentLoanBalance": zod.number().nullish().describe('Override starting balance when entering a property mid-loan'),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -483,10 +474,6 @@ export const GetPropertyResponse = zod.object({
   "paymentNumber": zod.number(),
   "amount": zod.number()
 })).nullish().describe('Persistent one-time extra payments by payment number'),
-  "monthlyTaxes": zod.number().nullish(),
-  "monthlyInsurance": zod.number().nullish(),
-  "monthlyRent": zod.number().nullish(),
-  "currentLoanBalance": zod.number().nullish().describe('Override starting balance when entering a property mid-loan'),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -518,11 +505,7 @@ export const UpdatePropertyBody = zod.object({
   "amount": zod.number()
 })).nullish(),
   "valueLastUpdatedAt": zod.string().nullish(),
-  "zillowUrl": zod.string().nullish(),
-  "monthlyTaxes": zod.number().nullish(),
-  "monthlyInsurance": zod.number().nullish(),
-  "monthlyRent": zod.number().nullish(),
-  "currentLoanBalance": zod.number().nullish()
+  "zillowUrl": zod.string().nullish()
 })
 
 export const UpdatePropertyResponse = zod.object({
@@ -546,10 +529,6 @@ export const UpdatePropertyResponse = zod.object({
   "paymentNumber": zod.number(),
   "amount": zod.number()
 })).nullish().describe('Persistent one-time extra payments by payment number'),
-  "monthlyTaxes": zod.number().nullish(),
-  "monthlyInsurance": zod.number().nullish(),
-  "monthlyRent": zod.number().nullish(),
-  "currentLoanBalance": zod.number().nullish().describe('Override starting balance when entering a property mid-loan'),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -648,6 +627,37 @@ export const GetDashboardResponse = zod.object({
   "totalLoanBalance": zod.number(),
   "totalEquity": zod.number(),
   "monthlyPaymentTotal": zod.number(),
+  "avgEquityPercent": zod.number().optional(),
+  "mostEquity": zod.object({
+  "id": zod.number().optional(),
+  "name": zod.string().optional(),
+  "equity": zod.number().optional(),
+  "equityPercent": zod.number().optional()
+}).nullish(),
+  "leastEquity": zod.object({
+  "id": zod.number().optional(),
+  "name": zod.string().optional(),
+  "equity": zod.number().optional(),
+  "equityPercent": zod.number().optional()
+}).nullish(),
+  "nextPayoff": zod.object({
+  "id": zod.number().optional(),
+  "name": zod.string().optional(),
+  "payoffDate": zod.string().nullish(),
+  "estimatedBalance": zod.number().optional()
+}).nullish(),
+  "bestAppreciation": zod.object({
+  "id": zod.number().optional(),
+  "name": zod.string().optional(),
+  "appreciation": zod.number().optional(),
+  "appreciationPercent": zod.number().optional()
+}).nullish(),
+  "highestLTV": zod.object({
+  "id": zod.number().optional(),
+  "name": zod.string().optional(),
+  "ltv": zod.number().optional(),
+  "estimatedBalance": zod.number().optional()
+}).nullish(),
   "properties": zod.array(zod.object({
   "id": zod.number(),
   "name": zod.string(),

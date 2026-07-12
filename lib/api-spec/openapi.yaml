@@ -912,6 +912,48 @@ components:
           type: number
         monthlyPaymentTotal:
           type: number
+        avgEquityPercent:
+          type: number
+        mostEquity:
+          nullable: true
+          type: object
+          properties:
+            id: { type: integer }
+            name: { type: string }
+            equity: { type: number }
+            equityPercent: { type: number }
+        leastEquity:
+          nullable: true
+          type: object
+          properties:
+            id: { type: integer }
+            name: { type: string }
+            equity: { type: number }
+            equityPercent: { type: number }
+        nextPayoff:
+          nullable: true
+          type: object
+          properties:
+            id: { type: integer }
+            name: { type: string }
+            payoffDate: { type: string, nullable: true }
+            estimatedBalance: { type: number }
+        bestAppreciation:
+          nullable: true
+          type: object
+          properties:
+            id: { type: integer }
+            name: { type: string }
+            appreciation: { type: number }
+            appreciationPercent: { type: number }
+        highestLTV:
+          nullable: true
+          type: object
+          properties:
+            id: { type: integer }
+            name: { type: string }
+            ltv: { type: number }
+            estimatedBalance: { type: number }
         properties:
           type: array
           items:
