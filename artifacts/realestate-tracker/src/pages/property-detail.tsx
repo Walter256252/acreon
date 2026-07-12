@@ -178,9 +178,12 @@ export default function PropertyDetail() {
 
   const applyTaxEstimate = () => {
     if (!taxEstimate) return;
-    setTaxesVal(String(Math.round(taxEstimate.monthly)));
-    handleSaveCashFlow("taxes");
+    const rounded = Math.round(taxEstimate.monthly);
+    setTaxesVal(String(rounded));
     setTaxEstimate(null);
+    updateProperty.mutate({ id, data: { monthlyTaxes: rounded } }, {
+      onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetPropertyQueryKey(id) }),
+    });
   };
 
   // Monthly cash flow state (taxes, insurance, rent)
