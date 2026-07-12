@@ -29,6 +29,8 @@ export const propertiesTable = pgTable("properties", {
   monthlyTaxes: numeric("monthly_taxes", { precision: 15, scale: 2 }),
   monthlyInsurance: numeric("monthly_insurance", { precision: 15, scale: 2 }),
   monthlyRent: numeric("monthly_rent", { precision: 15, scale: 2 }),
+  // Occupancy tracking
+  rentalType: text("rental_type"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

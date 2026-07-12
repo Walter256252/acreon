@@ -10,6 +10,7 @@ import emailRouter from "./email";
 import settingsRouter from "./settings";
 import adminRouter from "./admin";
 import propertiesGeoRouter from "./propertiesGeo";
+import occupancyRouter from "./occupancy";
 
 const router: IRouter = Router();
 
@@ -24,5 +25,6 @@ router.use(emailRouter);
 router.use(settingsRouter);
 router.use(adminRouter);
 router.use(propertiesGeoRouter);
+router.use(occupancyRouter);
 
 export default router;

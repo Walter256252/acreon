@@ -9,3 +9,4 @@ export * from "./userPreferences";
 export * from "./termsAcceptances";
 export * from "./propertyGeocodes";
 export * from "./feedback";
+export * from "./occupancy";
