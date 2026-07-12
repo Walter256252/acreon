@@ -47,7 +47,7 @@ interface AISummary {
 async function summarise(subject: string, body: string, from: string): Promise<AISummary> {
   try {
     const res = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-5.4-mini",
       response_format: { type: "json_object" },
       messages: [
         {
