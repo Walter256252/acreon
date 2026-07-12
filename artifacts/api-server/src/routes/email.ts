@@ -42,7 +42,7 @@ async function getUserConnection(userId: string) {
 // GET /email/status
 router.get("/email/status", async (req, res) => {
   const userId = getConn(req);
-  if (!userId) { res.json({ connected: false, email: null }); return; }
+  if (!userId) { res.status(401).json({ error: "Not authenticated" }); return; }
   const conn = await getUserConnection(userId);
   res.json({ connected: !!conn, email: conn?.displayEmail ?? null });
 });
@@ -145,20 +145,21 @@ router.delete("/email/connection", async (req, res) => {
 // GET /email/settings
 router.get("/email/settings", async (req, res) => {
   const userId = getConn(req);
-  const properties = await db.select().from(propertiesTable).orderBy(propertiesTable.createdAt);
+  if (!userId) { res.status(401).json({ error: "Not authenticated" }); return; }
 
-  const settings = userId
-    ? await db.select().from(gmailSettingsTable).where(eq(gmailSettingsTable.userId, userId))
-    : [];
+  const [properties, settings, lastRows] = await Promise.all([
+    db.select().from(propertiesTable)
+      .where(eq(propertiesTable.clerkUserId, userId))
+      .orderBy(propertiesTable.createdAt),
+    db.select().from(gmailSettingsTable).where(eq(gmailSettingsTable.userId, userId)),
+    db
+      .select({ propertyId: emailNotesTable.propertyId, syncedAt: emailNotesTable.syncedAt })
+      .from(emailNotesTable)
+      .where(eq(emailNotesTable.userId, userId))
+      .orderBy(emailNotesTable.syncedAt),
+  ]);
+
   const settingsMap = new Map(settings.map((s) => [s.propertyId, s]));
-
-  const lastRows = userId
-    ? await db
-        .select({ propertyId: emailNotesTable.propertyId, syncedAt: emailNotesTable.syncedAt })
-        .from(emailNotesTable)
-        .where(eq(emailNotesTable.userId, userId))
-        .orderBy(emailNotesTable.syncedAt)
-    : [];
   const lastMap = new Map<number, string>();
   for (const r of lastRows) lastMap.set(r.propertyId, r.syncedAt.toISOString());
 
@@ -214,7 +215,9 @@ router.post("/email/sync/:propertyId", async (req, res) => {
   const creds = toCredsOrNull(emailConn ?? undefined);
   if (!creds) { res.status(503).json({ error: "Email not connected" }); return; }
 
-  const [property] = await db.select().from(propertiesTable).where(eq(propertiesTable.id, propertyId));
+  // Verify the property exists AND belongs to this user
+  const [property] = await db.select().from(propertiesTable)
+    .where(and(eq(propertiesTable.id, propertyId), eq(propertiesTable.clerkUserId, userId)));
   if (!property) { res.status(404).json({ error: "Property not found" }); return; }
 
   const [setting] = await db
@@ -246,7 +249,9 @@ router.post("/email/sync", async (req, res) => {
   const creds = toCredsOrNull(emailConn ?? undefined);
   if (!creds) { res.status(503).json({ error: "Email not connected" }); return; }
 
-  const properties = await db.select().from(propertiesTable);
+  // Only sync the authenticated user's own properties
+  const properties = await db.select().from(propertiesTable)
+    .where(eq(propertiesTable.clerkUserId, userId));
   const settings = await db.select().from(gmailSettingsTable).where(eq(gmailSettingsTable.userId, userId));
   const settingsMap = new Map(settings.map((s) => [s.propertyId, s]));
 
@@ -266,7 +271,7 @@ router.post("/email/sync", async (req, res) => {
 // GET /email/notes/:propertyId
 router.get("/email/notes/:propertyId", async (req, res) => {
   const userId = getConn(req);
-  if (!userId) { res.json([]); return; }
+  if (!userId) { res.status(401).json({ error: "Not authenticated" }); return; }
 
   const propertyId = Number(req.params.propertyId);
   const notes = await db

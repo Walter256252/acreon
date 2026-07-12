@@ -34,9 +34,12 @@ async function requireAdmin(req: Request, res: Response, next: NextFunction) {
 }
 
 // ── GET /admin/exists ──────────────────────────────────────────────────────
-// Public — tells the frontend whether any admin has been claimed yet.
+// Requires authentication. Tells a signed-in user whether any admin has been
+// claimed yet (used to show/hide the "Claim admin" bootstrap button).
 
-router.get("/admin/exists", async (_req, res) => {
+router.get("/admin/exists", async (req, res) => {
+  const userId = uid(req);
+  if (!userId) { res.status(401).json({ error: "Not authenticated" }); return; }
   const { data: allUsers } = await clerkClient.users.getUserList({ limit: 500 });
   const adminExists = allUsers.some((u) => u.publicMetadata?.role === "admin");
   res.json({ adminExists });
