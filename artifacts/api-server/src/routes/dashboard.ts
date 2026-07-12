@@ -40,14 +40,28 @@ router.get("/dashboard", async (_req, res) => {
     const equity = currentValue - estimatedBalance;
     const equityPercent = currentValue > 0 ? (equity / currentValue) * 100 : 0;
 
+    // Find payoff date: last entry in schedule where remainingBalance > 0
+    const lastPayment = schedule.findLast((e) => e.remainingBalance > 0.01);
+    const payoffDate = lastPayment ? lastPayment.date : null;
+
+    const purchasePrice = Number(prop.purchasePrice);
+    const appreciation = currentValue - purchasePrice;
+    const appreciationPercent = purchasePrice > 0 ? (appreciation / purchasePrice) * 100 : 0;
+    const ltv = currentValue > 0 ? (estimatedBalance / currentValue) * 100 : 0;
+
     return {
       id: prop.id,
       name: prop.name,
       address: prop.address,
       currentValue,
+      purchasePrice,
       estimatedBalance: round(estimatedBalance),
       equity: round(equity),
       equityPercent: round(equityPercent),
+      appreciation: round(appreciation),
+      appreciationPercent: round(appreciationPercent),
+      ltv: round(ltv),
+      payoffDate,
       valueLastUpdatedAt: prop.valueLastUpdatedAt ? prop.valueLastUpdatedAt.toISOString() : null,
       zillowUrl: prop.zillowUrl ?? null,
     };
@@ -58,12 +72,35 @@ router.get("/dashboard", async (_req, res) => {
   const totalEquity = totalPortfolioValue - totalLoanBalance;
   const monthlyPaymentTotal = properties.reduce((sum, p) => sum + Number(p.monthlyPayment), 0);
 
+  // Property spotlights
+  const sorted = [...summaries];
+  const mostEquity = sorted.sort((a, b) => b.equity - a.equity)[0] ?? null;
+  const leastEquity = sorted.sort((a, b) => a.equity - b.equity)[0] ?? null;
+  const nextPayoff = summaries
+    .filter((s) => s.payoffDate)
+    .sort((a, b) => new Date(a.payoffDate!).getTime() - new Date(b.payoffDate!).getTime())[0] ?? null;
+  const bestAppreciation = summaries
+    .filter((s) => s.purchasePrice > 0)
+    .sort((a, b) => b.appreciationPercent - a.appreciationPercent)[0] ?? null;
+  const highestLTV = summaries
+    .filter((s) => s.ltv > 0)
+    .sort((a, b) => b.ltv - a.ltv)[0] ?? null;
+  const avgEquityPercent = summaries.length > 0
+    ? summaries.reduce((sum, s) => sum + s.equityPercent, 0) / summaries.length
+    : 0;
+
   res.json({
     totalProperties: properties.length,
     totalPortfolioValue: round(totalPortfolioValue),
     totalLoanBalance: round(totalLoanBalance),
     totalEquity: round(totalEquity),
     monthlyPaymentTotal: round(monthlyPaymentTotal),
+    avgEquityPercent: round(avgEquityPercent),
+    mostEquity: mostEquity ? { id: mostEquity.id, name: mostEquity.name, equity: mostEquity.equity, equityPercent: mostEquity.equityPercent } : null,
+    leastEquity: leastEquity ? { id: leastEquity.id, name: leastEquity.name, equity: leastEquity.equity, equityPercent: leastEquity.equityPercent } : null,
+    nextPayoff: nextPayoff ? { id: nextPayoff.id, name: nextPayoff.name, payoffDate: nextPayoff.payoffDate, estimatedBalance: nextPayoff.estimatedBalance } : null,
+    bestAppreciation: bestAppreciation ? { id: bestAppreciation.id, name: bestAppreciation.name, appreciation: bestAppreciation.appreciation, appreciationPercent: bestAppreciation.appreciationPercent } : null,
+    highestLTV: highestLTV ? { id: highestLTV.id, name: highestLTV.name, ltv: highestLTV.ltv, estimatedBalance: highestLTV.estimatedBalance } : null,
     properties: summaries,
   });
 });
