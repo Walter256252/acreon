@@ -555,7 +555,7 @@ export default function Occupancy() {
                         <div className="flex items-center gap-2">
                           <p className="font-semibold text-foreground leading-tight">{property.name}</p>
                           {pctLabel && (
-                            <span className="text-xs font-semibold text-muted-foreground">{pctLabel}</span>
+                            <span className="text-sm font-bold text-primary">{pctLabel}</span>
                           )}
                         </div>
                         <p className="text-xs text-muted-foreground">{property.address}</p>
