@@ -333,6 +333,8 @@ export default function Occupancy() {
   const [month, setMonth] = useState(today.getMonth());
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set());
 
+  const qc = useQueryClient();
+
   const toggleCollapse = (id: number) =>
     setCollapsed(prev => {
       const next = new Set(prev);
