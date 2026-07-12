@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Home, Building2, ChevronLeft, ChevronRight, CalendarDays, BedDouble } from "lucide-react";
+import { Home, Building2, ChevronLeft, ChevronRight, ChevronDown, CalendarDays, BedDouble } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
@@ -261,6 +261,14 @@ export default function Occupancy() {
   const [filter, setFilter] = useState<"all" | "long-term" | "short-term">("all");
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
+  const [collapsed, setCollapsed] = useState<Set<number>>(new Set());
+
+  const toggleCollapse = (id: number) =>
+    setCollapsed(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
 
   const { data, isLoading, isError } = useQuery<PropertyOccupancy[]>({
     queryKey: ["occupancy"],
@@ -375,40 +383,73 @@ export default function Occupancy() {
         </div>
       ) : (
         <div className="space-y-4">
-          {filtered.map(property => (
-            <Card key={property.id}>
-              <CardHeader className="pb-3">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <Building2 className="w-4 h-4 text-primary shrink-0" />
-                    <div>
-                      <p className="font-semibold text-foreground leading-tight">{property.name}</p>
-                      <p className="text-xs text-muted-foreground">{property.address}</p>
+          {filtered.map(property => {
+            const isCollapsed = collapsed.has(property.id);
+
+            // Compute summary percentage for collapsed pill
+            let pctLabel: string | null = null;
+            if (property.rentalType === "long-term") {
+              const occupied = property.occupancyRecords.filter(
+                r => r.occupied && r.period.length === 7 && r.period.startsWith(`${year}-`)
+              ).length;
+              pctLabel = `${Math.round((occupied / 12) * 100)}%`;
+            } else if (property.rentalType === "short-term") {
+              const totalNights = property.occupancyRecords
+                .filter(r => r.period.length === 7 && r.period.startsWith(`${year}-`) && r.nights != null)
+                .reduce((sum, r) => sum + (r.nights ?? 0), 0);
+              const maxNights = Array.from({ length: 12 }, (_, i) => new Date(year, i + 1, 0).getDate()).reduce((a, b) => a + b, 0);
+              pctLabel = `${Math.round((totalNights / maxNights) * 100)}%`;
+            }
+
+            return (
+              <Card key={property.id}>
+                <CardHeader className="pb-3">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="w-4 h-4 text-primary shrink-0" />
+                      <div>
+                        <p className="font-semibold text-foreground leading-tight">{property.name}</p>
+                        <p className="text-xs text-muted-foreground">{property.address}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <RentalTypeSelector property={property} />
+                      {property.rentalType && (
+                        <button
+                          type="button"
+                          onClick={() => toggleCollapse(property.id)}
+                          className="flex items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                        >
+                          {isCollapsed && pctLabel && (
+                            <span className="text-foreground font-semibold">{pctLabel}</span>
+                          )}
+                          <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-200", isCollapsed && "-rotate-90")} />
+                        </button>
+                      )}
                     </div>
                   </div>
-                  <RentalTypeSelector property={property} />
-                </div>
-              </CardHeader>
+                </CardHeader>
 
-              {property.rentalType && (
-                <CardContent className="pt-0">
-                  {property.rentalType === "long-term" ? (
-                    <LongTermGrid property={property} year={year} />
-                  ) : (
-                    <ShortTermGrid property={property} year={year} />
-                  )}
-                </CardContent>
-              )}
+                {!isCollapsed && property.rentalType && (
+                  <CardContent className="pt-0">
+                    {property.rentalType === "long-term" ? (
+                      <LongTermGrid property={property} year={year} />
+                    ) : (
+                      <ShortTermGrid property={property} year={year} />
+                    )}
+                  </CardContent>
+                )}
 
-              {!property.rentalType && (
-                <CardContent className="pt-0">
-                  <p className="text-xs text-muted-foreground italic">
-                    Select a rental type above to start tracking occupancy.
-                  </p>
-                </CardContent>
-              )}
-            </Card>
-          ))}
+                {!property.rentalType && (
+                  <CardContent className="pt-0">
+                    <p className="text-xs text-muted-foreground italic">
+                      Select a rental type above to start tracking occupancy.
+                    </p>
+                  </CardContent>
+                )}
+              </Card>
+            );
+          })}
         </div>
       )}
 
