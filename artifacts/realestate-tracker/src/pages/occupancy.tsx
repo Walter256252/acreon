@@ -309,6 +309,37 @@ export default function Occupancy() {
     else setMonth(m => m + 1);
   };
 
+  // ── Summary stats ──────────────────────────────────────────────────────
+  const ltrProps = data.filter(p => p.rentalType === "long-term");
+  const strProps = data.filter(p => p.rentalType === "short-term");
+  const assignedCount = ltrProps.length + strProps.length;
+  const unassignedCount = data.length - assignedCount;
+
+  // LTR: avg occupancy % across all LTR properties for the selected year
+  const ltrOccupancyPcts = ltrProps.map(p => {
+    const occupied = p.occupancyRecords.filter(
+      r => r.occupied && r.period.length === 7 && r.period.startsWith(`${year}-`)
+    ).length;
+    return (occupied / 12) * 100;
+  });
+  const ltrAvgPct = ltrOccupancyPcts.length
+    ? Math.round(ltrOccupancyPcts.reduce((a, b) => a + b, 0) / ltrOccupancyPcts.length)
+    : null;
+
+  // LTR: total occupied-months across all LTR properties for the selected year
+  const ltrTotalMonths = ltrProps.reduce((sum, p) =>
+    sum + p.occupancyRecords.filter(r => r.occupied && r.period.length === 7 && r.period.startsWith(`${year}-`)).length, 0);
+
+  // STR: total nights booked + avg occupancy % for the selected year
+  const strTotalNights = strProps.reduce((sum, p) =>
+    sum + p.occupancyRecords
+      .filter(r => r.period.length === 7 && r.period.startsWith(`${year}-`) && r.nights != null)
+      .reduce((s, r) => s + (r.nights ?? 0), 0), 0);
+  const strMaxNights = strProps.length
+    ? strProps.length * Array.from({ length: 12 }, (_, i) => new Date(year, i + 1, 0).getDate()).reduce((a, b) => a + b, 0)
+    : 0;
+  const strAvgPct = strMaxNights > 0 ? Math.round((strTotalNights / strMaxNights) * 100) : null;
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       {/* Header */}
@@ -317,6 +348,55 @@ export default function Occupancy() {
         <p className="text-muted-foreground mt-1 text-sm">
           Track which properties are rented out month-by-month or day-by-day.
         </p>
+      </div>
+
+      {/* Summary stat cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {/* Assigned */}
+        <div className="rounded-xl border border-border bg-card p-4 space-y-1">
+          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Tracked</p>
+          <p className="text-2xl font-bold text-foreground">{assignedCount}<span className="text-sm font-normal text-muted-foreground"> / {data.length}</span></p>
+          <p className="text-xs text-muted-foreground">
+            {unassignedCount > 0 ? `${unassignedCount} unassigned` : "All assigned"}
+          </p>
+        </div>
+
+        {/* LTR occupancy */}
+        <div className="rounded-xl border border-border bg-card p-4 space-y-1">
+          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">LTR Avg Occupancy</p>
+          <p className="text-2xl font-bold text-foreground">
+            {ltrAvgPct !== null ? `${ltrAvgPct}%` : <span className="text-muted-foreground text-base">—</span>}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {ltrProps.length > 0
+              ? `${ltrTotalMonths} mo occupied · ${year}`
+              : "No long-term properties"}
+          </p>
+        </div>
+
+        {/* STR nights */}
+        <div className="rounded-xl border border-border bg-card p-4 space-y-1">
+          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">STR Nights Booked</p>
+          <p className="text-2xl font-bold text-foreground">
+            {strProps.length > 0 ? strTotalNights : <span className="text-muted-foreground text-base">—</span>}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {strProps.length > 0
+              ? `${strProps.length} short-term propert${strProps.length === 1 ? "y" : "ies"} · ${year}`
+              : "No short-term properties"}
+          </p>
+        </div>
+
+        {/* STR occupancy */}
+        <div className="rounded-xl border border-border bg-card p-4 space-y-1">
+          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">STR Avg Occupancy</p>
+          <p className="text-2xl font-bold text-foreground">
+            {strAvgPct !== null ? `${strAvgPct}%` : <span className="text-muted-foreground text-base">—</span>}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {strMaxNights > 0 ? `${strTotalNights} of ${strMaxNights} nights · ${year}` : "No short-term properties"}
+          </p>
+        </div>
       </div>
 
       {/* Controls bar */}
