@@ -43,15 +43,10 @@ function applyGrowth(baseValue: number, ratePercent: number, years: number): num
 export default function Projections() {
   const { data, isLoading, isError } = useGetProjections();
   const [expandedProperty, setExpandedProperty] = useState<number | null>(null);
-  const [activeRates, setActiveRates] = useState<Set<GrowthRate>>(new Set());
+  const [activeRate, setActiveRate] = useState<GrowthRate | null>(null);
 
   function toggleRate(rate: GrowthRate) {
-    setActiveRates((prev) => {
-      const next = new Set(prev);
-      if (next.has(rate)) next.delete(rate);
-      else next.add(rate);
-      return next;
-    });
+    setActiveRate((prev) => (prev === rate ? null : rate));
   }
 
   if (isLoading) {
@@ -109,7 +104,7 @@ export default function Projections() {
     }),
   ];
 
-  const anyGrowthActive = activeRates.size > 0;
+  const anyGrowthActive = activeRate !== null;
 
   return (
     <div className="space-y-10 animate-in fade-in duration-500 pb-12">
@@ -136,7 +131,7 @@ export default function Projections() {
           </div>
           <div className="flex items-center gap-2 shrink-0 sm:ml-auto">
             {GROWTH_RATES.map(({ rate, label, color }) => {
-              const isOn = activeRates.has(rate as GrowthRate);
+              const isOn = activeRate === rate;
               return (
                 <button
                   key={rate}
@@ -161,7 +156,7 @@ export default function Projections() {
             })}
             {anyGrowthActive && (
               <button
-                onClick={() => setActiveRates(new Set())}
+                onClick={() => setActiveRate(null)}
                 className="text-xs text-muted-foreground hover:text-foreground transition-colors px-1"
               >
                 Clear
@@ -314,7 +309,7 @@ export default function Projections() {
               />
 
               {/* Growth scenario lines — only rendered when toggled on */}
-              {activeRates.has(2) && (
+              {activeRate === 2 && (
                 <Line
                   type="monotone"
                   dataKey="equity2"
@@ -325,7 +320,7 @@ export default function Projections() {
                   activeDot={{ r: 5 }}
                 />
               )}
-              {activeRates.has(4) && (
+              {activeRate === 4 && (
                 <Line
                   type="monotone"
                   dataKey="equity4"
@@ -336,7 +331,7 @@ export default function Projections() {
                   activeDot={{ r: 5 }}
                 />
               )}
-              {activeRates.has(6) && (
+              {activeRate === 6 && (
                 <Line
                   type="monotone"
                   dataKey="equity6"
@@ -412,7 +407,7 @@ export default function Projections() {
                     {/* Growth scenario equity rows */}
                     {anyGrowthActive && (
                       <div className="mt-2 space-y-1 border-t border-border pt-2">
-                        {GROWTH_RATES.filter(({ rate }) => activeRates.has(rate as GrowthRate)).map(({ rate, label, color }) => (
+                        {GROWTH_RATES.filter(({ rate }) => activeRate === rate).map(({ rate, label, color }) => (
                           <div key={rate} className="flex items-center justify-between gap-1">
                             <span className="flex items-center gap-1 text-xs text-muted-foreground">
                               <span className="w-2 h-2 rounded-full inline-block shrink-0" style={{ backgroundColor: color }} />
@@ -438,7 +433,7 @@ export default function Projections() {
                         <span className="text-xs font-normal text-muted-foreground ml-1">baseline</span>
                       </p>
                       <div className="mt-1 space-y-1">
-                        {GROWTH_RATES.filter(({ rate }) => activeRates.has(rate as GrowthRate)).map(({ rate, label, color }) => (
+                        {GROWTH_RATES.filter(({ rate }) => activeRate === rate).map(({ rate, label, color }) => (
                           <div key={rate} className="flex items-center justify-between gap-1">
                             <span className="flex items-center gap-1 text-xs text-muted-foreground">
                               <span className="w-2 h-2 rounded-full inline-block shrink-0" style={{ backgroundColor: color }} />
@@ -603,7 +598,7 @@ export default function Projections() {
                           ))}
                         </tr>
                         {/* Per-property growth equity rows */}
-                        {GROWTH_RATES.filter(({ rate }) => activeRates.has(rate as GrowthRate)).map(({ rate, label, color }) => (
+                        {GROWTH_RATES.filter(({ rate }) => activeRate === rate).map(({ rate, label, color }) => (
                           <tr key={rate} className="hover:bg-muted/20">
                             <td className="px-5 py-3">
                               <span className="flex items-center gap-1.5 text-muted-foreground">
