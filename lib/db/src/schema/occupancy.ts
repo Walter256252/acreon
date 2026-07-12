@@ -11,6 +11,8 @@ export const occupancyRecordsTable = pgTable(
     // "YYYY-MM" for long-term rental, "YYYY-MM-DD" for short-term
     period: text("period").notNull(),
     occupied: boolean("occupied").notNull().default(true),
+    // For short-term rentals: number of nights occupied that month
+    nights: integer("nights"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },

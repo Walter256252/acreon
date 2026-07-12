@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 // ── Types ─────────────────────────────────────────────────────────────────
 type RentalType = "long-term" | "short-term" | null;
-interface OccupancyRecord { period: string; occupied: boolean; }
+interface OccupancyRecord { period: string; occupied: boolean; nights: number | null; }
 interface PropertyOccupancy {
   id: number;
   name: string;
@@ -23,7 +23,7 @@ async function fetchOccupancy(): Promise<PropertyOccupancy[]> {
   return r.json();
 }
 
-async function toggleRecord(body: { propertyId: number; period: string; occupied: boolean }) {
+async function saveRecord(body: { propertyId: number; period: string; occupied: boolean; nights?: number | null }) {
   const r = await fetch("/api/occupancy/record", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -48,7 +48,7 @@ function LongTermGrid({ property, year }: { property: PropertyOccupancy; year: n
   const qc = useQueryClient();
   const mutation = useMutation({
     mutationFn: (vars: { period: string; occupied: boolean }) =>
-      toggleRecord({ propertyId: property.id, ...vars }),
+      saveRecord({ propertyId: property.id, ...vars }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["occupancy"] }),
   });
 
@@ -118,79 +118,88 @@ function LongTermGrid({ property, year }: { property: PropertyOccupancy; year: n
   );
 }
 
-// ── Day calendar (STR) ────────────────────────────────────────────────────
-const DAY_LABELS = ["Su","Mo","Tu","We","Th","Fr","Sa"];
-
-function ShortTermCalendar({ property, year, month }: { property: PropertyOccupancy; year: number; month: number }) {
+// ── Short-term: nights per month grid ────────────────────────────────────
+function ShortTermGrid({ property, year }: { property: PropertyOccupancy; year: number }) {
   const qc = useQueryClient();
+  // Local draft values so the input feels instant; committed on blur/Enter
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+
+  // Seed drafts from saved records when property/year changes
+  useEffect(() => {
+    const initial: Record<string, string> = {};
+    property.occupancyRecords
+      .filter((r) => r.period.length === 7 && r.period.startsWith(`${year}-`) && r.nights != null)
+      .forEach((r) => { initial[r.period] = String(r.nights); });
+    setDrafts(initial);
+  }, [property.id, year, property.occupancyRecords]);
+
   const mutation = useMutation({
-    mutationFn: (vars: { period: string; occupied: boolean }) =>
-      toggleRecord({ propertyId: property.id, ...vars }),
+    mutationFn: (vars: { period: string; nights: number | null }) =>
+      saveRecord({ propertyId: property.id, period: vars.period, occupied: (vars.nights ?? 0) > 0, nights: vars.nights }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["occupancy"] }),
   });
 
-  const monthStr = `${year}-${String(month + 1).padStart(2, "0")}`;
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const firstDayOfWeek = new Date(year, month, 1).getDay();
-
-  const occupiedSet = new Set(
-    property.occupancyRecords
-      .filter((r) => r.occupied && r.period.startsWith(`${monthStr}-`))
-      .map((r) => r.period)
-  );
-
-  const occupiedCount = occupiedSet.size;
-  const pct = Math.round((occupiedCount / daysInMonth) * 100);
-
-  const toggle = (day: number) => {
-    const period = `${monthStr}-${String(day).padStart(2, "0")}`;
-    mutation.mutate({ period, occupied: !occupiedSet.has(period) });
+  const commit = (period: string) => {
+    const raw = drafts[period] ?? "";
+    const n = raw === "" ? null : Math.max(0, Math.min(parseInt(raw, 10) || 0, new Date(parseInt(period.slice(0, 4)), parseInt(period.slice(5, 7)), 0).getDate()));
+    // Normalise the draft to the clamped value
+    setDrafts((d) => ({ ...d, [period]: n == null ? "" : String(n) }));
+    mutation.mutate({ period, nights: n });
   };
 
-  const cells: (number | null)[] = [
-    ...Array(firstDayOfWeek).fill(null),
-    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
-  ];
+  const totalNights = Object.values(drafts).reduce((sum, v) => sum + (parseInt(v) || 0), 0);
+  const maxNights = Array.from({ length: 12 }, (_, i) => new Date(year, i + 1, 0).getDate()).reduce((a, b) => a + b, 0);
+  const pct = maxNights > 0 ? Math.round((totalNights / maxNights) * 100) : 0;
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <p className="text-xs text-muted-foreground">
-          <span className="font-semibold text-foreground">{occupiedCount}/{daysInMonth}</span> days occupied
+          <span className="font-semibold text-foreground">{totalNights}</span> nights booked in {year}
         </p>
         <div className="flex items-center gap-2">
           <div className="h-1.5 w-28 rounded-full bg-muted overflow-hidden">
-            <div
-              className="h-full rounded-full bg-blue-500 transition-all"
-              style={{ width: `${pct}%` }}
-            />
+            <div className="h-full rounded-full bg-blue-500 transition-all" style={{ width: `${pct}%` }} />
           </div>
           <span className="text-xs font-medium text-foreground">{pct}%</span>
         </div>
       </div>
-      <div className="grid grid-cols-7 gap-1">
-        {DAY_LABELS.map((d) => (
-          <div key={d} className="text-center text-xs font-medium text-muted-foreground py-0.5">{d}</div>
-        ))}
-        {cells.map((day, idx) => {
-          if (!day) return <div key={`empty-${idx}`} />;
-          const period = `${monthStr}-${String(day).padStart(2, "0")}`;
-          const checked = occupiedSet.has(period);
+      <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-12 gap-1.5">
+        {MONTHS.map((label, i) => {
+          const period = `${year}-${String(i + 1).padStart(2, "0")}`;
+          const daysInMonth = new Date(year, i + 1, 0).getDate();
+          const val = drafts[period] ?? "";
+          const nights = parseInt(val) || 0;
+          const hasNights = val !== "" && nights > 0;
           return (
-            <button
+            <div
               key={period}
-              type="button"
-              onClick={() => toggle(day)}
-              disabled={mutation.isPending}
               className={cn(
-                "aspect-square flex items-center justify-center rounded-md text-xs font-medium border transition-colors select-none",
-                checked
-                  ? "bg-blue-500 border-blue-500 text-white dark:bg-blue-600 dark:border-blue-600"
-                  : "border-border text-foreground hover:border-blue-300 hover:bg-blue-50/50 dark:hover:bg-blue-950/20"
+                "rounded-lg border p-2 flex flex-col gap-1.5 transition-colors",
+                hasNights
+                  ? "bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-800"
+                  : "bg-muted/30 border-border"
               )}
             >
-              {day}
-            </button>
+              <p className={cn("text-xs font-medium text-center", hasNights ? "text-blue-700 dark:text-blue-400" : "text-muted-foreground")}>
+                {label}
+              </p>
+              <input
+                type="number"
+                min="0"
+                max={daysInMonth}
+                value={val}
+                onChange={(e) => setDrafts((d) => ({ ...d, [period]: e.target.value }))}
+                onBlur={() => commit(period)}
+                onKeyDown={(e) => { if (e.key === "Enter") { (e.target as HTMLInputElement).blur(); } }}
+                placeholder="0"
+                className={cn(
+                  "w-full text-center text-sm font-bold rounded-md border px-1 py-1 bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-400 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
+                  hasNights ? "border-blue-300 text-blue-700 dark:text-blue-400" : "border-border text-foreground"
+                )}
+              />
+              <p className="text-xs text-center text-muted-foreground/60">/{daysInMonth}d</p>
+            </div>
           );
         })}
       </div>
@@ -386,7 +395,7 @@ export default function Occupancy() {
                   {property.rentalType === "long-term" ? (
                     <LongTermGrid property={property} year={year} />
                   ) : (
-                    <ShortTermCalendar property={property} year={year} month={month} />
+                    <ShortTermGrid property={property} year={year} />
                   )}
                 </CardContent>
               )}

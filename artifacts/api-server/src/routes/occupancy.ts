@@ -39,7 +39,7 @@ router.get("/occupancy", async (req, res) => {
     rentalType: p.rentalType ?? null,
     occupancyRecords: records
       .filter((r) => r.propertyId === p.id)
-      .map((r) => ({ period: r.period, occupied: r.occupied })),
+      .map((r) => ({ period: r.period, occupied: r.occupied, nights: r.nights ?? null })),
   }));
 
   res.json(result);
@@ -51,10 +51,11 @@ router.post("/occupancy/record", async (req, res) => {
   const { userId } = getAuth(req);
   if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
 
-  const { propertyId, period, occupied } = req.body as {
+  const { propertyId, period, occupied, nights } = req.body as {
     propertyId?: number;
     period?: string;
     occupied?: boolean;
+    nights?: number | null;
   };
 
   if (!propertyId || !period || typeof occupied !== "boolean") {
@@ -64,10 +65,10 @@ router.post("/occupancy/record", async (req, res) => {
 
   await db
     .insert(occupancyRecordsTable)
-    .values({ propertyId, period, occupied })
+    .values({ propertyId, period, occupied, nights: nights ?? null })
     .onConflictDoUpdate({
       target: [occupancyRecordsTable.propertyId, occupancyRecordsTable.period],
-      set: { occupied, updatedAt: new Date() },
+      set: { occupied, nights: nights ?? null, updatedAt: new Date() },
     });
 
   res.json({ ok: true });
