@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Home, Building2, ChevronLeft, ChevronRight, ChevronDown, CalendarDays, BedDouble } from "lucide-react";
+import { Home, Building2, ChevronLeft, ChevronRight, ChevronDown, CalendarDays, BedDouble, Sparkles, SendHorizontal, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
@@ -203,6 +203,76 @@ function ShortTermGrid({ property, year }: { property: PropertyOccupancy; year: 
           );
         })}
       </div>
+    </div>
+  );
+}
+
+// ── AI agent input ────────────────────────────────────────────────────────
+function OccupancyAgent({ onDone }: { onDone: () => void }) {
+  const [value, setValue] = useState("");
+  const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
+  const [summary, setSummary] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const submit = async () => {
+    const msg = value.trim();
+    if (!msg || status === "loading") return;
+    setStatus("loading");
+    setSummary("");
+    try {
+      const r = await fetch("/api/occupancy/ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: msg }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error ?? "Failed");
+      setSummary(data.summary ?? "Done.");
+      setStatus("done");
+      setValue("");
+      onDone();
+    } catch (e: unknown) {
+      setSummary(e instanceof Error ? e.message : "Something went wrong.");
+      setStatus("error");
+    }
+  };
+
+  return (
+    <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-3">
+      <div className="flex items-center gap-2">
+        <Sparkles className="w-4 h-4 text-primary shrink-0" />
+        <p className="text-sm font-medium text-foreground">Quick entry</p>
+        <p className="text-xs text-muted-foreground">Describe occupancy in plain English and it'll be recorded for you.</p>
+      </div>
+      <div className="flex gap-2">
+        <input
+          ref={inputRef}
+          type="text"
+          value={value}
+          onChange={e => setValue(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter") submit(); }}
+          placeholder='e.g. "downtown condo — rented all of 2026" or "beach house had 18 nights in July"'
+          disabled={status === "loading"}
+          className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-60 transition"
+        />
+        <button
+          type="button"
+          onClick={submit}
+          disabled={!value.trim() || status === "loading"}
+          className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+        >
+          {status === "loading"
+            ? <Loader2 className="w-4 h-4 animate-spin" />
+            : <SendHorizontal className="w-4 h-4" />}
+        </button>
+      </div>
+      {summary && (
+        <p className={cn("text-xs rounded-md px-3 py-2", status === "error"
+          ? "bg-destructive/10 text-destructive"
+          : "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400")}>
+          {summary}
+        </p>
+      )}
     </div>
   );
 }
@@ -445,6 +515,11 @@ export default function Occupancy() {
           </div>
         )}
       </div>
+
+      {/* AI quick-entry agent */}
+      {data.length > 0 && (
+        <OccupancyAgent onDone={() => qc.invalidateQueries({ queryKey: ["occupancy"] })} />
+      )}
 
       {/* Unassigned nudge */}
       {unassigned.length > 0 && filter !== "all" && (
