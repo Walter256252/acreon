@@ -65,6 +65,20 @@ router.post("/occupancy/record", async (req, res) => {
     return;
   }
 
+  // Validate period is YYYY-MM or YYYY-MM-DD format
+  if (!/^\d{4}-\d{2}(-\d{2})?$/.test(period)) {
+    res.status(400).json({ error: "period must be in YYYY-MM or YYYY-MM-DD format" });
+    return;
+  }
+
+  // Validate nights is a non-negative integer ≤ 31 if provided
+  if (nights !== null && nights !== undefined) {
+    if (!Number.isInteger(nights) || nights < 0 || nights > 31) {
+      res.status(400).json({ error: "nights must be a whole number between 0 and 31" });
+      return;
+    }
+  }
+
   // Verify property belongs to authenticated user
   const [prop] = await db
     .select({ id: propertiesTable.id })

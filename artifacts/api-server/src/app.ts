@@ -1,5 +1,7 @@
-import express, { type Express } from "express";
+import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import pinoHttp from "pino-http";
 import { clerkMiddleware } from "@clerk/express";
 import { publishableKeyFromHost } from "@clerk/shared/keys";
@@ -13,6 +15,68 @@ import { logger } from "./lib/logger";
 
 const app: Express = express();
 
+// ── Security headers ───────────────────────────────────────────────────────
+app.use(
+  helmet({
+    // CSP disabled here — frontend is served separately; API only returns JSON
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+  }),
+);
+
+// ── CORS — only allow requests from the app's own origin ───────────────────
+// In the Replit proxy architecture the frontend and API share the same
+// hostname, so legitimate browser requests are same-origin and don't even
+// send an Origin header. We still configure CORS defensively so that any
+// future cross-origin caller must be explicitly allowed.
+const allowedOrigins = new Set<string>(
+  [
+    process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : null,
+    process.env.ALLOWED_ORIGIN ?? null,
+  ].filter(Boolean) as string[],
+);
+
+app.use(
+  cors({
+    credentials: true,
+    origin(origin, callback) {
+      // Same-origin requests (no Origin header) and requests from explicitly
+      // allowed origins are permitted. Everything else is rejected.
+      if (!origin || allowedOrigins.has(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`CORS: origin '${origin}' not allowed`));
+      }
+    },
+  }),
+);
+
+// ── Rate limiting ──────────────────────────────────────────────────────────
+// General limit: 200 requests per IP per 15 minutes
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests — please try again later." },
+  skip: (req) => req.path === "/api/health" || req.path === "/api/healthz",
+});
+
+// Stricter limit for AI and email sync endpoints: 30 per 15 minutes
+const heavyLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests to this endpoint — please try again later." },
+});
+
+app.use(generalLimiter);
+app.use("/api/openai", heavyLimiter);
+app.use("/api/email/sync", heavyLimiter);
+app.use("/api/user/digest", heavyLimiter);
+
+// ── Logging ────────────────────────────────────────────────────────────────
 app.use(
   pinoHttp({
     logger,
@@ -36,9 +100,8 @@ app.use(
 // Clerk proxy must come before body parsers (streams raw bytes)
 app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 
-app.use(cors({ credentials: true, origin: true }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "1mb" }));
+app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 
 app.use(
   clerkMiddleware((req) => ({
@@ -50,5 +113,23 @@ app.use(
 );
 
 app.use("/api", router);
+
+// ── Global error handler ───────────────────────────────────────────────────
+// Must be defined last — catches any error thrown by routes or middleware.
+// Never sends stack traces or internal error details to the client.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
+  logger.error({ err, url: req.url, method: req.method }, "Unhandled error");
+
+  // CORS errors get a 403 rather than 500
+  if (err.message?.startsWith("CORS:")) {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+
+  if (!res.headersSent) {
+    res.status(500).json({ error: "An unexpected error occurred." });
+  }
+});
 
 export default app;

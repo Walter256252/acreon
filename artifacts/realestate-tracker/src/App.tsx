@@ -155,6 +155,23 @@ function OnboardingGate({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+// ── Admin route guard — redirects non-admins to the dashboard ─────────────
+
+function AdminRoute() {
+  const { user, isLoaded } = useUser();
+  const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    if (isLoaded && user?.publicMetadata?.role !== "admin") {
+      setLocation("/app");
+    }
+  }, [isLoaded, user, setLocation]);
+
+  if (!isLoaded) return null;
+  if (user?.publicMetadata?.role !== "admin") return null;
+  return <AdminDashboard />;
+}
+
 // ── Protected app shell ────────────────────────────────────────────────────
 
 function AppRoute() {
@@ -177,7 +194,7 @@ function AppRoute() {
               <Route path="/app/map" component={MapView} />
               <Route path="/app/occupancy" component={Occupancy} />
               <Route path="/app/settings" component={SettingsPage} />
-              <Route path="/app/admin" component={AdminDashboard} />
+              <Route path="/app/admin" component={AdminRoute} />
               <Route component={NotFound} />
             </Switch>
           </Shell>

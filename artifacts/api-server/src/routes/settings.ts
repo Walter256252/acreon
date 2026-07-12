@@ -83,8 +83,8 @@ router.post("/user/digest/send", async (req, res) => {
       });
 
     res.json({ success: true, sentTo: email });
-  } catch (err) {
-    res.status(500).json({ error: err instanceof Error ? err.message : "Failed to send digest" });
+  } catch {
+    res.status(500).json({ error: "Failed to generate or send digest — please try again." });
   }
 });
 
@@ -93,8 +93,13 @@ router.post("/user/feedback", async (req, res) => {
   const userId = uid(req);
   if (!userId) { res.status(401).json({ error: "Not authenticated" }); return; }
 
+  const VALID_CATEGORIES = ["general", "bug", "feature", "other"];
   const { category, message } = req.body as { category?: string; message?: string };
   if (!message?.trim()) { res.status(400).json({ error: "message is required" }); return; }
+  if (category !== undefined && !VALID_CATEGORIES.includes(category)) {
+    res.status(400).json({ error: `category must be one of: ${VALID_CATEGORIES.join(", ")}` });
+    return;
+  }
 
   const user = await clerkClient.users.getUser(userId);
   const userEmail = user.emailAddresses.find((e) => e.id === user.primaryEmailAddressId)?.emailAddress ?? "";

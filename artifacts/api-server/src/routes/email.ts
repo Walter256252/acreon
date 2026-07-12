@@ -92,9 +92,8 @@ router.post("/email/connect", async (req, res) => {
   // Test the connection before saving
   try {
     await testConnection(creds);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : "Connection failed";
-    res.status(400).json({ error: `Could not connect: ${msg}` });
+  } catch {
+    res.status(400).json({ error: "Could not connect to the mail server. Check your host, port, email address, and password." });
     return;
   }
 
@@ -235,8 +234,8 @@ router.post("/email/sync/:propertyId", async (req, res) => {
       property.address
     );
     res.json({ synced, propertyId });
-  } catch (err) {
-    res.status(500).json({ error: err instanceof Error ? err.message : "Sync failed" });
+  } catch {
+    res.status(500).json({ error: "Email sync failed — please try again or re-check your connection settings." });
   }
 });
 

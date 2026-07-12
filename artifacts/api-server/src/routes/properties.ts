@@ -140,10 +140,10 @@ router.post("/properties/bulk-import", async (req, res) => {
         notes: p.notes ?? null,
       });
       imported++;
-    } catch (err) {
+    } catch {
       errors.push({
         row: i + 1,
-        message: err instanceof Error ? err.message : "Unknown error",
+        message: "Invalid or missing required fields on this row.",
       });
     }
   }
