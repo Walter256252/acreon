@@ -41,6 +41,7 @@ import {
   TrendingUp,
   TrendingDown,
   Minus,
+  X,
 } from "lucide-react";
 import { StatCard } from "@/components/ui/stat-card";
 import { Label } from "recharts";
@@ -83,6 +84,7 @@ interface PortfolioImpactProps {
   monthlyPayment: number;
   loanTermYears: number;
   totalInterest: number | null; // from calc result
+  onClear: () => void;
 }
 
 function DeltaRow({
@@ -109,7 +111,7 @@ function DeltaRow({
   );
 }
 
-function PortfolioImpact({ loanAmount, interestRate, monthlyPayment, loanTermYears, totalInterest }: PortfolioImpactProps) {
+function PortfolioImpact({ loanAmount, interestRate, monthlyPayment, loanTermYears, totalInterest, onClear }: PortfolioImpactProps) {
   const [open, setOpen] = useState(true);
   const [showBreakdown, setShowBreakdown] = useState(false);
 
@@ -170,7 +172,7 @@ function PortfolioImpact({ loanAmount, interestRate, monthlyPayment, loanTermYea
           ) : (
             <>
               {/* Key impact numbers */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {/* Debt added */}
                 <div className="rounded-xl border border-orange-200 dark:border-orange-900/40 bg-orange-50 dark:bg-orange-950/20 px-4 py-3">
                   <p className="text-xs text-muted-foreground mb-0.5">Debt added</p>
@@ -318,6 +320,18 @@ function PortfolioImpact({ loanAmount, interestRate, monthlyPayment, loanTermYea
                   </div>
                 </div>
               )}
+
+              {/* Clear */}
+              <div className="flex justify-end pt-1">
+                <button
+                  type="button"
+                  onClick={onClear}
+                  className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-destructive transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  Clear portfolio impact
+                </button>
+              </div>
             </>
           )}
         </CardContent>
@@ -330,6 +344,7 @@ function PortfolioImpact({ loanAmount, interestRate, monthlyPayment, loanTermYea
 
 export default function Calculator() {
   const runCalc = useRunCalculator();
+  const [impactVisible, setImpactVisible] = useState(true);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -350,6 +365,7 @@ export default function Calculator() {
   });
 
   function onSubmit(values: z.infer<typeof formSchema>) {
+    setImpactVisible(true);
     runCalc.mutate({ data: values });
   }
 
@@ -376,7 +392,7 @@ export default function Calculator() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Input Form */}
         <div className="lg:col-span-1 space-y-6">
-          <Card className="border-primary/20 shadow-md">
+          <Card className="border-primary/20 shadow-md lg:sticky lg:top-6">
             <CardHeader className="bg-muted/30 border-b">
               <CardTitle className="text-lg">Loan Parameters</CardTitle>
             </CardHeader>
@@ -548,14 +564,6 @@ export default function Calculator() {
             </CardContent>
           </Card>
 
-          {/* Portfolio Impact panel — lives in the sidebar so it's always accessible */}
-          <PortfolioImpact
-            loanAmount={watchedLoan}
-            interestRate={watchedRate}
-            monthlyPayment={watchedMonthly}
-            loanTermYears={watchedTermYears}
-            totalInterest={result?.summary.totalInterest ?? null}
-          />
         </div>
 
         {/* Results Area */}
@@ -662,6 +670,20 @@ export default function Calculator() {
           )}
         </div>
       </div>
+
+      {/* Portfolio Impact — full width, centered below the grid */}
+      {impactVisible && (
+        <div className="max-w-3xl mx-auto">
+          <PortfolioImpact
+            loanAmount={watchedLoan}
+            interestRate={watchedRate}
+            monthlyPayment={watchedMonthly}
+            loanTermYears={watchedTermYears}
+            totalInterest={result?.summary.totalInterest ?? null}
+            onClear={() => setImpactVisible(false)}
+          />
+        </div>
+      )}
     </div>
   );
 }
