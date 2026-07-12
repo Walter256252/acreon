@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { propertiesTable, occupancyRecordsTable } from "@workspace/db";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, and } from "drizzle-orm";
 import { getAuth } from "@clerk/express";
 import { openai } from "@workspace/integrations-openai-ai-server";
 
@@ -22,6 +22,7 @@ router.get("/occupancy", async (req, res) => {
       monthlyRent: propertiesTable.monthlyRent,
     })
     .from(propertiesTable)
+    .where(eq(propertiesTable.clerkUserId, userId))
     .orderBy(propertiesTable.name);
 
   if (properties.length === 0) {
@@ -64,6 +65,13 @@ router.post("/occupancy/record", async (req, res) => {
     return;
   }
 
+  // Verify property belongs to authenticated user
+  const [prop] = await db
+    .select({ id: propertiesTable.id })
+    .from(propertiesTable)
+    .where(and(eq(propertiesTable.id, propertyId), eq(propertiesTable.clerkUserId, userId)));
+  if (!prop) { res.status(404).json({ error: "Property not found" }); return; }
+
   await db
     .insert(occupancyRecordsTable)
     .values({ propertyId, period, occupied, nights: nights ?? null })
@@ -93,7 +101,7 @@ router.patch("/properties/:id/rental-type", async (req, res) => {
   await db
     .update(propertiesTable)
     .set({ rentalType: rentalType ?? null })
-    .where(eq(propertiesTable.id, id));
+    .where(and(eq(propertiesTable.id, id), eq(propertiesTable.clerkUserId, userId)));
 
   res.json({ ok: true });
 });
@@ -107,10 +115,11 @@ router.post("/occupancy/ai", async (req, res) => {
   const { message } = req.body as { message?: string };
   if (!message?.trim()) { res.status(400).json({ error: "message is required" }); return; }
 
-  // Load current properties for context
+  // Load current properties for context (scoped to authenticated user)
   const properties = await db
     .select({ id: propertiesTable.id, name: propertiesTable.name, address: propertiesTable.address, rentalType: propertiesTable.rentalType })
     .from(propertiesTable)
+    .where(eq(propertiesTable.clerkUserId, userId))
     .orderBy(propertiesTable.name);
 
   const today = new Date();
@@ -163,7 +172,8 @@ Rules:
       if (action.type === "set_rental_type") {
         const pid = Number(action.propertyId);
         const rt = (action.rentalType as string | null) ?? null;
-        await db.update(propertiesTable).set({ rentalType: rt }).where(eq(propertiesTable.id, pid));
+        await db.update(propertiesTable).set({ rentalType: rt })
+          .where(and(eq(propertiesTable.id, pid), eq(propertiesTable.clerkUserId, userId)));
         applied++;
       } else if (action.type === "set_ltr_months") {
         const pid = Number(action.propertyId);

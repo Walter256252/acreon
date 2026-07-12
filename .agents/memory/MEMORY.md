@@ -1,0 +1,1 @@
+- [Auth & data isolation](auth-data-isolation.md) — properties scoped by clerk_user_id; global requireAuth in routes/index.ts; conversations scoped by user_id

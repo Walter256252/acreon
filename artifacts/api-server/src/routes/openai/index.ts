@@ -6,7 +6,8 @@ import {
   propertiesTable,
   paymentsTable,
 } from "@workspace/db";
-import { eq, asc, desc } from "drizzle-orm";
+import { eq, asc, desc, and } from "drizzle-orm";
+import { getAuth } from "@clerk/express";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import {
   CreateOpenaiConversationBody,
@@ -15,29 +16,40 @@ import {
 
 const router: IRouter = Router();
 
-// GET /openai/conversations
-router.get("/openai/conversations", async (_req, res) => {
+function uid(req: Parameters<typeof getAuth>[0]) {
+  return getAuth(req).userId!;
+}
+
+// GET /openai/conversations — scoped to authenticated user
+router.get("/openai/conversations", async (req, res) => {
+  const userId = uid(req);
   const rows = await db
     .select()
     .from(conversations)
+    .where(eq(conversations.userId, userId))
     .orderBy(desc(conversations.createdAt));
   res.json(rows);
 });
 
 // POST /openai/conversations
 router.post("/openai/conversations", async (req, res) => {
+  const userId = uid(req);
   const body = CreateOpenaiConversationBody.parse(req.body);
-  const [row] = await db.insert(conversations).values(body).returning();
+  const [row] = await db
+    .insert(conversations)
+    .values({ ...body, userId })
+    .returning();
   res.status(201).json(row);
 });
 
-// GET /openai/conversations/:id
+// GET /openai/conversations/:id (ownership enforced)
 router.get("/openai/conversations/:id", async (req, res) => {
+  const userId = uid(req);
   const id = parseInt(req.params.id, 10);
   const [conv] = await db
     .select()
     .from(conversations)
-    .where(eq(conversations.id, id));
+    .where(and(eq(conversations.id, id), eq(conversations.userId, userId)));
   if (!conv) {
     res.status(404).json({ error: "Conversation not found" });
     return;
@@ -50,13 +62,14 @@ router.get("/openai/conversations/:id", async (req, res) => {
   res.json({ ...conv, messages: msgs });
 });
 
-// DELETE /openai/conversations/:id
+// DELETE /openai/conversations/:id (ownership enforced)
 router.delete("/openai/conversations/:id", async (req, res) => {
+  const userId = uid(req);
   const id = parseInt(req.params.id, 10);
   const [conv] = await db
     .select()
     .from(conversations)
-    .where(eq(conversations.id, id));
+    .where(and(eq(conversations.id, id), eq(conversations.userId, userId)));
   if (!conv) {
     res.status(404).json({ error: "Conversation not found" });
     return;
@@ -65,9 +78,18 @@ router.delete("/openai/conversations/:id", async (req, res) => {
   res.status(204).end();
 });
 
-// GET /openai/conversations/:id/messages
+// GET /openai/conversations/:id/messages (ownership enforced)
 router.get("/openai/conversations/:id/messages", async (req, res) => {
+  const userId = uid(req);
   const id = parseInt(req.params.id, 10);
+  const [conv] = await db
+    .select()
+    .from(conversations)
+    .where(and(eq(conversations.id, id), eq(conversations.userId, userId)));
+  if (!conv) {
+    res.status(404).json({ error: "Conversation not found" });
+    return;
+  }
   const msgs = await db
     .select()
     .from(messages)
@@ -76,14 +98,15 @@ router.get("/openai/conversations/:id/messages", async (req, res) => {
   res.json(msgs);
 });
 
-// POST /openai/conversations/:id/messages  (SSE streaming)
+// POST /openai/conversations/:id/messages  (SSE streaming, ownership enforced)
 router.post("/openai/conversations/:id/messages", async (req, res) => {
+  const userId = uid(req);
   const id = parseInt(req.params.id, 10);
 
   const [conv] = await db
     .select()
     .from(conversations)
-    .where(eq(conversations.id, id));
+    .where(and(eq(conversations.id, id), eq(conversations.userId, userId)));
   if (!conv) {
     res.status(404).json({ error: "Conversation not found" });
     return;
@@ -105,10 +128,11 @@ router.post("/openai/conversations/:id/messages", async (req, res) => {
     .where(eq(messages.conversationId, id))
     .orderBy(asc(messages.createdAt));
 
-  // Build portfolio context
+  // Build portfolio context — scoped to this user's properties
   const properties = await db
     .select()
     .from(propertiesTable)
+    .where(eq(propertiesTable.clerkUserId, userId))
     .orderBy(propertiesTable.name);
 
   const propertySummaries = await Promise.all(
@@ -141,13 +165,13 @@ Property: ${prop.name}
   Current Balance: $${currentBalance.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
   Equity: $${equity.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${equityPercent}% of value)
   Notes: ${prop.notes ?? "None"}`;
-    })
+    }),
   );
 
   const totalValue = properties.reduce((s, p) => s + Number(p.currentValue), 0);
   const totalMonthly = properties.reduce(
     (s, p) => s + Number(p.monthlyPayment),
-    0
+    0,
   );
 
   const systemPrompt = `You are a knowledgeable real estate portfolio assistant. You have full access to the user's real estate portfolio data and can answer any questions about their properties, loans, equity, cash flow, and investment performance.

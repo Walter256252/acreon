@@ -1,7 +1,8 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { paymentsTable, propertiesTable } from "@workspace/db";
-import { eq, asc } from "drizzle-orm";
+import { eq, asc, and } from "drizzle-orm";
+import { getAuth } from "@clerk/express";
 import {
   ListPaymentsParams,
   LogPaymentParams,
@@ -11,9 +12,18 @@ import {
 
 const router: IRouter = Router();
 
-// List logged payments for a property
+function uid(req: Parameters<typeof getAuth>[0]) {
+  return getAuth(req).userId!;
+}
+
+// List logged payments for a property (ownership enforced)
 router.get("/properties/:id/payments", async (req, res) => {
+  const userId = uid(req);
   const { id } = ListPaymentsParams.parse({ id: Number(req.params.id) });
+  // Verify property belongs to user
+  const [prop] = await db.select({ id: propertiesTable.id }).from(propertiesTable)
+    .where(and(eq(propertiesTable.id, id), eq(propertiesTable.clerkUserId, userId)));
+  if (!prop) { res.status(404).json({ error: "Property not found" }); return; }
   const rows = await db
     .select()
     .from(paymentsTable)
@@ -22,13 +32,15 @@ router.get("/properties/:id/payments", async (req, res) => {
   res.json(rows.map(toApiPayment));
 });
 
-// Log a payment for a property
+// Log a payment for a property (ownership enforced)
 router.post("/properties/:id/payments", async (req, res) => {
+  const userId = uid(req);
   const { id } = LogPaymentParams.parse({ id: Number(req.params.id) });
   const body = LogPaymentBody.parse(req.body);
 
-  // Verify property exists
-  const [prop] = await db.select().from(propertiesTable).where(eq(propertiesTable.id, id));
+  // Verify property belongs to user
+  const [prop] = await db.select().from(propertiesTable)
+    .where(and(eq(propertiesTable.id, id), eq(propertiesTable.clerkUserId, userId)));
   if (!prop) { res.status(404).json({ error: "Property not found" }); return; }
 
   const [row] = await db.insert(paymentsTable).values({
@@ -45,11 +57,13 @@ router.post("/properties/:id/payments", async (req, res) => {
   res.status(201).json(toApiPayment(row));
 });
 
-// Get full amortization schedule for a property
+// Get full amortization schedule for a property (ownership enforced)
 router.get("/properties/:id/amortization", async (req, res) => {
+  const userId = uid(req);
   const { id } = GetAmortizationScheduleParams.parse({ id: Number(req.params.id) });
 
-  const [prop] = await db.select().from(propertiesTable).where(eq(propertiesTable.id, id));
+  const [prop] = await db.select().from(propertiesTable)
+    .where(and(eq(propertiesTable.id, id), eq(propertiesTable.clerkUserId, userId)));
   if (!prop) { res.status(404).json({ error: "Property not found" }); return; }
 
   // Fetch all logged payments to mark which months are logged

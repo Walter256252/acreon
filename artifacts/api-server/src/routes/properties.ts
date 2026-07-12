@@ -1,7 +1,8 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { propertiesTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
+import { getAuth } from "@clerk/express";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import {
   CreatePropertyBody,
@@ -14,43 +15,63 @@ import {
 
 const router: IRouter = Router();
 
-// List all properties
+function uid(req: Parameters<typeof getAuth>[0]) {
+  return getAuth(req).userId!; // guaranteed non-null by global requireAuth middleware
+}
+
+// ── GET /api/properties ───────────────────────────────────────────────────
 router.get("/properties", async (req, res) => {
-  const rows = await db.select().from(propertiesTable).orderBy(propertiesTable.createdAt);
+  const userId = uid(req);
+  const rows = await db
+    .select()
+    .from(propertiesTable)
+    .where(eq(propertiesTable.clerkUserId, userId))
+    .orderBy(propertiesTable.createdAt);
   res.json(rows.map(toApiProperty));
 });
 
-// Create property
+// ── POST /api/properties ──────────────────────────────────────────────────
 router.post("/properties", async (req, res) => {
+  const userId = uid(req);
   const body = CreatePropertyBody.parse(req.body);
-  const [row] = await db.insert(propertiesTable).values({
-    name: body.name,
-    address: body.address,
-    yearBought: body.yearBought,
-    purchasePrice: String(body.purchasePrice),
-    currentValue: String(body.currentValue),
-    loanAmount: String(body.loanAmount),
-    interestRate: String(body.interestRate),
-    loanTermYears: body.loanTermYears,
-    loanStartDate: body.loanStartDate,
-    monthlyPayment: String(body.monthlyPayment),
-    notes: body.notes ?? null,
-    zillowUrl: body.zillowUrl ?? null,
-    currentLoanBalance: body.currentLoanBalance != null ? String(body.currentLoanBalance) : null,
-  }).returning();
+  const [row] = await db
+    .insert(propertiesTable)
+    .values({
+      clerkUserId: userId,
+      name: body.name,
+      address: body.address,
+      yearBought: body.yearBought,
+      purchasePrice: String(body.purchasePrice),
+      currentValue: String(body.currentValue),
+      loanAmount: String(body.loanAmount),
+      interestRate: String(body.interestRate),
+      loanTermYears: body.loanTermYears,
+      loanStartDate: body.loanStartDate,
+      monthlyPayment: String(body.monthlyPayment),
+      notes: body.notes ?? null,
+      zillowUrl: body.zillowUrl ?? null,
+      currentLoanBalance:
+        body.currentLoanBalance != null ? String(body.currentLoanBalance) : null,
+    })
+    .returning();
   res.status(201).json(toApiProperty(row));
 });
 
-// Get single property
+// ── GET /api/properties/:id ───────────────────────────────────────────────
 router.get("/properties/:id", async (req, res) => {
+  const userId = uid(req);
   const { id } = GetPropertyParams.parse({ id: Number(req.params.id) });
-  const [row] = await db.select().from(propertiesTable).where(eq(propertiesTable.id, id));
+  const [row] = await db
+    .select()
+    .from(propertiesTable)
+    .where(and(eq(propertiesTable.id, id), eq(propertiesTable.clerkUserId, userId)));
   if (!row) { res.status(404).json({ error: "Property not found" }); return; }
   res.json(toApiProperty(row));
 });
 
-// Update property
+// ── PUT /api/properties/:id ───────────────────────────────────────────────
 router.put("/properties/:id", async (req, res) => {
+  const userId = uid(req);
   const { id } = UpdatePropertyParams.parse({ id: Number(req.params.id) });
   const body = UpdatePropertyBody.parse(req.body);
 
@@ -67,22 +88,35 @@ router.put("/properties/:id", async (req, res) => {
   if (body.monthlyPayment !== undefined) updates.monthlyPayment = String(body.monthlyPayment);
   if ("notes" in body) updates.notes = body.notes ?? null;
   if (body.autoPayEnabled !== undefined) updates.autoPayEnabled = body.autoPayEnabled;
-  if ("savedExtraMonthly" in body) updates.savedExtraMonthly = body.savedExtraMonthly != null ? String(body.savedExtraMonthly) : null;
+  if ("savedExtraMonthly" in body)
+    updates.savedExtraMonthly =
+      body.savedExtraMonthly != null ? String(body.savedExtraMonthly) : null;
   if ("savedExtraPayments" in body) updates.savedExtraPayments = body.savedExtraPayments ?? null;
   if (body.currentValue !== undefined) updates.valueLastUpdatedAt = new Date();
   if ("zillowUrl" in body) updates.zillowUrl = body.zillowUrl ?? null;
-  if ("monthlyTaxes" in body) updates.monthlyTaxes = body.monthlyTaxes != null ? String(body.monthlyTaxes) : null;
-  if ("monthlyInsurance" in body) updates.monthlyInsurance = body.monthlyInsurance != null ? String(body.monthlyInsurance) : null;
-  if ("monthlyRent" in body) updates.monthlyRent = body.monthlyRent != null ? String(body.monthlyRent) : null;
-  if ("currentLoanBalance" in body) updates.currentLoanBalance = body.currentLoanBalance != null ? String(body.currentLoanBalance) : null;
+  if ("monthlyTaxes" in body)
+    updates.monthlyTaxes = body.monthlyTaxes != null ? String(body.monthlyTaxes) : null;
+  if ("monthlyInsurance" in body)
+    updates.monthlyInsurance =
+      body.monthlyInsurance != null ? String(body.monthlyInsurance) : null;
+  if ("monthlyRent" in body)
+    updates.monthlyRent = body.monthlyRent != null ? String(body.monthlyRent) : null;
+  if ("currentLoanBalance" in body)
+    updates.currentLoanBalance =
+      body.currentLoanBalance != null ? String(body.currentLoanBalance) : null;
 
-  const [row] = await db.update(propertiesTable).set(updates).where(eq(propertiesTable.id, id)).returning();
+  const [row] = await db
+    .update(propertiesTable)
+    .set(updates)
+    .where(and(eq(propertiesTable.id, id), eq(propertiesTable.clerkUserId, userId)))
+    .returning();
   if (!row) { res.status(404).json({ error: "Property not found" }); return; }
   res.json(toApiProperty(row));
 });
 
-// Bulk import properties
+// ── POST /api/properties/bulk-import ─────────────────────────────────────
 router.post("/properties/bulk-import", async (req, res) => {
+  const userId = uid(req);
   const { properties } = BulkImportPropertiesBody.parse(req.body);
 
   let imported = 0;
@@ -92,6 +126,7 @@ router.post("/properties/bulk-import", async (req, res) => {
     const p = properties[i];
     try {
       await db.insert(propertiesTable).values({
+        clerkUserId: userId,
         name: p.name,
         address: p.address,
         yearBought: p.yearBought,
@@ -106,24 +141,34 @@ router.post("/properties/bulk-import", async (req, res) => {
       });
       imported++;
     } catch (err) {
-      errors.push({ row: i + 1, message: err instanceof Error ? err.message : "Unknown error" });
+      errors.push({
+        row: i + 1,
+        message: err instanceof Error ? err.message : "Unknown error",
+      });
     }
   }
 
   res.json({ imported, failed: errors.length, errors });
 });
 
-// Delete property
+// ── DELETE /api/properties/:id ────────────────────────────────────────────
 router.delete("/properties/:id", async (req, res) => {
+  const userId = uid(req);
   const { id } = DeletePropertyParams.parse({ id: Number(req.params.id) });
-  const [row] = await db.delete(propertiesTable).where(eq(propertiesTable.id, id)).returning();
+  const [row] = await db
+    .delete(propertiesTable)
+    .where(and(eq(propertiesTable.id, id), eq(propertiesTable.clerkUserId, userId)))
+    .returning();
   if (!row) { res.status(404).json({ error: "Property not found" }); return; }
   res.status(204).send();
 });
 
 // ── POST /api/properties/estimate-taxes ───────────────────────────────────
 router.post("/properties/estimate-taxes", async (req, res) => {
-  const { zipCode, propertyValue } = req.body as { zipCode?: string; propertyValue?: number };
+  const { zipCode, propertyValue } = req.body as {
+    zipCode?: string;
+    propertyValue?: number;
+  };
   if (!zipCode || String(zipCode).trim().length < 5) {
     res.status(400).json({ error: "A valid ZIP code is required" });
     return;
@@ -140,7 +185,7 @@ router.post("/properties/estimate-taxes", async (req, res) => {
       {
         role: "system",
         content:
-          "You are a US property tax expert. When given a ZIP code and estimated property value, return the estimated annual and monthly property tax as JSON. Use actual county/city effective tax rates for the ZIP code. Be specific and accurate — do not guess. Return ONLY valid JSON with this exact shape: { \"monthly\": number, \"annual\": number, \"effectiveRate\": string, \"notes\": string }. The \"effectiveRate\" should be a percentage string like \"1.23%\". The \"notes\" field should name the county and briefly explain the rate used (1 sentence).",
+          'You are a US property tax expert. When given a ZIP code and estimated property value, return the estimated annual and monthly property tax as JSON. Use actual county/city effective tax rates for the ZIP code. Be specific and accurate — do not guess. Return ONLY valid JSON with this exact shape: { "monthly": number, "annual": number, "effectiveRate": string, "notes": string }. The "effectiveRate" should be a percentage string like "1.23%". The "notes" field should name the county and briefly explain the rate used (1 sentence).',
       },
       {
         role: "user",
@@ -160,7 +205,7 @@ router.post("/properties/estimate-taxes", async (req, res) => {
     const parsed = JSON.parse(jsonMatch[0]);
     res.json({
       monthly: Math.round(parsed.monthly ?? 0),
-      annual: Math.round(parsed.annual ?? parsed.monthly * 12 ?? 0),
+      annual: Math.round(parsed.annual ?? (parsed.monthly ?? 0) * 12),
       effectiveRate: parsed.effectiveRate ?? "—",
       notes: parsed.notes ?? "",
     });
@@ -168,6 +213,19 @@ router.post("/properties/estimate-taxes", async (req, res) => {
     res.status(500).json({ error: "Invalid response from AI" });
   }
 });
+
+// ── PATCH /api/properties/:id/rental-type (occupancy sub-route lives here) ─
+// Ownership enforced by matching clerkUserId
+export async function assertPropertyOwner(
+  propertyId: number,
+  userId: string,
+): Promise<boolean> {
+  const [row] = await db
+    .select({ id: propertiesTable.id })
+    .from(propertiesTable)
+    .where(and(eq(propertiesTable.id, propertyId), eq(propertiesTable.clerkUserId, userId)));
+  return !!row;
+}
 
 function toApiProperty(row: typeof propertiesTable.$inferSelect) {
   return {
@@ -184,14 +242,23 @@ function toApiProperty(row: typeof propertiesTable.$inferSelect) {
     monthlyPayment: Number(row.monthlyPayment),
     notes: row.notes ?? null,
     autoPayEnabled: row.autoPayEnabled,
-    savedExtraMonthly: row.savedExtraMonthly != null ? Number(row.savedExtraMonthly) : null,
-    savedExtraPayments: (row.savedExtraPayments as Array<{ paymentNumber: number; amount: number }> | null) ?? null,
-    valueLastUpdatedAt: row.valueLastUpdatedAt ? row.valueLastUpdatedAt.toISOString() : null,
+    savedExtraMonthly:
+      row.savedExtraMonthly != null ? Number(row.savedExtraMonthly) : null,
+    savedExtraPayments:
+      (row.savedExtraPayments as Array<{
+        paymentNumber: number;
+        amount: number;
+      }> | null) ?? null,
+    valueLastUpdatedAt: row.valueLastUpdatedAt
+      ? row.valueLastUpdatedAt.toISOString()
+      : null,
     zillowUrl: row.zillowUrl ?? null,
     monthlyTaxes: row.monthlyTaxes != null ? Number(row.monthlyTaxes) : null,
-    monthlyInsurance: row.monthlyInsurance != null ? Number(row.monthlyInsurance) : null,
+    monthlyInsurance:
+      row.monthlyInsurance != null ? Number(row.monthlyInsurance) : null,
     monthlyRent: row.monthlyRent != null ? Number(row.monthlyRent) : null,
-    currentLoanBalance: row.currentLoanBalance != null ? Number(row.currentLoanBalance) : null,
+    currentLoanBalance:
+      row.currentLoanBalance != null ? Number(row.currentLoanBalance) : null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

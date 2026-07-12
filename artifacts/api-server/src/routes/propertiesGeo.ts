@@ -2,7 +2,7 @@ import { Router, type IRouter, type Request, type Response, type NextFunction } 
 import { getAuth, clerkClient } from "@clerk/express";
 import { db } from "@workspace/db";
 import { propertiesTable, propertyGeocodesTable } from "@workspace/db";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, and } from "drizzle-orm";
 import { buildAmortizationSchedule } from "./payments";
 
 const router: IRouter = Router();
@@ -176,12 +176,13 @@ router.get("/admin/properties-geo", requireAdmin, async (_req, res) => {
 });
 
 // GET /api/properties-geo  — user-facing (auth required, not admin-only)
-// Returns all properties with geocodes + city aggregates.
+// Returns only the authenticated user's properties with geocodes + city aggregates.
 router.get("/properties-geo", async (req, res) => {
   const userId = uid(req);
   if (!userId) { res.status(401).json({ error: "Not authenticated" }); return; }
 
-  const allProperties = await db.select().from(propertiesTable);
+  const allProperties = await db.select().from(propertiesTable)
+    .where(eq(propertiesTable.clerkUserId, userId));
   if (!allProperties.length) {
     res.json({ properties: [], byCity: [] });
     return;

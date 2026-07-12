@@ -1,4 +1,5 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
+import { getAuth } from "@clerk/express";
 import healthRouter from "./health";
 import propertiesRouter from "./properties";
 import paymentsRouter from "./payments";
@@ -14,7 +15,22 @@ import occupancyRouter from "./occupancy";
 
 const router: IRouter = Router();
 
+// ── Public routes (no auth required) ──────────────────────────────────────
 router.use(healthRouter);
+
+// ── Global auth middleware — all routes below require authentication ────────
+function requireAuth(req: Request, res: Response, next: NextFunction) {
+  const { userId } = getAuth(req);
+  if (!userId) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  next();
+}
+
+router.use(requireAuth);
+
+// ── Protected routes ───────────────────────────────────────────────────────
 router.use(propertiesRouter);
 router.use(paymentsRouter);
 router.use(dashboardRouter);

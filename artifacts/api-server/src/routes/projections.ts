@@ -1,16 +1,21 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { propertiesTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
+import { getAuth } from "@clerk/express";
 import { buildAmortizationSchedule } from "./payments";
 
 const router: IRouter = Router();
 
 const MILESTONES = [5, 10, 15, 20, 30];
 
-router.get("/projections", async (_req, res) => {
+router.get("/projections", async (req, res) => {
+  const { userId } = getAuth(req);
+  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
   const properties = await db
     .select()
     .from(propertiesTable)
+    .where(eq(propertiesTable.clerkUserId, userId))
     .orderBy(propertiesTable.name);
 
   const today = new Date();

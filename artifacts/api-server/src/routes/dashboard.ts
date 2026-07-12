@@ -1,12 +1,20 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { propertiesTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
+import { getAuth } from "@clerk/express";
 import { buildAmortizationSchedule } from "./payments";
 
 const router: IRouter = Router();
 
-router.get("/dashboard", async (_req, res) => {
-  const properties = await db.select().from(propertiesTable).orderBy(propertiesTable.createdAt);
+router.get("/dashboard", async (req, res) => {
+  const { userId } = getAuth(req);
+  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const properties = await db
+    .select()
+    .from(propertiesTable)
+    .where(eq(propertiesTable.clerkUserId, userId))
+    .orderBy(propertiesTable.createdAt);
 
   const summaries = properties.map((prop) => {
     // Compute how many payments have elapsed since loan start
