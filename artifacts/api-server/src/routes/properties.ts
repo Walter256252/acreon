@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { propertiesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { openai } from "@workspace/integrations-openai-ai-server";
 import {
   CreatePropertyBody,
   UpdatePropertyBody,
@@ -118,6 +119,54 @@ router.delete("/properties/:id", async (req, res) => {
   const [row] = await db.delete(propertiesTable).where(eq(propertiesTable.id, id)).returning();
   if (!row) { res.status(404).json({ error: "Property not found" }); return; }
   res.status(204).send();
+});
+
+// ── POST /api/properties/estimate-taxes ───────────────────────────────────
+router.post("/properties/estimate-taxes", async (req, res) => {
+  const { zipCode, propertyValue } = req.body as { zipCode?: string; propertyValue?: number };
+  if (!zipCode || String(zipCode).trim().length < 5) {
+    res.status(400).json({ error: "A valid ZIP code is required" });
+    return;
+  }
+  if (!propertyValue || propertyValue <= 0) {
+    res.status(400).json({ error: "Property value is required" });
+    return;
+  }
+
+  const completion = await openai.chat.completions.create({
+    model: "gpt-5.4-mini",
+    max_completion_tokens: 512,
+    messages: [
+      {
+        role: "system",
+        content:
+          "You are a US property tax expert. When given a ZIP code and estimated property value, return the estimated annual and monthly property tax as JSON. Use actual county/city effective tax rates for the ZIP code. Be specific and accurate — do not guess. Return ONLY valid JSON with this exact shape: { \"monthly\": number, \"annual\": number, \"effectiveRate\": string, \"notes\": string }. The \"effectiveRate\" should be a percentage string like \"1.23%\". The \"notes\" field should name the county and briefly explain the rate used (1 sentence).",
+      },
+      {
+        role: "user",
+        content: `ZIP code: ${String(zipCode).trim()}\nEstimated property value: ${Math.round(propertyValue).toLocaleString()}\n\nReturn the estimated property tax as JSON.`,
+      },
+    ],
+  });
+
+  const raw = completion.choices[0]?.message?.content ?? "";
+  const jsonMatch = raw.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    res.status(500).json({ error: "Could not parse estimate from AI response" });
+    return;
+  }
+
+  try {
+    const parsed = JSON.parse(jsonMatch[0]);
+    res.json({
+      monthly: Math.round(parsed.monthly ?? 0),
+      annual: Math.round(parsed.annual ?? parsed.monthly * 12 ?? 0),
+      effectiveRate: parsed.effectiveRate ?? "—",
+      notes: parsed.notes ?? "",
+    });
+  } catch {
+    res.status(500).json({ error: "Invalid response from AI" });
+  }
 });
 
 function toApiProperty(row: typeof propertiesTable.$inferSelect) {

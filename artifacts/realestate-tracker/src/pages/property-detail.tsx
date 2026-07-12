@@ -146,6 +146,41 @@ export default function PropertyDetail() {
   const [snapCollapsed, setSnapCollapsed] = useState(false);
   const [schedCollapsed, setSchedCollapsed] = useState(false);
 
+  // Tax estimator state
+  const [taxZip, setTaxZip] = useState("");
+  const [taxEstimating, setTaxEstimating] = useState(false);
+  const [taxEstimate, setTaxEstimate] = useState<{ monthly: number; annual: number; effectiveRate: string; notes: string } | null>(null);
+  const [taxEstimateError, setTaxEstimateError] = useState<string | null>(null);
+
+  const handleEstimateTaxes = async () => {
+    const zip = taxZip.trim();
+    if (!zip || zip.length < 5) return;
+    setTaxEstimating(true);
+    setTaxEstimate(null);
+    setTaxEstimateError(null);
+    try {
+      const res = await fetch("/api/properties/estimate-taxes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ zipCode: zip, propertyValue: property.currentValue }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Failed");
+      const data = await res.json();
+      setTaxEstimate(data);
+    } catch (err) {
+      setTaxEstimateError(err instanceof Error ? err.message : "Could not estimate taxes");
+    } finally {
+      setTaxEstimating(false);
+    }
+  };
+
+  const applyTaxEstimate = () => {
+    if (!taxEstimate) return;
+    setTaxesVal(String(Math.round(taxEstimate.monthly)));
+    handleSaveCashFlow("taxes");
+    setTaxEstimate(null);
+  };
+
   // Monthly cash flow state (taxes, insurance, rent)
   const [taxesVal, setTaxesVal] = useState("");
   const [insuranceVal, setInsuranceVal] = useState("");
@@ -735,9 +770,53 @@ export default function PropertyDetail() {
                     </div>
                   </div>
 
+                  {/* Tax estimator row */}
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <Sparkles className="w-3.5 h-3.5 text-primary shrink-0" />
+                    <span className="text-xs text-muted-foreground">Estimate taxes by ZIP:</span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={5}
+                      value={taxZip}
+                      onChange={e => { setTaxZip(e.target.value.replace(/\D/g, "")); setTaxEstimate(null); setTaxEstimateError(null); }}
+                      onKeyDown={e => { if (e.key === "Enter") handleEstimateTaxes(); }}
+                      placeholder="ZIP code"
+                      className="w-24 h-7 rounded-md border border-border bg-background px-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleEstimateTaxes}
+                      disabled={taxEstimating || taxZip.length < 5}
+                      className="flex items-center gap-1 h-7 px-2.5 rounded-md bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors disabled:opacity-40"
+                    >
+                      {taxEstimating
+                        ? <RefreshCw className="w-3 h-3 animate-spin" />
+                        : <RefreshCw className="w-3 h-3" />}
+                      {taxEstimating ? "Estimating…" : "Estimate"}
+                    </button>
+
+                    {taxEstimate && (
+                      <span className="flex items-center gap-1.5 text-xs">
+                        <span className="text-foreground font-semibold">{formatCurrency(taxEstimate.monthly)}/mo</span>
+                        <span className="text-muted-foreground">({taxEstimate.effectiveRate} · {taxEstimate.notes})</span>
+                        <button
+                          type="button"
+                          onClick={applyTaxEstimate}
+                          className="ml-1 flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
+                        >
+                          <Check className="w-3 h-3" /> Apply
+                        </button>
+                      </span>
+                    )}
+                    {taxEstimateError && (
+                      <span className="text-xs text-destructive">{taxEstimateError}</span>
+                    )}
+                  </div>
+
                   {/* Total out summary line */}
                   {(taxes > 0 || insurance > 0) && (
-                    <p className="text-xs text-muted-foreground mt-3">
+                    <p className="text-xs text-muted-foreground mt-2">
                       Total out: {formatCurrency(totalOut)}/mo
                       {hasRent && <> · Rent covers {((rent / totalOut) * 100).toFixed(0)}% of expenses</>}
                     </p>
