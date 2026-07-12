@@ -144,7 +144,8 @@ export default function PropertyDetail() {
 
   // Collapse state for the two collapsible sections
   const [snapCollapsed, setSnapCollapsed] = useState(false);
-  const [showTaxInsurance, setShowTaxInsurance] = useState(false);
+  const [showTaxes, setShowTaxes] = useState(false);
+  const [showInsurance, setShowInsurance] = useState(false);
   const [schedCollapsed, setSchedCollapsed] = useState(false);
 
   // Tax estimator state
@@ -878,18 +879,32 @@ export default function PropertyDetail() {
                   All Payments
                 </button>
               </div>
-              {(taxesVal !== "" || insuranceVal !== "") && (
+              {taxesVal !== "" && (
                 <button
                   type="button"
-                  onClick={() => setShowTaxInsurance(v => !v)}
+                  onClick={() => setShowTaxes(v => !v)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
-                    showTaxInsurance
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-background text-muted-foreground border-border hover:text-foreground hover:border-primary/50"
+                    showTaxes
+                      ? "bg-amber-500 text-white border-amber-500"
+                      : "bg-background text-muted-foreground border-border hover:text-foreground hover:border-amber-400"
                   }`}
                 >
                   <Receipt className="w-3.5 h-3.5" />
-                  Taxes &amp; Insurance
+                  Taxes
+                </button>
+              )}
+              {insuranceVal !== "" && (
+                <button
+                  type="button"
+                  onClick={() => setShowInsurance(v => !v)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
+                    showInsurance
+                      ? "bg-blue-500 text-white border-blue-500"
+                      : "bg-background text-muted-foreground border-border hover:text-foreground hover:border-blue-400"
+                  }`}
+                >
+                  <Receipt className="w-3.5 h-3.5" />
+                  Insurance
                 </button>
               )}
               <Button
@@ -1086,13 +1101,13 @@ export default function PropertyDetail() {
                   <TableHead className="text-right">Principal</TableHead>
                   <TableHead className="text-right">Interest</TableHead>
                   <TableHead className="text-right font-semibold text-foreground">Balance</TableHead>
-                  {showTaxInsurance && property.monthlyTaxes != null && (
+                  {showTaxes && taxesVal !== "" && (
                     <TableHead className="text-right text-amber-600 border-l border-amber-200/60 bg-amber-50/40">Taxes</TableHead>
                   )}
-                  {showTaxInsurance && property.monthlyInsurance != null && (
+                  {showInsurance && insuranceVal !== "" && (
                     <TableHead className="text-right text-blue-600 border-l border-blue-200/60 bg-blue-50/40">Insurance</TableHead>
                   )}
-                  {showTaxInsurance && (property.monthlyTaxes != null || property.monthlyInsurance != null) && (
+                  {(showTaxes || showInsurance) && (
                     <TableHead className="text-right font-semibold border-l border-border">Total Out</TableHead>
                   )}
                   {showingScenario && scenarioResult && (
@@ -1164,22 +1179,22 @@ export default function PropertyDetail() {
                       <TableCell className="text-right font-mono text-sm font-semibold">
                         {base ? formatCurrency(base.remainingBalance) : "—"}
                       </TableCell>
-                      {showTaxInsurance && property.monthlyTaxes != null && (
+                      {showTaxes && taxesVal !== "" && (
                         <TableCell className="text-right font-mono text-sm text-amber-700 border-l border-amber-200/60 bg-amber-50/20">
-                          {formatCurrency(property.monthlyTaxes)}
+                          {formatCurrency(parseFloat(taxesVal))}
                         </TableCell>
                       )}
-                      {showTaxInsurance && property.monthlyInsurance != null && (
+                      {showInsurance && insuranceVal !== "" && (
                         <TableCell className="text-right font-mono text-sm text-blue-700 border-l border-blue-200/60 bg-blue-50/20">
-                          {formatCurrency(property.monthlyInsurance)}
+                          {formatCurrency(parseFloat(insuranceVal))}
                         </TableCell>
                       )}
-                      {showTaxInsurance && (property.monthlyTaxes != null || property.monthlyInsurance != null) && (
+                      {(showTaxes || showInsurance) && (
                         <TableCell className="text-right font-mono text-sm font-semibold border-l border-border">
                           {base ? formatCurrency(
                             base.paymentAmount +
-                            (property.monthlyTaxes ?? 0) +
-                            (property.monthlyInsurance ?? 0)
+                            (showTaxes && taxesVal ? parseFloat(taxesVal) : 0) +
+                            (showInsurance && insuranceVal ? parseFloat(insuranceVal) : 0)
                           ) : "—"}
                         </TableCell>
                       )}
