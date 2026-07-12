@@ -491,21 +491,8 @@ export default function Occupancy() {
           ))}
         </div>
 
-        {/* Month navigator — only relevant for STR view */}
-        {(filter === "short-term" || (filter === "all" && data.some(p => p.rentalType === "short-term"))) && (
-          <div className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-2 py-1">
-            <button onClick={prevMonth} className="p-0.5 hover:text-primary transition-colors">
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <span className="text-xs font-medium w-28 text-center">{MONTH_NAMES[month]} {year}</span>
-            <button onClick={nextMonth} className="p-0.5 hover:text-primary transition-colors">
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-        )}
-
-        {/* Year navigator — for LTR view */}
-        {(filter === "long-term" || (filter === "all" && data.some(p => p.rentalType === "long-term"))) && (
+        {/* Year navigator */}
+        {(
           <div className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-2 py-1">
             <button onClick={() => setYear(y => y - 1)} className="p-0.5 hover:text-primary transition-colors">
               <ChevronLeft className="w-4 h-4" />
