@@ -2,10 +2,8 @@ import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { MapContainer, TileLayer, Marker, Popup, CircleMarker } from "react-leaflet";
 import L from "leaflet";
-import { Map, ToggleLeft, ToggleRight, Loader2, Building2, TrendingUp, DollarSign, Landmark, ChevronDown } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { StatCard } from "@/components/ui/stat-card";
+import { Map, Loader2, Building2, TrendingUp, DollarSign, Landmark, ChevronDown, CalendarDays } from "lucide-react";
+import { Card } from "@/components/ui/card";
 import { formatCurrency, formatPercent } from "@/lib/utils";
 import { PortfolioChat } from "@/components/portfolio-chat";
 
@@ -52,23 +50,61 @@ interface GeoResponse {
   byCity: CityGroup[];
 }
 
-// ── Equity colour helper ───────────────────────────────────────────────────
-// Maps equity amount to a colour: red → amber → emerald
+interface OccupancyRecord {
+  period: string;
+  occupied: boolean;
+  nights: number | null;
+}
+
+interface OccupancyProperty {
+  id: number;
+  name: string;
+  rentalType: string | null;
+  occupancyRecords: OccupancyRecord[];
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+function daysInMonth(period: string): number {
+  const [y, m] = period.split("-").map(Number);
+  return new Date(y, m, 0).getDate();
+}
+
+/** Returns 0–100 or null if no data */
+function calcOccupancyPct(prop: OccupancyProperty): number | null {
+  const records = prop.occupancyRecords;
+  if (!records.length) return null;
+
+  if (prop.rentalType === "short-term") {
+    const totalNights = records.reduce((s, r) => s + (r.nights ?? 0), 0);
+    const totalPossible = records.reduce((s, r) => s + daysInMonth(r.period), 0);
+    return totalPossible > 0 ? (totalNights / totalPossible) * 100 : null;
+  }
+
+  // long-term or unknown — occupied month ratio
+  const occupied = records.filter(r => r.occupied).length;
+  return (occupied / records.length) * 100;
+}
+
 function equityColor(equity: number, maxEquity: number): string {
   if (maxEquity <= 0) return "#6b7280";
   const ratio = Math.max(0, Math.min(1, equity / maxEquity));
-  if (ratio >= 0.66) return "#10b981"; // emerald-500
-  if (ratio >= 0.33) return "#f59e0b"; // amber-400
-  return "#ef4444";                    // red-500
+  if (ratio >= 0.66) return "#10b981";
+  if (ratio >= 0.33) return "#f59e0b";
+  return "#ef4444";
 }
 
 function equityRadius(equity: number, maxEquity: number): number {
   if (maxEquity <= 0) return 14;
   const ratio = Math.max(0, Math.min(1, equity / maxEquity));
-  return 10 + ratio * 20; // 10px – 30px
+  return 10 + ratio * 20;
 }
 
-// ── Map suggestions ────────────────────────────────────────────────────────
+function occupancyColor(pct: number): string {
+  if (pct >= 80) return "#10b981"; // emerald
+  if (pct >= 50) return "#f59e0b"; // amber
+  return "#ef4444";                // red
+}
 
 const MAP_SUGGESTIONS = [
   "Which city has the most equity across my properties?",
@@ -82,7 +118,7 @@ const MAP_SUGGESTIONS = [
 // ── Component ──────────────────────────────────────────────────────────────
 
 export default function MapView() {
-  const [mode, setMode] = useState<"properties" | "equity">("properties");
+  const [mode, setMode] = useState<"properties" | "equity" | "occupancy">("properties");
   const [expandedCities, setExpandedCities] = useState<Set<string>>(new Set());
 
   const toggleCity = (label: string) => {
@@ -103,6 +139,23 @@ export default function MapView() {
     staleTime: 5 * 60 * 1000,
   });
 
+  const { data: occupancyData } = useQuery<OccupancyProperty[]>({
+    queryKey: ["occupancy"],
+    queryFn: () => fetch("/api/occupancy").then(r => {
+      if (!r.ok) throw new Error("Failed to load occupancy");
+      return r.json();
+    }),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Map occupancy pct by property id
+  const occupancyByPropId = useMemo<Record<number, number | null>>(() => {
+    if (!occupancyData) return {};
+    return Object.fromEntries(
+      occupancyData.map(p => [p.id, calcOccupancyPct(p)])
+    );
+  }, [occupancyData]);
+
   const mapped = useMemo(
     () => (data?.properties ?? []).filter(p => p.lat !== null && p.lng !== null),
     [data]
@@ -121,7 +174,6 @@ export default function MapView() {
     ];
   }, [mapped]);
 
-  // Portfolio-level totals
   const totals = useMemo(() => {
     const props = data?.properties ?? [];
     return {
@@ -133,6 +185,13 @@ export default function MapView() {
     };
   }, [data]);
 
+  // Portfolio-level avg occupancy (only tracked properties)
+  const avgOccupancy = useMemo(() => {
+    const vals = Object.values(occupancyByPropId).filter((v): v is number => v !== null);
+    if (!vals.length) return null;
+    return vals.reduce((s, v) => s + v, 0) / vals.length;
+  }, [occupancyByPropId]);
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
 
@@ -143,7 +202,7 @@ export default function MapView() {
           Map View
         </h1>
         <p className="text-muted-foreground mt-1 text-sm">
-          See where your properties are and how equity is distributed across markets.
+          See where your properties are and how equity and occupancy are distributed across markets.
         </p>
       </div>
 
@@ -178,6 +237,20 @@ export default function MapView() {
             </span>
             <span className="text-sm font-semibold text-foreground">{formatCurrency(totals.debt)}</span>
           </div>
+          {avgOccupancy !== null && (
+            <div className="flex flex-col gap-0.5 px-4 py-2.5 bg-card flex-1 min-w-[140px]">
+              <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <CalendarDays className="w-3 h-3 shrink-0 text-blue-500" />
+                Avg Occupancy
+              </span>
+              <span
+                className="text-sm font-semibold"
+                style={{ color: occupancyColor(avgOccupancy) }}
+              >
+                {formatPercent(avgOccupancy)}
+              </span>
+            </div>
+          )}
         </div>
       )}
 
@@ -216,6 +289,17 @@ export default function MapView() {
               <TrendingUp className="w-3.5 h-3.5" />
               Equity
             </button>
+            <button
+              onClick={() => setMode("occupancy")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                mode === "occupancy"
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <CalendarDays className="w-3.5 h-3.5" />
+              Occupancy
+            </button>
           </div>
         </div>
 
@@ -233,6 +317,25 @@ export default function MapView() {
               <span className="w-3 h-3 rounded-full bg-red-500 inline-block" /> Lower equity
             </span>
             <span className="ml-auto italic">Circle size also reflects equity amount</span>
+          </div>
+        )}
+
+        {/* Occupancy legend */}
+        {mode === "occupancy" && (
+          <div className="flex items-center gap-4 px-5 py-2 bg-muted/20 border-b border-border text-xs text-muted-foreground">
+            <span className="font-medium">Occupancy legend:</span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-full bg-emerald-500 inline-block" /> ≥ 80%
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-full bg-amber-400 inline-block" /> 50–80%
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-full bg-red-500 inline-block" /> &lt; 50%
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-full bg-gray-400 inline-block" /> No data
+            </span>
           </div>
         )}
 
@@ -263,36 +366,47 @@ export default function MapView() {
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
 
-              {mode === "properties" && mapped.map(p => (
-                <Marker key={p.id} position={[p.lat!, p.lng!]}>
-                  <Popup>
-                    <div className="min-w-[200px] space-y-2">
-                      <div>
-                        <p className="font-semibold text-sm">{p.name}</p>
-                        <p className="text-xs text-gray-500 leading-tight">{p.address}</p>
+              {mode === "properties" && mapped.map(p => {
+                const occ = occupancyByPropId[p.id];
+                return (
+                  <Marker key={p.id} position={[p.lat!, p.lng!]}>
+                    <Popup>
+                      <div className="min-w-[200px] space-y-2">
+                        <div>
+                          <p className="font-semibold text-sm">{p.name}</p>
+                          <p className="text-xs text-gray-500 leading-tight">{p.address}</p>
+                        </div>
+                        <div className="space-y-0.5 text-xs border-t pt-2">
+                          <div className="flex justify-between gap-6">
+                            <span className="text-gray-500">Value</span>
+                            <span className="font-medium">{formatCurrency(p.currentValue)}</span>
+                          </div>
+                          <div className="flex justify-between gap-6">
+                            <span className="text-gray-500">Equity</span>
+                            <span className="font-semibold text-emerald-700">{formatCurrency(p.equity)}</span>
+                          </div>
+                          <div className="flex justify-between gap-6">
+                            <span className="text-gray-500">Debt</span>
+                            <span className="font-medium">{formatCurrency(p.loanBalance)}</span>
+                          </div>
+                          <div className="flex justify-between gap-6">
+                            <span className="text-gray-500">Monthly P&I</span>
+                            <span className="font-medium">{formatCurrency(p.monthlyPayment)}</span>
+                          </div>
+                          {occ !== null && occ !== undefined && (
+                            <div className="flex justify-between gap-6">
+                              <span className="text-gray-500">Occupancy</span>
+                              <span className="font-semibold" style={{ color: occupancyColor(occ) }}>
+                                {formatPercent(occ)}
+                              </span>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div className="space-y-0.5 text-xs border-t pt-2">
-                        <div className="flex justify-between gap-6">
-                          <span className="text-gray-500">Value</span>
-                          <span className="font-medium">{formatCurrency(p.currentValue)}</span>
-                        </div>
-                        <div className="flex justify-between gap-6">
-                          <span className="text-gray-500">Equity</span>
-                          <span className="font-semibold text-emerald-700">{formatCurrency(p.equity)}</span>
-                        </div>
-                        <div className="flex justify-between gap-6">
-                          <span className="text-gray-500">Debt</span>
-                          <span className="font-medium">{formatCurrency(p.loanBalance)}</span>
-                        </div>
-                        <div className="flex justify-between gap-6">
-                          <span className="text-gray-500">Monthly P&I</span>
-                          <span className="font-medium">{formatCurrency(p.monthlyPayment)}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </Popup>
-                </Marker>
-              ))}
+                    </Popup>
+                  </Marker>
+                );
+              })}
 
               {mode === "equity" && mapped.map(p => (
                 <CircleMarker
@@ -336,6 +450,63 @@ export default function MapView() {
                   </Popup>
                 </CircleMarker>
               ))}
+
+              {mode === "occupancy" && mapped.map(p => {
+                const occ = occupancyByPropId[p.id];
+                const hasData = occ !== null && occ !== undefined;
+                const color = hasData ? occupancyColor(occ!) : "#9ca3af";
+                const occupancyProp = occupancyData?.find(o => o.id === p.id);
+                return (
+                  <CircleMarker
+                    key={p.id}
+                    center={[p.lat!, p.lng!]}
+                    radius={18}
+                    pathOptions={{
+                      fillColor: color,
+                      fillOpacity: 0.85,
+                      color: "#fff",
+                      weight: 2,
+                    }}
+                  >
+                    <Popup>
+                      <div className="min-w-[200px] space-y-2">
+                        <div>
+                          <p className="font-semibold text-sm">{p.name}</p>
+                          <p className="text-xs text-gray-500 leading-tight">{p.address}</p>
+                        </div>
+                        <div className="space-y-0.5 text-xs border-t pt-2">
+                          <div className="flex justify-between gap-6">
+                            <span className="text-gray-500">Occupancy</span>
+                            {hasData ? (
+                              <span className="font-bold" style={{ color }}>
+                                {formatPercent(occ!)}
+                              </span>
+                            ) : (
+                              <span className="text-gray-400 italic">No data</span>
+                            )}
+                          </div>
+                          {occupancyProp && (
+                            <div className="flex justify-between gap-6">
+                              <span className="text-gray-500">Type</span>
+                              <span className="font-medium capitalize">
+                                {occupancyProp.rentalType?.replace("-", " ") ?? "Unassigned"}
+                              </span>
+                            </div>
+                          )}
+                          <div className="flex justify-between gap-6">
+                            <span className="text-gray-500">Value</span>
+                            <span className="font-medium">{formatCurrency(p.currentValue)}</span>
+                          </div>
+                          <div className="flex justify-between gap-6">
+                            <span className="text-gray-500">Equity</span>
+                            <span className="font-semibold text-emerald-700">{formatCurrency(p.equity)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </Popup>
+                  </CircleMarker>
+                );
+              })}
             </MapContainer>
           )}
         </div>
@@ -350,9 +521,24 @@ export default function MapView() {
               const equityPct = c.totalValue > 0 ? (c.totalEquity / c.totalValue) * 100 : 0;
               const label = c.state ? `${c.city}, ${c.state}` : c.city;
               const isOpen = expandedCities.has(label);
+
+              // Avg occupancy for this city's properties
+              const cityPropIds = (data.properties ?? [])
+                .filter(p => {
+                  const cityLabel = p.state ? `${p.city}, ${p.state}` : p.city;
+                  return cityLabel === label;
+                })
+                .map(p => p.id);
+              const cityOccVals = cityPropIds
+                .map(id => occupancyByPropId[id])
+                .filter((v): v is number => v !== null && v !== undefined);
+              const cityAvgOcc = cityOccVals.length
+                ? cityOccVals.reduce((s, v) => s + v, 0) / cityOccVals.length
+                : null;
+
               return (
                 <div key={label} className="bg-card">
-                  {/* Header row — always visible */}
+                  {/* Header row */}
                   <button
                     onClick={() => toggleCity(label)}
                     className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left hover:bg-muted/40 transition-colors"
@@ -363,11 +549,26 @@ export default function MapView() {
                         {c.count} {c.count === 1 ? "property" : "properties"}
                       </p>
                     </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      {/* Equity pill preview */}
+                    <div className="flex items-center gap-2 shrink-0">
                       <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-full">
                         {formatPercent(equityPct)} equity
                       </span>
+                      {cityAvgOcc !== null && (
+                        <span
+                          className="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full"
+                          style={{
+                            color: occupancyColor(cityAvgOcc),
+                            backgroundColor: cityAvgOcc >= 80
+                              ? "rgb(240 253 244)"
+                              : cityAvgOcc >= 50
+                              ? "rgb(255 251 235)"
+                              : "rgb(254 242 242)",
+                          }}
+                        >
+                          <CalendarDays className="w-3 h-3" />
+                          {formatPercent(cityAvgOcc)} occ.
+                        </span>
+                      )}
                       <ChevronDown
                         className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
                       />
@@ -399,8 +600,9 @@ export default function MapView() {
                           <p className="text-sm font-semibold mt-0.5">{formatCurrency(c.totalMonthly)}</p>
                         </div>
                       </div>
+
                       {/* Equity bar */}
-                      <div className="space-y-1">
+                      <div className="space-y-1 mb-3">
                         <div className="flex justify-between text-xs">
                           <span className="text-muted-foreground">Equity ratio</span>
                           <span className="font-medium">{formatPercent(equityPct)}</span>
@@ -412,6 +614,27 @@ export default function MapView() {
                           />
                         </div>
                       </div>
+
+                      {/* Occupancy bar */}
+                      {cityAvgOcc !== null && (
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-xs">
+                            <span className="text-muted-foreground">Avg occupancy</span>
+                            <span className="font-medium" style={{ color: occupancyColor(cityAvgOcc) }}>
+                              {formatPercent(cityAvgOcc)}
+                            </span>
+                          </div>
+                          <div className="h-2 rounded-full bg-muted overflow-hidden">
+                            <div
+                              className="h-full rounded-full transition-all duration-500"
+                              style={{
+                                width: `${Math.max(0, Math.min(100, cityAvgOcc))}%`,
+                                backgroundColor: occupancyColor(cityAvgOcc),
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
