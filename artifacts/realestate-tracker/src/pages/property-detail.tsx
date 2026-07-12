@@ -878,7 +878,7 @@ export default function PropertyDetail() {
                   All Payments
                 </button>
               </div>
-              {(property.monthlyTaxes || property.monthlyInsurance) && (
+              {(taxesVal !== "" || insuranceVal !== "") && (
                 <button
                   type="button"
                   onClick={() => setShowTaxInsurance(v => !v)}
