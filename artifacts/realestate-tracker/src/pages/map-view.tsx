@@ -3,10 +3,12 @@ import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { MapContainer, TileLayer, Marker, Popup, CircleMarker } from "react-leaflet";
 import L from "leaflet";
-import { Map, Loader2, Building2, TrendingUp, DollarSign, Landmark, ChevronDown, CalendarDays, AlertTriangle, ExternalLink } from "lucide-react";
+import { Map, Loader2, Building2, TrendingUp, DollarSign, Landmark, ChevronDown, CalendarDays, AlertTriangle, ExternalLink, List, BarChart2, MapPin, PlusCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { formatCurrency, formatPercent } from "@/lib/utils";
 import { PortfolioChat } from "@/components/portfolio-chat";
+import { cn } from "@/lib/utils";
+import { Link } from "wouter";
 
 // Fix Leaflet default marker icons in Vite
 import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
@@ -118,9 +120,14 @@ const MAP_SUGGESTIONS = [
 
 // ── Component ──────────────────────────────────────────────────────────────
 
+type BottomTab = "properties" | "by-city";
+type PropView = "simple" | "detailed";
+
 export default function MapView() {
   const [mode, setMode] = useState<"properties" | "equity" | "occupancy">("properties");
   const [expandedCities, setExpandedCities] = useState<Set<string>>(new Set());
+  const [bottomTab, setBottomTab] = useState<BottomTab>("properties");
+  const [propView, setPropView] = useState<PropView>("simple");
 
   const toggleCity = (label: string) => {
     setExpandedCities(prev => {
@@ -560,144 +567,273 @@ export default function MapView() {
         </div>
       )}
 
-      {/* By-city breakdown */}
-      {data && data.byCity.length > 0 && (
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-foreground">By City</h2>
-          <div className="rounded-lg border divide-y overflow-hidden">
-            {data.byCity.map(c => {
-              const equityPct = c.totalValue > 0 ? (c.totalEquity / c.totalValue) * 100 : 0;
-              const label = c.state ? `${c.city}, ${c.state}` : c.city;
-              const isOpen = expandedCities.has(label);
-
-              // Avg occupancy for this city's properties
-              const cityPropIds = (data.properties ?? [])
-                .filter(p => {
-                  const cityLabel = p.state ? `${p.city}, ${p.state}` : p.city;
-                  return cityLabel === label;
-                })
-                .map(p => p.id);
-              const cityOccVals = cityPropIds
-                .map(id => occupancyByPropId[id])
-                .filter((v): v is number => v !== null && v !== undefined);
-              const cityAvgOcc = cityOccVals.length
-                ? cityOccVals.reduce((s, v) => s + v, 0) / cityOccVals.length
-                : null;
-
-              return (
-                <div key={label} className="bg-card">
-                  {/* Header row */}
-                  <button
-                    onClick={() => toggleCity(label)}
-                    className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left hover:bg-muted/40 transition-colors"
-                  >
-                    <div>
-                      <p className="font-semibold text-foreground">{label}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {c.count} {c.count === 1 ? "property" : "properties"}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-full">
-                        {formatPercent(equityPct)} equity
-                      </span>
-                      {cityAvgOcc !== null && (
-                        <span
-                          className="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full"
-                          style={{
-                            color: occupancyColor(cityAvgOcc),
-                            backgroundColor: cityAvgOcc >= 80
-                              ? "rgb(240 253 244)"
-                              : cityAvgOcc >= 50
-                              ? "rgb(255 251 235)"
-                              : "rgb(254 242 242)",
-                          }}
-                        >
-                          <CalendarDays className="w-3 h-3" />
-                          {formatPercent(cityAvgOcc)} occ.
-                        </span>
-                      )}
-                      <ChevronDown
-                        className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
-                      />
-                    </div>
-                  </button>
-
-                  {/* Expandable detail */}
-                  {isOpen && (
-                    <div className="px-5 pb-5 pt-1 border-t bg-muted/20">
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
-                        <div>
-                          <p className="text-xs text-muted-foreground">Total Value</p>
-                          <p className="text-sm font-semibold mt-0.5">{formatCurrency(c.totalValue)}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Total Equity</p>
-                          <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400 mt-0.5">
-                            {formatCurrency(c.totalEquity)}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Remaining Debt</p>
-                          <p className="text-sm font-semibold text-muted-foreground mt-0.5">
-                            {formatCurrency(c.totalDebt)}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Monthly P&I</p>
-                          <p className="text-sm font-semibold mt-0.5">{formatCurrency(c.totalMonthly)}</p>
-                        </div>
-                      </div>
-
-                      {/* Equity bar */}
-                      <div className="space-y-1 mb-3">
-                        <div className="flex justify-between text-xs">
-                          <span className="text-muted-foreground">Equity ratio</span>
-                          <span className="font-medium">{formatPercent(equityPct)}</span>
-                        </div>
-                        <div className="h-2 rounded-full bg-muted overflow-hidden">
-                          <div
-                            className="h-full rounded-full bg-emerald-500 transition-all duration-500"
-                            style={{ width: `${Math.max(0, Math.min(100, equityPct))}%` }}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Occupancy bar */}
-                      {cityAvgOcc !== null && (
-                        <div className="space-y-1">
-                          <div className="flex justify-between text-xs">
-                            <span className="text-muted-foreground">Avg occupancy</span>
-                            <span className="font-medium" style={{ color: occupancyColor(cityAvgOcc) }}>
-                              {formatPercent(cityAvgOcc)}
-                            </span>
-                          </div>
-                          <div className="h-2 rounded-full bg-muted overflow-hidden">
-                            <div
-                              className="h-full rounded-full transition-all duration-500"
-                              style={{
-                                width: `${Math.max(0, Math.min(100, cityAvgOcc))}%`,
-                                backgroundColor: occupancyColor(cityAvgOcc),
-                              }}
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
+      {/* ── Tabbed panel: Properties list | By City ───────────────────────── */}
+      {data && (
+        <div className="rounded-xl border border-border bg-card overflow-hidden">
+          {/* Tab bar */}
+          <div className="flex items-center justify-between border-b border-border bg-muted/30 px-2">
+            <div className="flex">
+              {([
+                { id: "properties" as BottomTab, label: "Properties", icon: Building2 },
+                { id: "by-city"    as BottomTab, label: "By City",    icon: MapPin },
+              ]).map(({ id, label, icon: Icon }) => (
+                <button
+                  key={id}
+                  onClick={() => setBottomTab(id)}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors",
+                    bottomTab === id
+                      ? "border-primary text-primary"
+                      : "border-transparent text-muted-foreground hover:text-foreground",
                   )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+                >
+                  <Icon className="w-4 h-4" />
+                  {label}
+                  {id === "properties" && (
+                    <span className="ml-1 text-xs text-muted-foreground">
+                      ({data.properties.length})
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
 
-      {/* No properties state */}
-      {data && data.properties.length === 0 && (
-        <div className="text-center py-16 text-muted-foreground">
-          <Map className="w-12 h-12 mx-auto mb-3 opacity-20" />
-          <p className="text-sm font-medium">No properties to map yet.</p>
-          <p className="text-xs mt-1">Add a property to see it appear here.</p>
+            {/* Right-side controls */}
+            {bottomTab === "properties" && data.properties.length > 0 && (
+              <div className="flex items-center gap-2 pr-2">
+                <div className="flex items-center gap-0.5 p-0.5 bg-background rounded-md border border-border">
+                  <button
+                    onClick={() => setPropView("simple")}
+                    title="Simple list"
+                    className={cn(
+                      "flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-medium transition-colors",
+                      propView === "simple"
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    <List className="w-3.5 h-3.5" />
+                    Simple
+                  </button>
+                  <button
+                    onClick={() => setPropView("detailed")}
+                    title="Detailed cards"
+                    className={cn(
+                      "flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-medium transition-colors",
+                      propView === "detailed"
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    <BarChart2 className="w-3.5 h-3.5" />
+                    Detailed
+                  </button>
+                </div>
+                <Link href="/app/properties/new">
+                  <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
+                    <PlusCircle className="w-3.5 h-3.5" />
+                    Add
+                  </button>
+                </Link>
+              </div>
+            )}
+          </div>
+
+          {/* ── Properties tab ── */}
+          {bottomTab === "properties" && (
+            data.properties.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <Building2 className="w-10 h-10 text-muted-foreground/20 mb-3" />
+                <p className="text-sm font-medium text-foreground">No properties yet</p>
+                <p className="text-xs text-muted-foreground mt-1 mb-4">Add one to see it on the map.</p>
+                <Link href="/app/properties/new">
+                  <button className="flex items-center gap-1.5 text-xs font-medium text-primary hover:underline">
+                    <PlusCircle className="w-3.5 h-3.5" /> Add Property
+                  </button>
+                </Link>
+              </div>
+            ) : propView === "simple" ? (
+              <div className="divide-y divide-border">
+                {data.properties.map((p, i) => (
+                  <Link key={p.id} href={`/app/properties/${p.id}`}>
+                    <div className="flex items-center gap-4 px-5 py-3 hover:bg-muted/30 transition-colors cursor-pointer group">
+                      <span className="text-xs font-mono text-muted-foreground w-5 text-right shrink-0">{i + 1}</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">
+                          {p.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">{p.address}</p>
+                      </div>
+                      <div className="shrink-0 flex items-center gap-3 text-xs text-muted-foreground">
+                        {p.lat !== null
+                          ? <MapPin className="w-3.5 h-3.5 text-emerald-500" title="Plotted on map" />
+                          : <MapPin className="w-3.5 h-3.5 text-muted-foreground/30" title="Not geocoded" />}
+                        <span className="hidden sm:inline">→</span>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
+                {data.properties.map(p => {
+                  const occ = occupancyByPropId[p.id];
+                  return (
+                    <Link key={p.id} href={`/app/properties/${p.id}`}>
+                      <div className="rounded-lg border border-border bg-background p-4 hover:bg-muted/30 transition-colors cursor-pointer group hover:border-primary/40">
+                        <div className="flex items-start justify-between gap-2 mb-3">
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">
+                              {p.name}
+                            </p>
+                            <p className="text-xs text-muted-foreground truncate mt-0.5">
+                              {p.city ?? p.address}
+                            </p>
+                          </div>
+                          {p.lat !== null
+                            ? <MapPin className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                            : <MapPin className="w-3.5 h-3.5 text-muted-foreground/30 shrink-0 mt-0.5" />}
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 text-xs">
+                          <div>
+                            <p className="text-muted-foreground/70 uppercase tracking-wide text-[10px] font-semibold mb-0.5">Value</p>
+                            <p className="font-medium tabular-nums">{formatCurrency(p.currentValue)}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground/70 uppercase tracking-wide text-[10px] font-semibold mb-0.5">Equity</p>
+                            <p className="font-bold tabular-nums text-emerald-700 dark:text-emerald-400">{formatCurrency(p.equity)}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground/70 uppercase tracking-wide text-[10px] font-semibold mb-0.5">Debt</p>
+                            <p className="font-medium tabular-nums">{formatCurrency(p.loanBalance)}</p>
+                          </div>
+                        </div>
+                        {occ !== null && occ !== undefined && (
+                          <div className="mt-3">
+                            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                              <div
+                                className="h-full rounded-full"
+                                style={{ width: `${Math.max(0, Math.min(100, occ))}%`, backgroundColor: occupancyColor(occ) }}
+                              />
+                            </div>
+                            <p className="text-[10px] mt-1" style={{ color: occupancyColor(occ) }}>
+                              {formatPercent(occ)} occupancy
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            )
+          )}
+
+          {/* ── By City tab ── */}
+          {bottomTab === "by-city" && (
+            data.byCity.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <MapPin className="w-10 h-10 text-muted-foreground/20 mb-3" />
+                <p className="text-sm font-medium text-foreground">No city data yet</p>
+                <p className="text-xs text-muted-foreground mt-1">Add properties with full addresses to see them grouped here.</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-border">
+                {data.byCity.map(c => {
+                  const equityPct = c.totalValue > 0 ? (c.totalEquity / c.totalValue) * 100 : 0;
+                  const label = c.state ? `${c.city}, ${c.state}` : c.city;
+                  const isOpen = expandedCities.has(label);
+
+                  const cityPropIds = (data.properties ?? [])
+                    .filter(p => (p.state ? `${p.city}, ${p.state}` : p.city) === label)
+                    .map(p => p.id);
+                  const cityOccVals = cityPropIds
+                    .map(id => occupancyByPropId[id])
+                    .filter((v): v is number => v !== null && v !== undefined);
+                  const cityAvgOcc = cityOccVals.length
+                    ? cityOccVals.reduce((s, v) => s + v, 0) / cityOccVals.length
+                    : null;
+
+                  return (
+                    <div key={label} className="bg-card">
+                      <button
+                        onClick={() => toggleCity(label)}
+                        className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left hover:bg-muted/40 transition-colors"
+                      >
+                        <div>
+                          <p className="font-semibold text-foreground">{label}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {c.count} {c.count === 1 ? "property" : "properties"}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-full">
+                            {formatPercent(equityPct)} equity
+                          </span>
+                          {cityAvgOcc !== null && (
+                            <span
+                              className="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full"
+                              style={{
+                                color: occupancyColor(cityAvgOcc),
+                                backgroundColor: cityAvgOcc >= 80 ? "rgb(240 253 244)" : cityAvgOcc >= 50 ? "rgb(255 251 235)" : "rgb(254 242 242)",
+                              }}
+                            >
+                              <CalendarDays className="w-3 h-3" />
+                              {formatPercent(cityAvgOcc)} occ.
+                            </span>
+                          )}
+                          <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
+                        </div>
+                      </button>
+
+                      {isOpen && (
+                        <div className="px-5 pb-5 pt-1 border-t bg-muted/20">
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+                            <div>
+                              <p className="text-xs text-muted-foreground">Total Value</p>
+                              <p className="text-sm font-semibold mt-0.5">{formatCurrency(c.totalValue)}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Total Equity</p>
+                              <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400 mt-0.5">{formatCurrency(c.totalEquity)}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Remaining Debt</p>
+                              <p className="text-sm font-semibold text-muted-foreground mt-0.5">{formatCurrency(c.totalDebt)}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Monthly P&I</p>
+                              <p className="text-sm font-semibold mt-0.5">{formatCurrency(c.totalMonthly)}</p>
+                            </div>
+                          </div>
+                          <div className="space-y-1 mb-3">
+                            <div className="flex justify-between text-xs">
+                              <span className="text-muted-foreground">Equity ratio</span>
+                              <span className="font-medium">{formatPercent(equityPct)}</span>
+                            </div>
+                            <div className="h-2 rounded-full bg-muted overflow-hidden">
+                              <div className="h-full rounded-full bg-emerald-500 transition-all duration-500" style={{ width: `${Math.max(0, Math.min(100, equityPct))}%` }} />
+                            </div>
+                          </div>
+                          {cityAvgOcc !== null && (
+                            <div className="space-y-1">
+                              <div className="flex justify-between text-xs">
+                                <span className="text-muted-foreground">Avg occupancy</span>
+                                <span className="font-medium" style={{ color: occupancyColor(cityAvgOcc) }}>{formatPercent(cityAvgOcc)}</span>
+                              </div>
+                              <div className="h-2 rounded-full bg-muted overflow-hidden">
+                                <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.max(0, Math.min(100, cityAvgOcc))}%`, backgroundColor: occupancyColor(cityAvgOcc) }} />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )
+          )}
         </div>
       )}
 
