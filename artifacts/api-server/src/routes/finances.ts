@@ -160,6 +160,72 @@ router.post("/finances/transactions", async (req, res) => {
   res.status(201).json(toApiTx(row));
 });
 
+// ── POST /api/finances/transactions/bulk ──────────────────────────────────
+// Create multiple transactions at once (used for recurring payments).
+router.post("/finances/transactions/bulk", async (req, res) => {
+  const userId = uid(req);
+  const { transactions } = req.body as { transactions: unknown[] };
+
+  if (!Array.isArray(transactions) || transactions.length === 0) {
+    res.status(400).json({ error: "transactions must be a non-empty array" });
+    return;
+  }
+  if (transactions.length > 60) {
+    res.status(400).json({ error: "Cannot create more than 60 transactions at once" });
+    return;
+  }
+
+  // Parse and validate every item up front
+  const parsed: TxInput[] = [];
+  for (let i = 0; i < transactions.length; i++) {
+    try {
+      parsed.push(parseTxBody(transactions[i], true));
+    } catch (e: unknown) {
+      res.status(400).json({ error: `Item ${i}: ${e instanceof Error ? e.message : "Invalid input"}` });
+      return;
+    }
+  }
+
+  // Verify any referenced property IDs belong to this user
+  const propIds = [...new Set(parsed.map(b => b.propertyId).filter(Boolean) as number[])];
+  if (propIds.length > 0) {
+    const ownedProps = await db
+      .select({ id: propertiesTable.id })
+      .from(propertiesTable)
+      .where(and(eq(propertiesTable.clerkUserId, userId)));
+    const ownedSet = new Set(ownedProps.map(p => p.id));
+    for (const pid of propIds) {
+      if (!ownedSet.has(pid)) {
+        res.status(403).json({ error: `Property ${pid} not found or access denied` });
+        return;
+      }
+    }
+  }
+
+  const rows = await db
+    .insert(finTransactionsTable)
+    .values(
+      parsed.map(body => ({
+        clerkUserId: userId,
+        propertyId: body.propertyId ?? null,
+        date: body.date!,
+        description: body.description!,
+        amount: String(body.amount),
+        type: body.type!,
+        category: body.category!,
+        vendorPayer: body.vendorPayer ?? null,
+        paymentAccount: body.paymentAccount ?? null,
+        notes: body.notes ?? null,
+        rentalType: body.rentalType ?? null,
+        taxYear: body.taxYear ?? parseInt(body.date!.slice(0, 4)),
+        isReviewed: body.isReviewed ?? false,
+      })),
+    )
+    .returning();
+
+  res.status(201).json(rows.map(toApiTx));
+});
+
 // ── PUT /api/finances/transactions/:id ────────────────────────────────────
 router.put("/finances/transactions/:id", async (req, res) => {
   const userId = uid(req);

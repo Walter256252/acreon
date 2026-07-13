@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, CheckCircle, Circle, X, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, CheckCircle, Circle, X, Search, Repeat } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useListProperties } from "@workspace/api-client-react";
 import { TX_TYPE_LABELS, categoriesForType, type TxType, isOutflow } from "./categories";
@@ -51,6 +51,45 @@ const TYPE_COLORS: Record<string, string> = {
 
 // ── Transaction Form ──────────────────────────────────────────────────────
 
+type RecurringFrequency = "monthly" | "quarterly" | "semi_annual" | "annual";
+
+const FREQ_LABELS: Record<RecurringFrequency, string> = {
+  monthly: "Monthly",
+  quarterly: "Quarterly (every 3 months)",
+  semi_annual: "Semi-Annual (every 6 months)",
+  annual: "Annual",
+};
+
+const FREQ_MONTHS: Record<RecurringFrequency, number> = {
+  monthly: 1,
+  quarterly: 3,
+  semi_annual: 6,
+  annual: 12,
+};
+
+/** Given a start date string and frequency, return all ISO date strings
+ *  from start through December 31 of the same year (inclusive). */
+function buildRecurringDates(startDate: string, freq: RecurringFrequency): string[] {
+  if (!startDate) return [];
+  const step = FREQ_MONTHS[freq];
+  const start = new Date(startDate + "T12:00:00");
+  const yearEnd = new Date(start.getFullYear(), 11, 31);
+  const dates: string[] = [];
+  let cur = new Date(start);
+  while (cur <= yearEnd) {
+    dates.push(cur.toISOString().split("T")[0]);
+    cur = new Date(cur.getFullYear(), cur.getMonth() + step, cur.getDate());
+  }
+  return dates;
+}
+
+function fmtDateRange(dates: string[]): string {
+  if (!dates.length) return "";
+  const fmt = (d: string) => new Date(d + "T12:00:00").toLocaleString("en-US", { month: "short", year: "numeric" });
+  if (dates.length === 1) return fmt(dates[0]);
+  return `${fmt(dates[0])} – ${fmt(dates[dates.length - 1])}`;
+}
+
 interface FormState {
   date: string;
   description: string;
@@ -63,6 +102,8 @@ interface FormState {
   rentalType: string;
   notes: string;
   isReviewed: boolean;
+  isRecurring: boolean;
+  recurringFrequency: RecurringFrequency;
 }
 
 const emptyForm = (): FormState => ({
@@ -77,6 +118,8 @@ const emptyForm = (): FormState => ({
   rentalType: "",
   notes: "",
   isReviewed: false,
+  isRecurring: false,
+  recurringFrequency: "monthly",
 });
 
 function txToForm(tx: Transaction): FormState {
@@ -90,6 +133,8 @@ function txToForm(tx: Transaction): FormState {
     vendorPayer: tx.vendorPayer ?? "",
     paymentAccount: tx.paymentAccount ?? "",
     rentalType: tx.rentalType ?? "",
+    isRecurring: false,
+    recurringFrequency: "monthly",
     notes: tx.notes ?? "",
     isReviewed: tx.isReviewed,
   };
@@ -108,6 +153,8 @@ function TransactionModal({
   const [form, setForm] = useState<FormState>(tx ? txToForm(tx) : emptyForm());
   const [error, setError] = useState("");
 
+  const isNew = !tx;
+
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
 
@@ -115,6 +162,12 @@ function TransactionModal({
   const setType = (t: TxType) => setForm((f) => ({ ...f, type: t, category: "" }));
 
   const categories = categoriesForType(form.type);
+
+  // Recurring date preview
+  const recurringDates = useMemo(
+    () => isNew && form.isRecurring ? buildRecurringDates(form.date, form.recurringFrequency) : [],
+    [isNew, form.isRecurring, form.date, form.recurringFrequency],
+  );
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["/api/finances/transactions"] });
@@ -127,8 +180,7 @@ function TransactionModal({
       if (!form.date || !form.description || isNaN(amt) || amt <= 0 || !form.category) {
         throw new Error("Please fill in date, description, amount, and category.");
       }
-      const body = {
-        date: form.date,
+      const base = {
         description: form.description,
         amount: amt,
         type: form.type,
@@ -140,12 +192,26 @@ function TransactionModal({
         notes: form.notes || null,
         isReviewed: form.isReviewed,
       };
+
+      // Bulk create for recurring new transactions
+      if (isNew && form.isRecurring && recurringDates.length > 1) {
+        const items = recurringDates.map(d => ({ ...base, date: d }));
+        const r = await fetch("/api/finances/transactions/bulk", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ transactions: items }),
+        });
+        if (!r.ok) throw new Error("Failed to create recurring transactions");
+        return;
+      }
+
+      // Single transaction (new or edit)
       const url = tx ? `/api/finances/transactions/${tx.id}` : "/api/finances/transactions";
       const method = tx ? "PUT" : "POST";
       const r = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ ...base, date: form.date }),
       });
       if (!r.ok) throw new Error("Failed to save transaction");
     },
@@ -155,6 +221,13 @@ function TransactionModal({
 
   const inp = "px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm w-full focus:outline-none focus:ring-2 focus:ring-primary/30";
   const sel = inp;
+
+  const saveLabel = (() => {
+    if (save.isPending) return "Saving…";
+    if (tx) return "Save Changes";
+    if (form.isRecurring && recurringDates.length > 1) return `Create ${recurringDates.length} Transactions`;
+    return "Add Transaction";
+  })();
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
@@ -172,7 +245,9 @@ function TransactionModal({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-foreground">Date *</label>
+              <label className="text-xs font-medium text-foreground">
+                {form.isRecurring && isNew ? "Start Date *" : "Date *"}
+              </label>
               <input type="date" value={form.date} onChange={e => set("date", e.target.value)} className={inp} />
             </div>
             <div className="space-y-1.5">
@@ -245,6 +320,58 @@ function TransactionModal({
             <textarea value={form.notes} onChange={e => set("notes", e.target.value)} rows={2} placeholder="Optional notes" className={cn(inp, "resize-y")} />
           </div>
 
+          {/* ── Recurring toggle (new transactions only) ─────────────────── */}
+          {isNew && (
+            <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-3">
+              <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                <div
+                  onClick={() => set("isRecurring", !form.isRecurring)}
+                  className={cn(
+                    "w-9 h-5 rounded-full transition-colors relative shrink-0",
+                    form.isRecurring ? "bg-primary" : "bg-border",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform",
+                      form.isRecurring ? "translate-x-4" : "translate-x-0",
+                    )}
+                  />
+                </div>
+                <Repeat className="w-3.5 h-3.5 text-muted-foreground" />
+                <span className="text-sm font-medium text-foreground">Recurring payment</span>
+              </label>
+
+              {form.isRecurring && (
+                <>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-foreground">Frequency</label>
+                    <select
+                      value={form.recurringFrequency}
+                      onChange={e => set("recurringFrequency", e.target.value as RecurringFrequency)}
+                      className={sel}
+                    >
+                      {(Object.entries(FREQ_LABELS) as [RecurringFrequency, string][]).map(([v, l]) => (
+                        <option key={v} value={v}>{l}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {recurringDates.length > 0 && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground bg-primary/5 border border-primary/15 rounded-md px-3 py-2">
+                      <Repeat className="w-3 h-3 text-primary shrink-0" />
+                      <span>
+                        Will create{" "}
+                        <span className="font-semibold text-foreground">{recurringDates.length} transaction{recurringDates.length !== 1 ? "s" : ""}</span>
+                        {" "}· {fmtDateRange(recurringDates)}
+                      </span>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
           <label className="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" checked={form.isReviewed} onChange={e => set("isReviewed", e.target.checked)} className="w-4 h-4 accent-primary" />
             <span className="text-sm text-foreground">Mark as reviewed</span>
@@ -260,7 +387,7 @@ function TransactionModal({
             disabled={save.isPending}
             className="px-4 py-2 text-sm rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
           >
-            {save.isPending ? "Saving…" : tx ? "Save Changes" : "Add Transaction"}
+            {saveLabel}
           </button>
         </div>
       </div>
@@ -345,7 +472,7 @@ export default function FinancesTransactions({ filterPropertyId, dateFrom, dateT
   return (
     <>
       {/* Modals */}
-      {(editTx === "new" || (editTx && editTx !== "new")) && (
+      {editTx !== null && (
         <TransactionModal
           tx={editTx === "new" ? null : editTx}
           properties={properties}
