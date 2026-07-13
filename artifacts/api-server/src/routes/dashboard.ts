@@ -78,6 +78,19 @@ router.get("/dashboard", async (req, res) => {
       payoffDate,
       valueLastUpdatedAt: prop.valueLastUpdatedAt ? prop.valueLastUpdatedAt.toISOString() : null,
       zillowUrl: prop.zillowUrl ?? null,
+      // Property Info fields
+      titleHolder: prop.titleHolder ?? null,
+      loanHolder: prop.loanHolder ?? null,
+      lender: prop.lender ?? null,
+      loanType: prop.loanType ?? null,
+      hasHoa: prop.hasHoa ?? false,
+      hoaAmount: prop.hoaAmount != null ? Number(prop.hoaAmount) : null,
+      hoaName: prop.hoaName ?? null,
+      insuranceCompany: prop.insuranceCompany ?? null,
+      otherInsurances: prop.otherInsurances ?? null,
+      propertyManagementCompany: prop.propertyManagementCompany ?? null,
+      inTrustOrLlc: prop.inTrustOrLlc ?? false,
+      trustOrLlcName: prop.trustOrLlcName ?? null,
     };
   });
 
@@ -103,6 +116,18 @@ router.get("/dashboard", async (req, res) => {
     ? summaries.reduce((sum, s) => sum + s.equityPercent, 0) / summaries.length
     : 0;
 
+  // Property Info aggregates
+  const hoaProperties = summaries.filter(s => s.hasHoa);
+  const totalHoaMonthly = hoaProperties.reduce((sum, s) => sum + (s.hoaAmount ?? 0), 0);
+  const entityProperties = summaries.filter(s => s.inTrustOrLlc);
+  const managedProperties = summaries.filter(s => s.propertyManagementCompany);
+  const uninsuredProperties = summaries.filter(s => !s.insuranceCompany);
+
+  // Properties missing key info (no lender, no title holder)
+  const missingInfoCount = summaries.filter(
+    s => !s.lender || !s.titleHolder || !s.insuranceCompany,
+  ).length;
+
   res.json({
     totalProperties: properties.length,
     totalPortfolioValue: round(totalPortfolioValue),
@@ -115,6 +140,13 @@ router.get("/dashboard", async (req, res) => {
     nextPayoff: nextPayoff ? { id: nextPayoff.id, name: nextPayoff.name, payoffDate: nextPayoff.payoffDate, estimatedBalance: nextPayoff.estimatedBalance } : null,
     bestAppreciation: bestAppreciation ? { id: bestAppreciation.id, name: bestAppreciation.name, appreciation: bestAppreciation.appreciation, appreciationPercent: bestAppreciation.appreciationPercent } : null,
     highestLTV: highestLTV ? { id: highestLTV.id, name: highestLTV.name, ltv: highestLTV.ltv, estimatedBalance: highestLTV.estimatedBalance } : null,
+    // Property Info spotlights
+    hoaCount: hoaProperties.length,
+    totalHoaMonthly: round(totalHoaMonthly),
+    entityCount: entityProperties.length,
+    managedCount: managedProperties.length,
+    uninsuredCount: uninsuredProperties.length,
+    missingInfoCount,
     properties: summaries,
   });
 });

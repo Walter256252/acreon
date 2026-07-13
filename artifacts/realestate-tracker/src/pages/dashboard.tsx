@@ -4,6 +4,7 @@ import { formatCurrency, formatPercent } from "@/lib/utils";
 import {
   Building, DollarSign, PieChart, Landmark, TrendingUp, TrendingDown,
   CalendarCheck, Award, AlertTriangle, BarChart3, Link, LayoutDashboard,
+  Home, Lock, Briefcase, ShieldOff, Info,
 } from "lucide-react";
 import { PortfolioChat } from "@/components/portfolio-chat";
 import { useLocation } from "wouter";
@@ -231,6 +232,49 @@ export default function Dashboard() {
               accent="red"
               propertyId={data.highestLTV?.id}
             />
+
+            {/* 7. HOA exposure — only show if at least one property has HOA */}
+            {(data.hoaCount ?? 0) > 0 && (
+              <InsightCard
+                label="HOA Exposure"
+                value={formatCurrency(data.totalHoaMonthly ?? 0)}
+                sub={`${data.hoaCount} propert${data.hoaCount === 1 ? "y" : "ies"} with HOA`}
+                icon={<Home className="w-3.5 h-3.5" />}
+                accent="amber"
+              />
+            )}
+
+            {/* 8. Entity holdings — only show if at least one property is in trust/LLC */}
+            {(data.entityCount ?? 0) > 0 && (
+              <InsightCard
+                label="In Entity"
+                value={String(data.entityCount)}
+                sub={`of ${data.totalProperties} in trust or LLC`}
+                icon={<Lock className="w-3.5 h-3.5" />}
+                accent="violet"
+              />
+            )}
+
+            {/* 9. Managed properties — only show if at least one is professionally managed */}
+            {(data.managedCount ?? 0) > 0 && (
+              <InsightCard
+                label="Managed"
+                value={String(data.managedCount)}
+                sub={`of ${data.totalProperties} professionally managed`}
+                icon={<Briefcase className="w-3.5 h-3.5" />}
+                accent="blue"
+              />
+            )}
+
+            {/* 10. Missing info — only show if there are gaps to fill in */}
+            {(data.missingInfoCount ?? 0) > 0 && (
+              <InsightCard
+                label="Incomplete Info"
+                value={String(data.missingInfoCount)}
+                sub="missing lender, title, or insurance"
+                icon={<Info className="w-3.5 h-3.5" />}
+              />
+            )}
 
           </div>
         </div>
