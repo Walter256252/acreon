@@ -76,6 +76,7 @@ export const EXPENSE_CATEGORIES = [
 ] as const;
 
 export const LOAN_PAYMENT_CATEGORIES = [
+  "Mortgage Payment (Combined)",
   "Principal",
   "Interest",
   "Escrow",

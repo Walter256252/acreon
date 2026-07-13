@@ -381,22 +381,23 @@ router.get("/finances/summary", async (req, res) => {
         break;
       case "expense":
         if (row.category === "Mortgage Interest") {
+          // Mortgage interest is below NOI — keep out of operating expenses
           mortgageInterestPaid += amt;
+          agg.mortgagePayments += amt; // show in per-property debt payments, not operating expenses
         } else {
           operatingExpenses += amt;
+          agg.operatingExpenses += amt;
         }
-        agg.operatingExpenses += amt;
         break;
       case "loan_payment":
-        if (row.category === "Principal") {
-          mortgagePrincipalPaid += amt;
-          agg.mortgagePayments += amt;
-        } else if (row.category === "Interest") {
+        // All loan payments reduce cash flow; split interest vs. principal/other
+        if (row.category === "Interest") {
           mortgageInterestPaid += amt;
-          agg.mortgagePayments += amt;
         } else {
-          agg.mortgagePayments += amt;
+          // Principal, Escrow, PMI, Loan Fees, Mortgage Payment (Combined) — all non-interest
+          mortgagePrincipalPaid += amt;
         }
+        agg.mortgagePayments += amt; // all loan payments shown in per-property debt column
         break;
       case "capital_improvement":
         capitalImprovements += amt;
