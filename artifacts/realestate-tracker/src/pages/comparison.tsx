@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
-  Scale, DollarSign, TrendingDown, Clock, Trophy, ChevronDown,
-  CheckSquare, Square, Play, Loader2, Info, Sparkles,
+  Scale, DollarSign, Clock, Trophy, ChevronDown,
+  CheckSquare, Square, Play, Loader2, Info, Sparkles, CalendarDays,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
@@ -202,9 +202,25 @@ function ResultCard({
 
 export default function Comparison() {
   // Scenario state
-  const [amount, setAmount] = useState("1000");
+  const [amount, setAmount] = useState("");
   const [mode, setMode] = useState<ScenarioMode>("monthly-for");
-  const [months, setMonths] = useState("6");
+  const [months, setMonths] = useState("");
+
+  // Optional end-date for "monthly-for" mode
+  const [endMonth, setEndMonth] = useState(""); // "1"–"12"
+  const [endYear, setEndYear] = useState("");   // e.g. "2027"
+
+  // When end month+year are both set, auto-compute months from today
+  useEffect(() => {
+    if (!endMonth || !endYear) return;
+    const m = parseInt(endMonth);
+    const y = parseInt(endYear);
+    if (!m || !y || y < 2000 || y > 2100) return;
+    const now = new Date();
+    const computed =
+      (y - now.getFullYear()) * 12 + (m - 1 - now.getMonth());
+    if (computed > 0) setMonths(String(computed));
+  }, [endMonth, endYear]);
 
   // Property selection
   const [selected, setSelected] = useState<Set<number>>(new Set());
@@ -237,10 +253,13 @@ export default function Comparison() {
   };
 
   const amountNum = parseFloat(amount.replace(/[^0-9.]/g, "")) || 0;
-  const monthsNum = parseInt(months) || 1;
+  const monthsNum = parseInt(months) || 0;
   const selectedProps = properties.filter((p) => selected.has(p.id));
 
-  const canRun = amountNum > 0 && selectedProps.length > 0;
+  const canRun =
+    amountNum > 0 &&
+    selectedProps.length > 0 &&
+    (mode !== "monthly-for" || monthsNum > 0);
 
   const handleRun = async () => {
     if (!canRun) return;
@@ -368,7 +387,7 @@ export default function Comparison() {
                 inputMode="numeric"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                placeholder="1,000"
+                placeholder="Amount"
                 className="pl-9 pr-4 py-2 border border-border rounded-lg bg-background text-foreground text-sm w-40 focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
             </div>
@@ -383,9 +402,14 @@ export default function Comparison() {
                   type="text"
                   inputMode="numeric"
                   value={months}
-                  onChange={(e) => setMonths(e.target.value)}
-                  placeholder="6"
-                  className="pl-9 pr-4 py-2 border border-border rounded-lg bg-background text-foreground text-sm w-32 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  onChange={(e) => {
+                    setMonths(e.target.value);
+                    // Clear end-date when typing months directly
+                    setEndMonth("");
+                    setEndYear("");
+                  }}
+                  placeholder="# months"
+                  className="pl-9 pr-4 py-2 border border-border rounded-lg bg-background text-foreground text-sm w-36 focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">mo</span>
               </div>
@@ -393,7 +417,7 @@ export default function Comparison() {
           )}
 
           {/* Summary pill */}
-          {amountNum > 0 && (
+          {amountNum > 0 && monthsNum > 0 && (
             <div className="flex items-end">
               <div className="flex items-center gap-1.5 bg-primary/10 text-primary text-xs font-medium px-3 py-2 rounded-lg">
                 <Sparkles className="w-3.5 h-3.5" />
@@ -403,7 +427,58 @@ export default function Comparison() {
               </div>
             </div>
           )}
+          {amountNum > 0 && mode !== "monthly-for" && monthsNum === 0 && (
+            <div className="flex items-end">
+              <div className="flex items-center gap-1.5 bg-primary/10 text-primary text-xs font-medium px-3 py-2 rounded-lg">
+                <Sparkles className="w-3.5 h-3.5" />
+                {mode === "lump-sum" && `${fmt$(amountNum)} paid once now`}
+                {mode === "ongoing" && `${fmt$(amountNum)} added to every payment`}
+              </div>
+            </div>
+          )}
         </div>
+
+        {/* Optional end-date for monthly-for */}
+        {mode === "monthly-for" && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <CalendarDays className="w-3.5 h-3.5 text-muted-foreground" />
+              <label className="text-xs font-medium text-muted-foreground">
+                Or pick an end month & year <span className="font-normal">(optional — auto-fills months above)</span>
+              </label>
+            </div>
+            <div className="flex flex-wrap gap-3 items-center">
+              <select
+                value={endMonth}
+                onChange={(e) => setEndMonth(e.target.value)}
+                className="px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+              >
+                <option value="">Month</option>
+                {["January","February","March","April","May","June","July","August","September","October","November","December"].map((name, i) => (
+                  <option key={i + 1} value={String(i + 1)}>{name}</option>
+                ))}
+              </select>
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={4}
+                value={endYear}
+                onChange={(e) => setEndYear(e.target.value)}
+                placeholder="Year"
+                className="px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm w-24 focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+              {(endMonth || endYear) && (
+                <button
+                  type="button"
+                  onClick={() => { setEndMonth(""); setEndYear(""); setMonths(""); }}
+                  className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Property selection */}
