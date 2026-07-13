@@ -366,7 +366,7 @@ function ReceiptFolderSection({
 }: {
   props: Array<{ id: number; name: string; receiptFolderUrl: string | null }>;
 }) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
   const [focusId, setFocusId] = useState<number | "all">("all");
 
   const visible = focusId === "all" ? props : props.filter(p => p.id === focusId);
