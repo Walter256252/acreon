@@ -76,6 +76,9 @@ router.get("/properties/:id/amortization", async (req, res) => {
 
   const savedExtras = (prop.savedExtraPayments as Array<{ paymentNumber: number; amount: number }> | null) ?? [];
 
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-01`;
+
   const schedule = buildAmortizationSchedule({
     loanAmount: Number(prop.loanAmount),
     interestRate: Number(prop.interestRate),
@@ -86,6 +89,8 @@ router.get("/properties/:id/amortization", async (req, res) => {
     extraPayments: savedExtras,
     loggedByNumber,
     startingBalance: prop.currentLoanBalance != null ? Number(prop.currentLoanBalance) : undefined,
+    // When currentLoanBalance is set, dates start from today so payment #1 = this month
+    dateStartOverride: prop.currentLoanBalance != null ? todayStr : undefined,
   });
 
   res.json(schedule);
@@ -101,6 +106,8 @@ export function buildAmortizationSchedule(opts: {
   extraPayments?: Array<{ paymentNumber: number; amount: number }>;
   loggedByNumber?: Set<number | null>;
   startingBalance?: number;
+  /** When provided, payment dates begin at this month instead of loanStartDate */
+  dateStartOverride?: string;
 }) {
   const {
     loanAmount,
@@ -112,6 +119,7 @@ export function buildAmortizationSchedule(opts: {
     extraPayments = [],
     loggedByNumber = new Set(),
     startingBalance,
+    dateStartOverride,
   } = opts;
 
   const monthlyRate = interestRate / 100 / 12;
@@ -123,7 +131,10 @@ export function buildAmortizationSchedule(opts: {
   let cumulativeInterest = 0;
   let cumulativePrincipal = 0;
 
-  const [startYear, startMonth] = loanStartDate.split("-").map(Number);
+  // When a startingBalance is given, anchor dates to dateStartOverride (today) so
+  // payment #1 always lands on the current month, not the original loan start date.
+  const effectiveDateStart = dateStartOverride ?? loanStartDate;
+  const [startYear, startMonth] = effectiveDateStart.split("-").map(Number);
   const schedule = [];
 
   for (let i = 1; i <= totalPayments; i++) {
