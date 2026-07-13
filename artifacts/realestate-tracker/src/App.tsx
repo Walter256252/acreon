@@ -25,6 +25,8 @@ import Onboarding from "@/pages/onboarding";
 import MapView from "@/pages/map-view";
 import Occupancy from "@/pages/occupancy";
 import Finances from "@/pages/finances/index";
+import PropertyInfoTab from "@/pages/property-info-tab";
+import PropertyInfoForm from "@/pages/property-info-form";
 import NotFound from "@/pages/not-found";
 
 // REQUIRED — copy verbatim.
@@ -186,6 +188,7 @@ function AppRoute() {
               <Route path="/app/properties" component={PropertiesList} />
               <Route path="/app/properties/new" component={PropertyNew} />
               <Route path="/app/properties/:id/edit" component={PropertyEdit} />
+              <Route path="/app/properties/:id/property-info" component={PropertyInfoForm} />
               <Route path="/app/properties/:id" component={PropertyDetail} />
               <Route path="/app/projections" component={Projections} />
               <Route path="/app/communications/:id" component={PropertyCommunications} />
@@ -194,6 +197,7 @@ function AppRoute() {
               <Route path="/app/comparison" component={Comparison} />
               <Route path="/app/map" component={MapView} />
               <Route path="/app/occupancy" component={Occupancy} />
+              <Route path="/app/property-info" component={PropertyInfoTab} />
               <Route path="/app/finances" component={Finances} />
               <Route path="/app/settings" component={SettingsPage} />
               <Route path="/app/admin" component={AdminRoute} />

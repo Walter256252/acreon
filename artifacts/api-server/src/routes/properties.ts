@@ -253,6 +253,52 @@ router.patch("/properties/:id/receipt-folder", async (req, res) => {
   res.json(toApiProperty(row));
 });
 
+// ── PATCH /api/properties/:id/property-info ───────────────────────────────
+router.patch("/properties/:id/property-info", async (req, res) => {
+  const userId = uid(req);
+  const id = parseInt(req.params.id);
+
+  const owned = await assertPropertyOwner(id, userId);
+  if (!owned) { res.status(403).json({ error: "Not found" }); return; }
+
+  const body = req.body as {
+    titleHolder?: string | null;
+    loanHolder?: string | null;
+    lender?: string | null;
+    loanType?: string | null;
+    hasHoa?: boolean;
+    hoaAmount?: number | null;
+    hoaName?: string | null;
+    insuranceCompany?: string | null;
+    otherInsurances?: string | null;
+    propertyManagementCompany?: string | null;
+    inTrustOrLlc?: boolean;
+    trustOrLlcName?: string | null;
+  };
+
+  const [row] = await db
+    .update(propertiesTable)
+    .set({
+      titleHolder: body.titleHolder ?? null,
+      loanHolder: body.loanHolder ?? null,
+      lender: body.lender ?? null,
+      loanType: body.loanType ?? null,
+      hasHoa: body.hasHoa ?? false,
+      hoaAmount: body.hoaAmount != null ? String(body.hoaAmount) : null,
+      hoaName: body.hoaName ?? null,
+      insuranceCompany: body.insuranceCompany ?? null,
+      otherInsurances: body.otherInsurances ?? null,
+      propertyManagementCompany: body.propertyManagementCompany ?? null,
+      inTrustOrLlc: body.inTrustOrLlc ?? false,
+      trustOrLlcName: body.trustOrLlcName ?? null,
+      updatedAt: new Date(),
+    })
+    .where(eq(propertiesTable.id, id))
+    .returning();
+
+  res.json(toApiProperty(row));
+});
+
 // ── PATCH /api/properties/:id/rental-type (occupancy sub-route lives here) ─
 // Ownership enforced by matching clerkUserId
 export async function assertPropertyOwner(
@@ -296,6 +342,19 @@ function toApiProperty(row: typeof propertiesTable.$inferSelect) {
       : null,
     zillowUrl: row.zillowUrl ?? null,
     receiptFolderUrl: row.receiptFolderUrl ?? null,
+    // Property info fields
+    titleHolder: row.titleHolder ?? null,
+    loanHolder: row.loanHolder ?? null,
+    lender: row.lender ?? null,
+    loanType: row.loanType ?? null,
+    hasHoa: row.hasHoa ?? false,
+    hoaAmount: row.hoaAmount != null ? Number(row.hoaAmount) : null,
+    hoaName: row.hoaName ?? null,
+    insuranceCompany: row.insuranceCompany ?? null,
+    otherInsurances: row.otherInsurances ?? null,
+    propertyManagementCompany: row.propertyManagementCompany ?? null,
+    inTrustOrLlc: row.inTrustOrLlc ?? false,
+    trustOrLlcName: row.trustOrLlcName ?? null,
     monthlyTaxes: row.monthlyTaxes != null ? Number(row.monthlyTaxes) : null,
     monthlyInsurance:
       row.monthlyInsurance != null ? Number(row.monthlyInsurance) : null,

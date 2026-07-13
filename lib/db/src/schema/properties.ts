@@ -36,6 +36,19 @@ export const propertiesTable = pgTable("properties", {
   rentalType: text("rental_type"),
   // Finance receipts — link to a cloud folder (Drive, Dropbox, etc.)
   receiptFolderUrl: text("receipt_folder_url"),
+  // ── Property Info / ownership details ────────────────────────────────────
+  titleHolder: text("title_holder"),
+  loanHolder: text("loan_holder"),
+  lender: text("lender"),
+  loanType: text("loan_type"),
+  hasHoa: boolean("has_hoa").default(false),
+  hoaAmount: numeric("hoa_amount", { precision: 10, scale: 2 }),
+  hoaName: text("hoa_name"),
+  insuranceCompany: text("insurance_company"),
+  otherInsurances: text("other_insurances"),
+  propertyManagementCompany: text("property_management_company"),
+  inTrustOrLlc: boolean("in_trust_or_llc").default(false),
+  trustOrLlcName: text("trust_or_llc_name"),
   // Auth: Clerk user who owns this property
   clerkUserId: text("clerk_user_id"),
   createdAt: timestamp("created_at").defaultNow().notNull(),

@@ -611,7 +611,7 @@ export default function PropertyNew() {
         queryClient.invalidateQueries({ queryKey: getGetProjectionsQueryKey() });
         queryClient.invalidateQueries({ queryKey: ["properties-geo-user"] });
         queryClient.invalidateQueries({ queryKey: ["occupancy"] });
-        setLocation(`/app/properties/${property.id}`);
+        setLocation(`/app/properties/${property.id}/property-info?new=1`);
       },
       onError: () => {
         toast({ title: "Error", description: "Failed to add property. Please try again.", variant: "destructive" });
