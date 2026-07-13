@@ -687,6 +687,15 @@ components:
         zillowUrl:
           type: ["string", "null"]
           description: Direct Zillow listing URL for this property
+        monthlyTaxes:
+          type: ["number", "null"]
+          description: Monthly property tax amount
+        monthlyInsurance:
+          type: ["number", "null"]
+          description: Monthly insurance amount
+        monthlyRent:
+          type: ["number", "null"]
+          description: Monthly rental income
         autoPayEnabled:
           type: boolean
           description: When true, assume all past payments have been made on schedule
@@ -782,6 +791,15 @@ components:
         currentLoanBalance:
           type: ["number", "null"]
           description: Known remaining loan balance; overrides computed balance in amortization schedule
+        monthlyTaxes:
+          type: ["number", "null"]
+          description: Monthly property tax amount
+        monthlyInsurance:
+          type: ["number", "null"]
+          description: Monthly insurance amount
+        monthlyRent:
+          type: ["number", "null"]
+          description: Monthly rental income
         notes:
           type: string
         zillowUrl:
@@ -829,6 +847,15 @@ components:
         currentLoanBalance:
           type: ["number", "null"]
           description: Known remaining loan balance; overrides computed balance in amortization schedule
+        monthlyTaxes:
+          type: ["number", "null"]
+          description: Monthly property tax amount
+        monthlyInsurance:
+          type: ["number", "null"]
+          description: Monthly insurance amount
+        monthlyRent:
+          type: ["number", "null"]
+          description: Monthly rental income
         valueLastUpdatedAt:
           type: ["string", "null"]
         zillowUrl:

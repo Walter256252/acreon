@@ -356,6 +356,9 @@ export const ListPropertiesResponseItem = zod.object({
   "notes": zod.string().nullish(),
   "valueLastUpdatedAt": zod.string().nullish().describe('ISO timestamp of when currentValue was last manually refreshed'),
   "zillowUrl": zod.string().nullish().describe('Direct Zillow listing URL for this property'),
+  "monthlyTaxes": zod.number().nullish().describe('Monthly property tax amount'),
+  "monthlyInsurance": zod.number().nullish().describe('Monthly insurance amount'),
+  "monthlyRent": zod.number().nullish().describe('Monthly rental income'),
   "autoPayEnabled": zod.boolean().optional().describe('When true, assume all past payments have been made on schedule'),
   "savedExtraMonthly": zod.number().nullish().describe('Persistent extra principal added to every monthly payment'),
   "savedExtraPayments": zod.array(zod.object({
@@ -390,6 +393,9 @@ export const CreatePropertyBody = zod.object({
   "loanStartDate": zod.string(),
   "monthlyPayment": zod.number(),
   "currentLoanBalance": zod.number().nullish().describe('Known remaining loan balance; overrides computed balance in amortization schedule'),
+  "monthlyTaxes": zod.number().nullish().describe('Monthly property tax amount'),
+  "monthlyInsurance": zod.number().nullish().describe('Monthly insurance amount'),
+  "monthlyRent": zod.number().nullish().describe('Monthly rental income'),
   "notes": zod.string().optional(),
   "zillowUrl": zod.string().optional()
 })
@@ -413,6 +419,9 @@ export const CreatePropertyResponse = zod.object({
   "notes": zod.string().nullish(),
   "valueLastUpdatedAt": zod.string().nullish().describe('ISO timestamp of when currentValue was last manually refreshed'),
   "zillowUrl": zod.string().nullish().describe('Direct Zillow listing URL for this property'),
+  "monthlyTaxes": zod.number().nullish().describe('Monthly property tax amount'),
+  "monthlyInsurance": zod.number().nullish().describe('Monthly insurance amount'),
+  "monthlyRent": zod.number().nullish().describe('Monthly rental income'),
   "autoPayEnabled": zod.boolean().optional().describe('When true, assume all past payments have been made on schedule'),
   "savedExtraMonthly": zod.number().nullish().describe('Persistent extra principal added to every monthly payment'),
   "savedExtraPayments": zod.array(zod.object({
@@ -447,6 +456,9 @@ export const BulkImportPropertiesBody = zod.object({
   "loanStartDate": zod.string(),
   "monthlyPayment": zod.number(),
   "currentLoanBalance": zod.number().nullish().describe('Known remaining loan balance; overrides computed balance in amortization schedule'),
+  "monthlyTaxes": zod.number().nullish().describe('Monthly property tax amount'),
+  "monthlyInsurance": zod.number().nullish().describe('Monthly insurance amount'),
+  "monthlyRent": zod.number().nullish().describe('Monthly rental income'),
   "notes": zod.string().optional(),
   "zillowUrl": zod.string().optional()
 }))
@@ -488,6 +500,9 @@ export const GetPropertyResponse = zod.object({
   "notes": zod.string().nullish(),
   "valueLastUpdatedAt": zod.string().nullish().describe('ISO timestamp of when currentValue was last manually refreshed'),
   "zillowUrl": zod.string().nullish().describe('Direct Zillow listing URL for this property'),
+  "monthlyTaxes": zod.number().nullish().describe('Monthly property tax amount'),
+  "monthlyInsurance": zod.number().nullish().describe('Monthly insurance amount'),
+  "monthlyRent": zod.number().nullish().describe('Monthly rental income'),
   "autoPayEnabled": zod.boolean().optional().describe('When true, assume all past payments have been made on schedule'),
   "savedExtraMonthly": zod.number().nullish().describe('Persistent extra principal added to every monthly payment'),
   "savedExtraPayments": zod.array(zod.object({
@@ -528,6 +543,9 @@ export const UpdatePropertyBody = zod.object({
   "amount": zod.number()
 })).nullish(),
   "currentLoanBalance": zod.number().nullish().describe('Known remaining loan balance; overrides computed balance in amortization schedule'),
+  "monthlyTaxes": zod.number().nullish().describe('Monthly property tax amount'),
+  "monthlyInsurance": zod.number().nullish().describe('Monthly insurance amount'),
+  "monthlyRent": zod.number().nullish().describe('Monthly rental income'),
   "valueLastUpdatedAt": zod.string().nullish(),
   "zillowUrl": zod.string().nullish()
 })
@@ -551,6 +569,9 @@ export const UpdatePropertyResponse = zod.object({
   "notes": zod.string().nullish(),
   "valueLastUpdatedAt": zod.string().nullish().describe('ISO timestamp of when currentValue was last manually refreshed'),
   "zillowUrl": zod.string().nullish().describe('Direct Zillow listing URL for this property'),
+  "monthlyTaxes": zod.number().nullish().describe('Monthly property tax amount'),
+  "monthlyInsurance": zod.number().nullish().describe('Monthly insurance amount'),
+  "monthlyRent": zod.number().nullish().describe('Monthly rental income'),
   "autoPayEnabled": zod.boolean().optional().describe('When true, assume all past payments have been made on schedule'),
   "savedExtraMonthly": zod.number().nullish().describe('Persistent extra principal added to every monthly payment'),
   "savedExtraPayments": zod.array(zod.object({

@@ -30,6 +30,21 @@ export interface PropertyInput {
      * @nullable
      */
   currentLoanBalance?: number | null;
+  /**
+     * Monthly property tax amount
+     * @nullable
+     */
+  monthlyTaxes?: number | null;
+  /**
+     * Monthly insurance amount
+     * @nullable
+     */
+  monthlyInsurance?: number | null;
+  /**
+     * Monthly rental income
+     * @nullable
+     */
+  monthlyRent?: number | null;
   notes?: string;
   zillowUrl?: string;
 }
