@@ -25,13 +25,15 @@ async function requireAdmin(req: Request, res: Response, next: NextFunction) {
   }
 }
 
-// Nominatim geocode with a simple retry
-async function geocodeAddress(address: string): Promise<{
+type GeoResult = {
   lat: number; lng: number; city: string | null; state: string | null;
   country: string | null; displayName: string | null;
-} | null> {
+};
+
+// Hit Nominatim with a single query string. Returns null on no result or error.
+async function nominatimQuery(query: string): Promise<GeoResult | null> {
   try {
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&addressdetails=1&limit=1&countrycodes=us`;
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&addressdetails=1&limit=1&countrycodes=us`;
     const res = await fetch(url, {
       headers: { "User-Agent": "Acreon-Admin/1.0 (realestate-tracker)" },
     });
@@ -54,6 +56,41 @@ async function geocodeAddress(address: string): Promise<{
   } catch {
     return null;
   }
+}
+
+// Geocode with a fallback chain:
+//   1. Full address (street + city + state + zip)
+//   2. City + state + zip          (handles bad/misspelled street names)
+//   3. City + state                (handles bad zip)
+// Each fallback adds 1.1 s due to Nominatim rate-limiting, so we only go
+// deeper when the previous attempt returns nothing.
+async function geocodeAddress(
+  address: string,
+  city: string | null,
+  state: string | null,
+  zip: string | null,
+): Promise<GeoResult | null> {
+  // Attempt 1: full address
+  const full = [address, city, state, zip].filter(Boolean).join(", ");
+  const r1 = await nominatimQuery(full);
+  if (r1) return r1;
+
+  // Attempt 2: city + state + zip (skip the street name)
+  if (city || state) {
+    await sleep(1100);
+    const cityLevel = [city, state, zip].filter(Boolean).join(", ");
+    const r2 = await nominatimQuery(cityLevel);
+    if (r2) return r2;
+  }
+
+  // Attempt 3: city + state only
+  if (city && state) {
+    await sleep(1100);
+    const r3 = await nominatimQuery(`${city}, ${state}`);
+    if (r3) return r3;
+  }
+
+  return null;
 }
 
 function sleep(ms: number) {
@@ -100,8 +137,7 @@ router.get("/admin/properties-geo", requireAdmin, async (_req, res) => {
   // Geocode any that aren't cached yet
   const uncached = allProperties.filter(p => !cachedMap.has(p.id));
   for (const prop of uncached) {
-    const query = [prop.address, prop.city, prop.state, prop.zip].filter(Boolean).join(", ");
-    const geo = await geocodeAddress(query);
+    const geo = await geocodeAddress(prop.address, prop.city, prop.state, prop.zip);
     if (geo) {
       const [inserted] = await db.insert(propertyGeocodesTable).values({
         propertyId: prop.id,
@@ -124,7 +160,7 @@ router.get("/admin/properties-geo", requireAdmin, async (_req, res) => {
       }).returning();
       if (inserted) cachedMap.set(prop.id, inserted);
     }
-    // Nominatim rate limit: max 1 req/sec
+    // Nominatim rate limit: max 1 req/sec (fallback chain sleeps internally)
     await sleep(1100);
   }
 
@@ -235,8 +271,7 @@ router.get("/properties-geo", async (req, res) => {
   // Geocode any that aren't cached yet (Nominatim, 1 req/sec)
   const uncached = allProperties.filter(p => !cachedMap.has(p.id));
   for (const prop of uncached) {
-    const query = [prop.address, prop.city, prop.state, prop.zip].filter(Boolean).join(", ");
-    const geo = await geocodeAddress(query);
+    const geo = await geocodeAddress(prop.address, prop.city, prop.state, prop.zip);
     if (geo) {
       const [inserted] = await db.insert(propertyGeocodesTable).values({
         propertyId: prop.id,
@@ -259,6 +294,7 @@ router.get("/properties-geo", async (req, res) => {
       }).returning();
       if (inserted) cachedMap.set(prop.id, inserted);
     }
+    // Nominatim rate limit: max 1 req/sec (fallback chain sleeps internally)
     await sleep(1100);
   }
 
