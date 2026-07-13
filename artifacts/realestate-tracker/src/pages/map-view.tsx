@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { MapContainer, TileLayer, Marker, Popup, CircleMarker } from "react-leaflet";
 import L from "leaflet";
@@ -157,7 +157,7 @@ export default function MapView() {
     );
   }, [occupancyData]);
 
-  const navigate = useNavigate();
+  const [, setLocation] = useLocation();
 
   const mapped = useMemo(
     () => (data?.properties ?? []).filter(p => p.lat !== null && p.lng !== null),
@@ -546,7 +546,7 @@ export default function MapView() {
                       <p className="text-xs text-amber-700 dark:text-amber-400 truncate">{p.address}</p>
                     </div>
                     <button
-                      onClick={() => navigate(`/app/properties/${p.id}/edit`)}
+                      onClick={() => setLocation(`/app/properties/${p.id}/edit`)}
                       className="flex items-center gap-1.5 text-xs font-medium text-amber-800 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-100 whitespace-nowrap shrink-0 underline underline-offset-2"
                     >
                       Edit address

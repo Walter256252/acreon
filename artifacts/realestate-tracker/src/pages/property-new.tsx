@@ -28,7 +28,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, FileSpreadsheet, PlusCircle, Upload, X, CheckCircle2, AlertCircle, Info } from "lucide-react";
+import { ArrowLeft, FileSpreadsheet, PlusCircle, Upload, X, CheckCircle2, AlertCircle, Info, ExternalLink } from "lucide-react";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
 
@@ -94,7 +94,6 @@ const formSchema = z.object({
   currentLoanBalance: z.preprocess(stripCurrency, z.coerce.number().min(0, "Must be positive")).optional(),
   monthlyPayment: z.preprocess(stripCurrency, z.coerce.number().min(0, "Must be positive")),
   notes: z.string().optional(),
-  zillowUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
 });
 
 // ─── Spreadsheet import helpers ──────────────────────────────────────────────
@@ -520,6 +519,7 @@ export default function PropertyNew() {
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<"manual" | "import">("manual");
   const [knowCurrentBalance, setKnowCurrentBalance] = useState(false);
+  const [connectToZillow, setConnectToZillow] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -539,9 +539,11 @@ export default function PropertyNew() {
       currentLoanBalance: undefined,
       monthlyPayment: 0,
       notes: "",
-      zillowUrl: "",
     },
   });
+
+  // Watch address for Zillow preview
+  const watchedAddress = useWatch({ control: form.control, name: "address" });
 
   // Watch loan params + balance for P&I auto-calculation
   const watchedLoan = useWatch({ control: form.control, name: "loanAmount" });
@@ -590,13 +592,17 @@ export default function PropertyNew() {
       }
     }
 
+    const zillowUrl = connectToZillow && values.address
+      ? `https://www.zillow.com/homes/${encodeURIComponent(values.address)}_rb/`
+      : undefined;
+
     createProperty.mutate({ data: {
       ...values,
       city: values.city || undefined,
       state: values.state || undefined,
       zip: values.zip || undefined,
       currentLoanBalance,
-      zillowUrl: values.zillowUrl || undefined,
+      zillowUrl,
     } }, {
       onSuccess: (property) => {
         toast({ title: "Property Added", description: "Successfully added to your portfolio." });
@@ -819,20 +825,35 @@ export default function PropertyNew() {
               </div>
 
 
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold border-b pb-2">Zillow Listing</h3>
-                <FormField control={form.control} name="zillowUrl" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Zillow Listing URL <span className="text-muted-foreground font-normal">(optional)</span></FormLabel>
-                    <FormControl>
-                      <Input type="url" placeholder="https://www.zillow.com/homedetails/..." {...field} value={field.value ?? ""} />
-                    </FormControl>
-                    <FormDescription>
-                      Paste the exact Zillow listing URL — the "Check Zillow listing" button on the property page will link directly to it.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )} />
+              <div className="space-y-3">
+                <h3 className="text-lg font-semibold border-b pb-2">Zillow</h3>
+                <label className="flex items-start gap-3 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={connectToZillow}
+                    onChange={e => setConnectToZillow(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-border accent-primary cursor-pointer"
+                  />
+                  <div className="flex-1">
+                    <span className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
+                      Connect this property to Zillow
+                    </span>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Adds a Zillow search link to the property page using the address above.
+                    </p>
+                    {connectToZillow && watchedAddress && (
+                      <a
+                        href={`https://www.zillow.com/homes/${encodeURIComponent(watchedAddress)}_rb/`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 mt-2 text-xs text-blue-600 hover:text-blue-700 underline underline-offset-2"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        Preview link
+                      </a>
+                    )}
+                  </div>
+                </label>
               </div>
 
               <div className="space-y-4">

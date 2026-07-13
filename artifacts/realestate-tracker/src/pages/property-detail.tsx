@@ -459,6 +459,16 @@ export default function PropertyDetail() {
           <div className="flex items-center gap-2 mt-2 text-muted-foreground">
             <MapPin className="w-4 h-4" />
             <span className="text-sm">{property.address}</span>
+            <a
+              href={zillowUrl(property)}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={property.zillowUrl ? "View on Zillow" : "Search on Zillow"}
+              className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/50 border border-blue-200 dark:border-blue-800 px-2 py-0.5 rounded-full transition-colors"
+            >
+              <ExternalLink className="w-3 h-3" />
+              {property.zillowUrl ? "Zillow" : "Search Zillow"}
+            </a>
           </div>
         </div>
 
