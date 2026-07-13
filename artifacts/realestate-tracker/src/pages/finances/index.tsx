@@ -176,7 +176,6 @@ export default function Finances() {
       )}
       {tab === "transactions" && (
         <FinancesTransactions
-          properties={properties}
           filterPropertyId={propFilter}
           dateFrom={derived.from}
           dateTo={derived.to}

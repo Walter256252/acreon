@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  Plus, Pencil, Trash2, CheckCircle, Circle, ChevronDown, X, Search,
+  Plus, Pencil, Trash2, CheckCircle, Circle, X, Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -28,7 +28,6 @@ interface Transaction {
 }
 
 interface Props {
-  properties: Property[];
   filterPropertyId: string;
   dateFrom: string;
   dateTo: string;
@@ -274,13 +273,19 @@ function TransactionModal({
 
 // ── Main Component ────────────────────────────────────────────────────────
 
-export default function FinancesTransactions({ properties, filterPropertyId, dateFrom, dateTo }: Props) {
+export default function FinancesTransactions({ filterPropertyId, dateFrom, dateTo }: Props) {
   const qc = useQueryClient();
   const [editTx, setEditTx] = useState<Transaction | null | "new">(null);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [reviewFilter, setReviewFilter] = useState("");
   const [deleteId, setDeleteId] = useState<number | null>(null);
+
+  // Fetch properties directly so the dropdown is always populated
+  const { data: properties = [] } = useQuery<Property[]>({
+    queryKey: ["/api/properties"],
+    queryFn: () => fetch("/api/properties").then(r => r.json()),
+  });
 
   const params = new URLSearchParams();
   if (filterPropertyId) params.set("propertyId", filterPropertyId);
