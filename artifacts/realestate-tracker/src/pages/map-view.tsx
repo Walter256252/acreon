@@ -102,7 +102,7 @@ function equityRadius(equity: number, maxEquity: number): number {
 
 function occupancyColor(pct: number): string {
   if (pct >= 80) return "#10b981"; // emerald
-  if (pct >= 50) return "#f59e0b"; // amber
+  if (pct >= 50) return "#eab308"; // yellow
   return "#ef4444";                // red
 }
 
@@ -311,7 +311,7 @@ export default function MapView() {
               <span className="w-3 h-3 rounded-full bg-emerald-500 inline-block" /> High equity
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-full bg-amber-400 inline-block" /> Medium equity
+              <span className="w-3 h-3 rounded-full bg-yellow-400 inline-block" /> Medium equity
             </span>
             <span className="flex items-center gap-1.5">
               <span className="w-3 h-3 rounded-full bg-red-500 inline-block" /> Lower equity
@@ -328,7 +328,7 @@ export default function MapView() {
               <span className="w-3 h-3 rounded-full bg-emerald-500 inline-block" /> ≥ 80%
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-full bg-amber-400 inline-block" /> 50–80%
+              <span className="w-3 h-3 rounded-full bg-yellow-400 inline-block" /> 50–80%
             </span>
             <span className="flex items-center gap-1.5">
               <span className="w-3 h-3 rounded-full bg-red-500 inline-block" /> &lt; 50%

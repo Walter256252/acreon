@@ -31,17 +31,17 @@ function LivePreviewCard({ preview }: { preview: LivePreview }) {
   return (
     <div className="rounded-xl border border-primary/30 overflow-hidden text-sm ring-1 ring-primary/10">
       <div className="bg-stone-900 px-5 py-4">
-        <p className="text-orange-400 text-xs font-bold tracking-widest uppercase mb-1">{month} Update</p>
+        <p className="text-emerald-400 text-xs font-bold tracking-widest uppercase mb-1">{month} Update</p>
         <p className="text-white font-bold text-base">Your Acreon Portfolio</p>
       </div>
-      <div className="bg-orange-500 px-5 py-3 flex items-center gap-6">
+      <div className="bg-emerald-700 px-5 py-3 flex items-center gap-6">
         {[
           { label: "Properties", value: String(preview.stats.totalProperties) },
           { label: "Total Equity", value: preview.stats.totalEquityFormatted },
           { label: "Avg LTV", value: `${preview.stats.avgLtv}%` },
         ].map((s) => (
           <div key={s.label}>
-            <p className="text-orange-100 text-xs font-semibold uppercase tracking-wide">{s.label}</p>
+            <p className="text-emerald-100 text-xs font-semibold uppercase tracking-wide">{s.label}</p>
             <p className="text-white font-bold text-lg leading-tight">{s.value}</p>
           </div>
         ))}
@@ -72,7 +72,7 @@ function LivePreviewCard({ preview }: { preview: LivePreview }) {
           </div>
         )}
         <p className="text-gray-600 leading-relaxed">{preview.closingLine}</p>
-        <div className="inline-block bg-orange-500 rounded-lg px-4 py-2">
+        <div className="inline-block bg-emerald-700 rounded-lg px-4 py-2">
           <span className="text-white font-semibold text-sm">View My Full Portfolio →</span>
         </div>
       </div>

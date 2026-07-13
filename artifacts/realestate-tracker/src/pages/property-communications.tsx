@@ -68,7 +68,7 @@ const TOPIC_ICON: Record<string, React.ReactNode> = {
 };
 
 const TOPIC_COLOR: Record<string, string> = {
-  "Maintenance & Repairs": "bg-orange-100 text-orange-700 border-orange-200",
+  "Maintenance & Repairs": "bg-slate-100 text-slate-700 border-slate-200",
   "Lease & Tenants":       "bg-blue-100 text-blue-700 border-blue-200",
   "Payments & Finances":   "bg-emerald-100 text-emerald-700 border-emerald-200",
   "Inspections":           "bg-violet-100 text-violet-700 border-violet-200",
@@ -166,13 +166,13 @@ function NoteCard({ note }: { note: Note }) {
             {note.actionItems.length > 0 && (
               <div>
                 <div className="flex items-center gap-1.5 mb-2">
-                  <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
+                  <Lightbulb className="w-3.5 h-3.5 text-emerald-600" />
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Action Items</p>
                 </div>
                 <ul className="space-y-1">
                   {note.actionItems.map((item, i) => (
                     <li key={i} className="flex items-start gap-2 text-sm text-foreground">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-1.5 shrink-0" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
                       {item}
                     </li>
                   ))}

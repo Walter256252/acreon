@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { Building2, TrendingUp, Calculator, BrainCircuit, ChevronRight, BarChart3, ShieldCheck, Zap } from "lucide-react";
+import { TrendingUp, Calculator, BrainCircuit, ChevronRight, BarChart3, ShieldCheck, Zap } from "lucide-react";
 
 const FEATURES = [
   {
@@ -37,20 +37,20 @@ const STATS = [
 
 export default function Landing() {
   return (
-    <div className="min-h-screen bg-[hsl(45,20%,97%)] text-[hsl(30,20%,15%)] font-sans">
+    <div className="min-h-screen bg-[hsl(120,6%,97%)] text-[hsl(160,12%,12%)] font-sans">
 
       {/* Nav */}
-      <header className="border-b border-[hsl(45,15%,85%)] bg-[hsl(45,20%,97%)]/90 backdrop-blur-sm sticky top-0 z-50">
+      <header className="border-b border-[hsl(120,8%,85%)] bg-[hsl(120,6%,97%)]/90 backdrop-blur-sm sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2.5 font-bold text-xl tracking-tight">
-            <Building2 className="w-6 h-6 text-[hsl(25,85%,45%)]" />
+            <img src="/logo.png" alt="Acreon" className="w-7 h-7 object-contain" />
             Acreon
           </div>
           <div className="flex items-center gap-3">
-            <Link href="/sign-in" className="text-sm font-medium text-[hsl(30,15%,45%)] hover:text-[hsl(30,20%,15%)] transition-colors px-3 py-2 cursor-pointer">
+            <Link href="/sign-in" className="text-sm font-medium text-[hsl(160,8%,42%)] hover:text-[hsl(160,12%,12%)] transition-colors px-3 py-2 cursor-pointer">
               Sign in
             </Link>
-            <Link href="/sign-up" className="text-sm font-semibold bg-[hsl(25,85%,45%)] text-white px-4 py-2 rounded-md hover:bg-[hsl(25,85%,38%)] transition-colors cursor-pointer">
+            <Link href="/sign-up" className="text-sm font-semibold bg-[hsl(150,48%,34%)] text-white px-4 py-2 rounded-md hover:bg-[hsl(150,48%,28%)] transition-colors cursor-pointer">
               Get started
             </Link>
           </div>
@@ -59,18 +59,18 @@ export default function Landing() {
 
       {/* Hero */}
       <section className="max-w-6xl mx-auto px-6 pt-20 pb-24 text-center">
-        <div className="inline-flex items-center gap-2 bg-[hsl(25,85%,45%)]/10 text-[hsl(25,85%,40%)] text-xs font-semibold px-3 py-1.5 rounded-full mb-8 border border-[hsl(25,85%,45%)]/20">
+        <div className="inline-flex items-center gap-2 bg-[hsl(150,48%,34%)]/10 text-[hsl(150,48%,30%)] text-xs font-semibold px-3 py-1.5 rounded-full mb-8 border border-[hsl(150,48%,34%)]/20">
           <Zap className="w-3 h-3" />
           Real estate portfolio intelligence
         </div>
 
         <h1 className="text-5xl sm:text-6xl font-extrabold tracking-tight leading-tight mb-6 max-w-3xl mx-auto">
           Know exactly where your{" "}
-          <span className="text-[hsl(25,85%,45%)]">portfolio stands</span>
+          <span className="text-[hsl(150,48%,34%)]">portfolio stands</span>
           {" "}— today and in 30 years
         </h1>
 
-        <p className="text-lg text-[hsl(30,15%,45%)] max-w-2xl mx-auto mb-10 leading-relaxed">
+        <p className="text-lg text-[hsl(160,8%,42%)] max-w-2xl mx-auto mb-10 leading-relaxed">
           Acreon gives real estate investors a clear view of equity, amortization,
           and long-term projections across every property — with an AI assistant that
           knows your data.
@@ -79,14 +79,14 @@ export default function Landing() {
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <Link
             href="/sign-up"
-            className="inline-flex items-center gap-2 bg-[hsl(25,85%,45%)] text-white font-semibold px-7 py-3.5 rounded-md hover:bg-[hsl(25,85%,38%)] transition-colors text-base cursor-pointer shadow-sm"
+            className="inline-flex items-center gap-2 bg-[hsl(150,48%,34%)] text-white font-semibold px-7 py-3.5 rounded-md hover:bg-[hsl(150,48%,28%)] transition-colors text-base cursor-pointer shadow-sm"
           >
             Create free account
             <ChevronRight className="w-4 h-4" />
           </Link>
           <Link
             href="/sign-in"
-            className="inline-flex items-center gap-2 text-[hsl(30,20%,15%)] font-semibold px-7 py-3.5 rounded-md border border-[hsl(45,15%,85%)] hover:border-[hsl(45,15%,72%)] hover:bg-[hsl(45,15%,94%)] transition-colors text-base cursor-pointer"
+            className="inline-flex items-center gap-2 text-[hsl(160,12%,12%)] font-semibold px-7 py-3.5 rounded-md border border-[hsl(120,8%,85%)] hover:border-[hsl(120,8%,72%)] hover:bg-[hsl(120,6%,94%)] transition-colors text-base cursor-pointer"
           >
             Sign in
           </Link>
@@ -94,12 +94,12 @@ export default function Landing() {
       </section>
 
       {/* Stats strip */}
-      <section className="border-y border-[hsl(45,15%,85%)] bg-white">
+      <section className="border-y border-[hsl(120,8%,85%)] bg-white">
         <div className="max-w-6xl mx-auto px-6 py-10 grid grid-cols-2 sm:grid-cols-4 gap-8">
           {STATS.map((s) => (
             <div key={s.label} className="text-center">
-              <p className="text-3xl font-extrabold text-[hsl(25,85%,45%)] tracking-tight">{s.value}</p>
-              <p className="text-sm text-[hsl(30,15%,45%)] mt-1 font-medium">{s.label}</p>
+              <p className="text-3xl font-extrabold text-[hsl(150,48%,34%)] tracking-tight">{s.value}</p>
+              <p className="text-sm text-[hsl(160,8%,42%)] mt-1 font-medium">{s.label}</p>
             </div>
           ))}
         </div>
@@ -111,7 +111,7 @@ export default function Landing() {
           <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4">
             Everything your portfolio needs
           </h2>
-          <p className="text-[hsl(30,15%,45%)] max-w-xl mx-auto">
+          <p className="text-[hsl(160,8%,42%)] max-w-xl mx-auto">
             Built for investors who want numbers, not guesswork.
           </p>
         </div>
@@ -120,13 +120,13 @@ export default function Landing() {
           {FEATURES.map((f) => (
             <div
               key={f.title}
-              className="rounded-xl border border-[hsl(45,15%,85%)] bg-white p-7 hover:border-[hsl(25,85%,45%)]/30 hover:shadow-sm transition-all"
+              className="rounded-xl border border-[hsl(120,8%,85%)] bg-white p-7 hover:border-[hsl(150,48%,34%)]/30 hover:shadow-sm transition-all"
             >
-              <div className="w-10 h-10 rounded-lg bg-[hsl(25,85%,45%)]/10 flex items-center justify-center mb-4">
-                <f.icon className="w-5 h-5 text-[hsl(25,85%,45%)]" />
+              <div className="w-10 h-10 rounded-lg bg-[hsl(150,48%,34%)]/10 flex items-center justify-center mb-4">
+                <f.icon className="w-5 h-5 text-[hsl(150,48%,34%)]" />
               </div>
               <h3 className="font-bold text-lg mb-2">{f.title}</h3>
-              <p className="text-[hsl(30,15%,45%)] text-sm leading-relaxed">{f.description}</p>
+              <p className="text-[hsl(160,8%,42%)] text-sm leading-relaxed">{f.description}</p>
             </div>
           ))}
         </div>
@@ -134,17 +134,17 @@ export default function Landing() {
 
       {/* CTA banner */}
       <section className="max-w-6xl mx-auto px-6 pb-24">
-        <div className="rounded-2xl bg-[hsl(30,20%,12%)] text-white px-10 py-14 text-center">
-          <ShieldCheck className="w-8 h-8 text-[hsl(25,85%,55%)] mx-auto mb-5" />
+        <div className="rounded-2xl bg-[hsl(160,18%,10%)] text-white px-10 py-14 text-center">
+          <ShieldCheck className="w-8 h-8 text-[hsl(150,45%,46%)] mx-auto mb-5" />
           <h2 className="text-3xl font-extrabold tracking-tight mb-3">
             Ready to take control?
           </h2>
-          <p className="text-[hsl(45,20%,70%)] mb-8 max-w-md mx-auto">
+          <p className="text-[hsl(120,10%,70%)] mb-8 max-w-md mx-auto">
             Add your properties, pull up the numbers, and ask the AI anything. Free to start, no credit card needed.
           </p>
           <Link
             href="/sign-up"
-            className="inline-flex items-center gap-2 bg-[hsl(25,85%,45%)] text-white font-semibold px-8 py-3.5 rounded-md hover:bg-[hsl(25,85%,38%)] transition-colors cursor-pointer"
+            className="inline-flex items-center gap-2 bg-[hsl(150,48%,34%)] text-white font-semibold px-8 py-3.5 rounded-md hover:bg-[hsl(150,48%,28%)] transition-colors cursor-pointer"
           >
             Join Acreon
             <ChevronRight className="w-4 h-4" />
@@ -153,13 +153,13 @@ export default function Landing() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-[hsl(45,15%,85%)] py-8">
+      <footer className="border-t border-[hsl(120,8%,85%)] py-8">
         <div className="max-w-6xl mx-auto px-6 flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-2 font-semibold text-sm">
-            <Building2 className="w-4 h-4 text-[hsl(25,85%,45%)]" />
+            <img src="/logo.png" alt="Acreon" className="w-5 h-5 object-contain" />
             Acreon
           </div>
-          <p className="text-xs text-[hsl(30,15%,55%)]">
+          <p className="text-xs text-[hsl(160,8%,52%)]">
             Real estate portfolio tracker. Built for investors.
           </p>
         </div>

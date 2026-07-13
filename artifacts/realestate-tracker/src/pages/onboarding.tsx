@@ -145,7 +145,7 @@ export default function Onboarding() {
         {/* Header */}
         <div className="text-center space-y-2">
           <div className="flex justify-center mb-3">
-            <img src="/logo.svg" alt="Acreon" className="w-10 h-10" />
+            <img src="/logo.png" alt="Acreon" className="w-10 h-10" />
           </div>
           <h1 className="text-2xl font-bold text-[hsl(30,20%,15%)]">One last step</h1>
           <p className="text-sm text-[hsl(30,15%,45%)]">
