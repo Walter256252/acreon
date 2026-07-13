@@ -36,13 +36,28 @@ const allowedOrigins = new Set<string>(
   ].filter(Boolean) as string[],
 );
 
+// Allow any Replit-hosted domain (covers both dev previews and production deployments)
+function isAllowedOrigin(origin: string): boolean {
+  if (allowedOrigins.has(origin)) return true;
+  try {
+    const { hostname } = new URL(origin);
+    return (
+      hostname.endsWith(".replit.app") ||
+      hostname.endsWith(".replit.dev") ||
+      hostname.endsWith(".repl.co")
+    );
+  } catch {
+    return false;
+  }
+}
+
 app.use(
   cors({
     credentials: true,
     origin(origin, callback) {
       // Same-origin requests (no Origin header) and requests from explicitly
       // allowed origins are permitted. Everything else is rejected.
-      if (!origin || allowedOrigins.has(origin)) {
+      if (!origin || isAllowedOrigin(origin)) {
         callback(null, true);
       } else {
         callback(new Error(`CORS: origin '${origin}' not allowed`));
