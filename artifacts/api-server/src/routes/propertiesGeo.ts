@@ -31,7 +31,7 @@ async function geocodeAddress(address: string): Promise<{
   country: string | null; displayName: string | null;
 } | null> {
   try {
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&addressdetails=1&limit=1`;
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&addressdetails=1&limit=1&countrycodes=us`;
     const res = await fetch(url, {
       headers: { "User-Agent": "Acreon-Admin/1.0 (realestate-tracker)" },
     });
@@ -76,6 +76,23 @@ router.get("/admin/properties-geo", requireAdmin, async (_req, res) => {
   const propIds = allProperties.map(p => p.id);
   const cached = await db.select().from(propertyGeocodesTable).where(inArray(propertyGeocodesTable.propertyId, propIds));
   const cachedMap = new Map(cached.map(c => [c.propertyId, c]));
+
+  // Any property whose cached state doesn't match its stored state is stale — re-geocode it
+  const staleIds = allProperties
+    .filter(p => {
+      const cached = cachedMap.get(p.id);
+      if (!cached) return false; // uncached, handled below
+      if (!p.state) return false; // no expected state to compare
+      const cachedState = (cached.state ?? "").toLowerCase().trim();
+      const propState = p.state.toLowerCase().trim();
+      // Compare abbreviation or full name: if clearly different, bust
+      return cachedState !== propState && !cachedState.includes(propState) && !propState.includes(cachedState);
+    })
+    .map(p => p.id);
+  if (staleIds.length) {
+    await db.delete(propertyGeocodesTable).where(inArray(propertyGeocodesTable.propertyId, staleIds));
+    for (const id of staleIds) cachedMap.delete(id);
+  }
 
   // Geocode any that aren't cached yet
   const uncached = allProperties.filter(p => !cachedMap.has(p.id));
@@ -192,6 +209,22 @@ router.get("/properties-geo", async (req, res) => {
   const propIds = allProperties.map(p => p.id);
   const cached = await db.select().from(propertyGeocodesTable).where(inArray(propertyGeocodesTable.propertyId, propIds));
   const cachedMap = new Map(cached.map(c => [c.propertyId, c]));
+
+  // Any property whose cached state doesn't match its stored state is stale — re-geocode it
+  const staleIds = allProperties
+    .filter(p => {
+      const cached = cachedMap.get(p.id);
+      if (!cached) return false;
+      if (!p.state) return false;
+      const cachedState = (cached.state ?? "").toLowerCase().trim();
+      const propState = p.state.toLowerCase().trim();
+      return cachedState !== propState && !cachedState.includes(propState) && !propState.includes(cachedState);
+    })
+    .map(p => p.id);
+  if (staleIds.length) {
+    await db.delete(propertyGeocodesTable).where(inArray(propertyGeocodesTable.propertyId, staleIds));
+    for (const id of staleIds) cachedMap.delete(id);
+  }
 
   // Geocode any that aren't cached yet (Nominatim, 1 req/sec)
   const uncached = allProperties.filter(p => !cachedMap.has(p.id));
