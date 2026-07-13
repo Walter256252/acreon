@@ -5,6 +5,7 @@ import { useListProperties } from "@workspace/api-client-react";
 import FinancesOverview from "./overview";
 import FinancesTransactions from "./transactions";
 import FinancesReport from "./report";
+import AiQuickAdd from "./ai-quick-add";
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -73,6 +74,9 @@ export default function Finances() {
           Track income and expenses by property. Generate a clean yearly report for your CPA.
         </p>
       </div>
+
+      {/* AI Quick Add */}
+      <AiQuickAdd />
 
       {/* Filter bar */}
       <div className="flex flex-wrap gap-3 items-end p-4 rounded-xl border border-border bg-card">

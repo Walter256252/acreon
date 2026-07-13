@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { finTransactionsTable, propertiesTable } from "@workspace/db";
 import { eq, and, gte, lte, desc, asc } from "drizzle-orm";
 import { getAuth } from "@clerk/express";
+import { openai } from "@workspace/integrations-openai-ai-server";
 
 const router: IRouter = Router();
 
@@ -431,6 +432,116 @@ router.get("/finances/report.csv", async (req, res) => {
     `attachment; filename="finances-${year}.csv"`,
   );
   res.send(csvRows.join("\n"));
+});
+
+// ── POST /finances/ai-parse ──────────────────────────────────────────────
+// Parse a free-text transaction description using AI.
+router.post("/finances/ai-parse", async (req, res) => {
+  const { text, properties = [] } = req.body as {
+    text: string;
+    properties: Array<{ id: number; name: string }>;
+  };
+
+  if (!text || typeof text !== "string" || !text.trim()) {
+    res.status(400).json({ error: "text is required" });
+    return;
+  }
+
+  const todayStr = new Date().toISOString().split("T")[0];
+
+  const INCOME_CATEGORIES = [
+    "Rental Income", "Short-Term Rental Income", "Late Fees",
+    "Pet Fees", "Parking Fees", "Laundry Income", "Storage Fees",
+    "Application Fees", "Cleaning Fees", "Other Income",
+  ];
+  const EXPENSE_CATEGORIES = [
+    "Mortgage Interest", "Property Taxes", "Homeowner's Insurance",
+    "HOA Fees", "Property Management Fees", "Repairs & Maintenance",
+    "Cleaning & Turnover", "Landscaping & Snow Removal", "Pest Control",
+    "Utilities", "Advertising & Marketing", "Legal & Professional Fees",
+    "Accounting & Tax Prep", "Travel & Transportation", "Office Supplies",
+    "Supplies & Materials", "Appliances & Furnishings",
+    "Pool & Hot Tub Maintenance", "Security Systems", "Internet & Cable",
+    "Trash Removal", "Licenses & Permits", "Depreciation", "Other Expense",
+  ];
+  const LOAN_CATEGORIES = [
+    "Principal Payment", "Interest Payment", "Escrow Payment",
+    "Mortgage Payment (Combined)", "HELOC Payment", "Other Loan Payment",
+  ];
+  const CAPITAL_CATEGORIES = [
+    "Roof Replacement", "HVAC System", "Plumbing Upgrade", "Electrical Upgrade",
+    "Foundation Work", "Addition / Expansion", "Kitchen Renovation",
+    "Bathroom Renovation", "Flooring", "Windows & Doors",
+    "Siding & Exterior", "Driveway & Parking", "Other Capital Improvement",
+  ];
+  const OWNER_CATEGORIES = [
+    "Owner Contribution", "Owner Draw", "Owner Loan Repayment",
+    "Return of Capital", "Other Owner Transaction",
+  ];
+
+  const propList = (properties as Array<{ id: number; name: string }>)
+    .map((p) => `  - id ${p.id}: "${p.name}"`)
+    .join("\n");
+
+  const systemPrompt = `You are a real estate bookkeeping assistant. Parse the user's transaction description and return a JSON object.
+
+Today's date: ${todayStr}
+
+User's properties:
+${propList || "  (none provided)"}
+
+Transaction types and their categories:
+- "income": ${INCOME_CATEGORIES.join(", ")}
+- "expense": ${EXPENSE_CATEGORIES.join(", ")}
+- "loan_payment": ${LOAN_CATEGORIES.join(", ")}
+- "capital_improvement": ${CAPITAL_CATEGORIES.join(", ")}
+- "owner_contribution": ${OWNER_CATEGORIES.join(", ")}
+- "owner_draw": ${OWNER_CATEGORIES.join(", ")}
+
+Rules:
+1. Match the property name (case-insensitive, partial match) to one of the user's properties. Return its numeric id in propertyId, or null if no match.
+2. If the user mentions a property by name that isn't in the list, return propertyId: null and propertyName with what they said.
+3. Infer date from context ("July rent" → ${todayStr.slice(0, 4)}-07-01, "last month" → first of last month). Default to today if unspecified.
+4. Extract amount as a positive number, never negative.
+5. For loan_payment: if user says "mortgage payment $2100 — $1800 principal, $300 interest", use "Mortgage Payment (Combined)" as category.
+6. Set confidence: "high" if amount + type + category all clear; "medium" if one field is inferred; "low" if two or more are unclear.
+7. Set clarification to a short note if something was ambiguous or assumed (e.g. "Assumed current year for July rent"). null if everything is clear.
+8. rentalType: "long_term" for LTR/month-to-month, "short_term" for STR/Airbnb/VRBO. null if unclear.
+
+Return ONLY valid JSON with these exact keys:
+{
+  "date": "YYYY-MM-DD",
+  "description": "string",
+  "amount": number or null,
+  "type": "income" | "expense" | "loan_payment" | "capital_improvement" | "owner_contribution" | "owner_draw",
+  "category": "string (must match one from the list above)",
+  "propertyId": number or null,
+  "propertyName": "string or null",
+  "vendorPayer": "string or null",
+  "rentalType": "long_term" | "short_term" | null,
+  "notes": "string or null",
+  "confidence": "high" | "medium" | "low",
+  "clarification": "string or null"
+}`;
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-5.4-mini",
+      max_completion_tokens: 512,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: text.trim() },
+      ],
+    });
+
+    const raw = completion.choices[0]?.message?.content ?? "{}";
+    const parsed = JSON.parse(raw);
+    res.json(parsed);
+  } catch (err) {
+    console.error("AI parse error:", err);
+    res.status(500).json({ error: "AI parsing failed" });
+  }
 });
 
 export default router;
