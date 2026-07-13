@@ -34,7 +34,8 @@ function fmt$(n: number, signed = false) {
 function currentYear() { return new Date().getFullYear(); }
 function yearRange() {
   const y = currentYear();
-  return Array.from({ length: 5 }, (_, i) => y - i);
+  const top = Math.max(y + 1, 2027);
+  return Array.from({ length: top - (y - 4) }, (_, i) => top - i);
 }
 
 // ── Section table ─────────────────────────────────────────────────────────

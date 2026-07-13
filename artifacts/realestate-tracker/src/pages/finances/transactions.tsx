@@ -67,16 +67,22 @@ const FREQ_MONTHS: Record<RecurringFrequency, number> = {
   annual: 12,
 };
 
-/** Given a start date string and frequency, return all ISO date strings
- *  from start through December 31 of the same year (inclusive). */
-function buildRecurringDates(startDate: string, freq: RecurringFrequency): string[] {
+/** Given a start date, frequency, and optional custom end date, return all
+ *  ISO date strings for each occurrence (inclusive on both ends). */
+function buildRecurringDates(
+  startDate: string,
+  freq: RecurringFrequency,
+  endDate?: string,
+): string[] {
   if (!startDate) return [];
   const step = FREQ_MONTHS[freq];
   const start = new Date(startDate + "T12:00:00");
-  const yearEnd = new Date(start.getFullYear(), 11, 31);
+  const limit = endDate
+    ? new Date(endDate + "T12:00:00")
+    : new Date(start.getFullYear(), 11, 31);
   const dates: string[] = [];
   let cur = new Date(start);
-  while (cur <= yearEnd) {
+  while (cur <= limit) {
     dates.push(cur.toISOString().split("T")[0]);
     cur = new Date(cur.getFullYear(), cur.getMonth() + step, cur.getDate());
   }
@@ -104,6 +110,8 @@ interface FormState {
   isReviewed: boolean;
   isRecurring: boolean;
   recurringFrequency: RecurringFrequency;
+  recurringEndType: "end_of_year" | "custom";
+  recurringEndDate: string;
 }
 
 const emptyForm = (): FormState => ({
@@ -120,6 +128,8 @@ const emptyForm = (): FormState => ({
   isReviewed: false,
   isRecurring: false,
   recurringFrequency: "monthly",
+  recurringEndType: "end_of_year",
+  recurringEndDate: "",
 });
 
 function txToForm(tx: Transaction): FormState {
@@ -135,6 +145,8 @@ function txToForm(tx: Transaction): FormState {
     rentalType: tx.rentalType ?? "",
     isRecurring: false,
     recurringFrequency: "monthly",
+    recurringEndType: "end_of_year",
+    recurringEndDate: "",
     notes: tx.notes ?? "",
     isReviewed: tx.isReviewed,
   };
@@ -164,10 +176,13 @@ function TransactionModal({
   const categories = categoriesForType(form.type);
 
   // Recurring date preview
-  const recurringDates = useMemo(
-    () => isNew && form.isRecurring ? buildRecurringDates(form.date, form.recurringFrequency) : [],
-    [isNew, form.isRecurring, form.date, form.recurringFrequency],
-  );
+  const recurringDates = useMemo(() => {
+    if (!isNew || !form.isRecurring) return [];
+    const endDate = form.recurringEndType === "custom" && form.recurringEndDate
+      ? form.recurringEndDate
+      : undefined;
+    return buildRecurringDates(form.date, form.recurringFrequency, endDate);
+  }, [isNew, form.isRecurring, form.date, form.recurringFrequency, form.recurringEndType, form.recurringEndDate]);
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["/api/finances/transactions"] });
@@ -344,18 +359,45 @@ function TransactionModal({
 
               {form.isRecurring && (
                 <>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-foreground">Frequency</label>
-                    <select
-                      value={form.recurringFrequency}
-                      onChange={e => set("recurringFrequency", e.target.value as RecurringFrequency)}
-                      className={sel}
-                    >
-                      {(Object.entries(FREQ_LABELS) as [RecurringFrequency, string][]).map(([v, l]) => (
-                        <option key={v} value={v}>{l}</option>
-                      ))}
-                    </select>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-foreground">Frequency</label>
+                      <select
+                        value={form.recurringFrequency}
+                        onChange={e => set("recurringFrequency", e.target.value as RecurringFrequency)}
+                        className={sel}
+                      >
+                        {(Object.entries(FREQ_LABELS) as [RecurringFrequency, string][]).map(([v, l]) => (
+                          <option key={v} value={v}>{l}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-foreground">Repeat until</label>
+                      <select
+                        value={form.recurringEndType}
+                        onChange={e => set("recurringEndType", e.target.value as "end_of_year" | "custom")}
+                        className={sel}
+                      >
+                        <option value="end_of_year">End of year</option>
+                        <option value="custom">Custom date</option>
+                      </select>
+                    </div>
                   </div>
+
+                  {form.recurringEndType === "custom" && (
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-foreground">End date</label>
+                      <input
+                        type="date"
+                        value={form.recurringEndDate}
+                        min={form.date}
+                        onChange={e => set("recurringEndDate", e.target.value)}
+                        className={inp}
+                      />
+                    </div>
+                  )}
 
                   {recurringDates.length > 0 && (
                     <div className="flex items-center gap-2 text-xs text-muted-foreground bg-primary/5 border border-primary/15 rounded-md px-3 py-2">

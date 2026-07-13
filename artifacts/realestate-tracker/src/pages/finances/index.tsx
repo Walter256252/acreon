@@ -41,7 +41,8 @@ function rangeForOption(opt: string, year: number): { from: string; to: string }
 
 function yearRange() {
   const y = currentYear();
-  return Array.from({ length: 5 }, (_, i) => y - i);
+  const top = Math.max(y + 1, 2027); // always include at least 2027
+  return Array.from({ length: top - (y - 4) }, (_, i) => top - i);
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────
