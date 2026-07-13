@@ -155,7 +155,7 @@ function ConnectEmailForm({ onConnected }: { onConnected: () => void }) {
       </div>
 
       <p className="text-sm text-muted-foreground leading-relaxed">
-        Connect your personal email account and RealTrack will search it for property-related
+        Connect your personal email account and Acreon will search it for property-related
         emails and turn them into AI-generated notes. Works with Gmail, Outlook, Yahoo, iCloud,
         and any provider that supports IMAP.
       </p>
@@ -398,7 +398,7 @@ export default function Communications() {
             </div>
             <p className="text-sm text-muted-foreground">Create a folder or label in your email client for each property and move threads there.</p>
             <ul className="text-sm text-muted-foreground space-y-1">
-              <li className="flex gap-2"><span className="text-xs bg-muted rounded px-1.5 py-0.5 flex-shrink-0 mt-0.5">1</span> In Gmail: create a label like <code className="text-xs bg-muted px-1 rounded">RealTrack/123 Main St</code></li>
+              <li className="flex gap-2"><span className="text-xs bg-muted rounded px-1.5 py-0.5 flex-shrink-0 mt-0.5">1</span> In Gmail: create a label like <code className="text-xs bg-muted px-1 rounded">Acreon/123 Main St</code></li>
               <li className="flex gap-2"><span className="text-xs bg-muted rounded px-1.5 py-0.5 flex-shrink-0 mt-0.5">2</span> In Outlook: create a subfolder with the property name</li>
               <li className="flex gap-2"><span className="text-xs bg-muted rounded px-1.5 py-0.5 flex-shrink-0 mt-0.5">3</span> Enter the exact folder name below, then Sync</li>
               <li className="flex gap-2"><span className="text-xs bg-muted rounded px-1.5 py-0.5 flex-shrink-0 mt-0.5">4</span> Tip: set up a filter to auto-label emails from tenants</li>
@@ -411,7 +411,7 @@ export default function Communications() {
               </div>
               <h3 className="font-semibold text-sm text-foreground">By Address</h3>
             </div>
-            <p className="text-sm text-muted-foreground">RealTrack searches your inbox for the property's street address. Zero setup required.</p>
+            <p className="text-sm text-muted-foreground">Acreon searches your inbox for the property's street address. Zero setup required.</p>
             <ul className="text-sm text-muted-foreground space-y-1">
               <li className="flex gap-2"><span className="text-xs bg-muted rounded px-1.5 py-0.5 flex-shrink-0 mt-0.5">1</span> No setup needed in your email client</li>
               <li className="flex gap-2"><span className="text-xs bg-muted rounded px-1.5 py-0.5 flex-shrink-0 mt-0.5">2</span> Searches for the street name in email subject &amp; body</li>
@@ -510,7 +510,7 @@ export default function Communications() {
                     {local.pullMode === "label" && (
                       <input
                         type="text"
-                        placeholder="e.g. RealTrack/123 Main St"
+                        placeholder="e.g. Acreon/123 Main St"
                         value={local.emailFolder}
                         onChange={(e) => update(prop.propertyId, { emailFolder: e.target.value }, prop)}
                         className="border border-border rounded-lg px-3 py-1.5 text-sm bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 w-52"

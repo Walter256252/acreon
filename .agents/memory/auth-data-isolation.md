@@ -1,6 +1,6 @@
 ---
 name: Auth & data isolation
-description: How Clerk auth and per-user data scoping work in RealTrack
+description: How Clerk auth and per-user data scoping work in Acreon
 ---
 
 ## Rule

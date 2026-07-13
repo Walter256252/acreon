@@ -33,7 +33,7 @@ async function geocodeAddress(address: string): Promise<{
   try {
     const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&addressdetails=1&limit=1`;
     const res = await fetch(url, {
-      headers: { "User-Agent": "RealTrack-Admin/1.0 (realestate-tracker)" },
+      headers: { "User-Agent": "Acreon-Admin/1.0 (realestate-tracker)" },
     });
     if (!res.ok) return null;
     const data = await res.json() as Array<{

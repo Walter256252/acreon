@@ -276,7 +276,7 @@ function renderHtml(content: DigestContent, month: string): string {
             <tr>
               <td>
                 <p style="margin:0;color:#f97316;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">${month} Update</p>
-                <p style="margin:4px 0 0;color:#fff;font-size:22px;font-weight:700;">Your RealTrack Portfolio</p>
+                <p style="margin:4px 0 0;color:#fff;font-size:22px;font-weight:700;">Your Acreon Portfolio</p>
               </td>
             </tr>
           </table>
@@ -365,7 +365,7 @@ function renderHtml(content: DigestContent, month: string): string {
       <!-- Footer -->
       <tr>
         <td style="background:#f9fafb;border-top:1px solid #e5e7eb;padding:20px 32px;">
-          <p style="margin:0;color:#9ca3af;font-size:12px;">You're receiving this because you enabled monthly digests in RealTrack. <a href="#" style="color:#6b7280;">Manage preferences</a></p>
+          <p style="margin:0;color:#9ca3af;font-size:12px;">You're receiving this because you enabled monthly digests in Acreon. <a href="#" style="color:#6b7280;">Manage preferences</a></p>
         </td>
       </tr>
     </table>
@@ -377,7 +377,7 @@ function renderHtml(content: DigestContent, month: string): string {
 
 function renderText(content: DigestContent, month: string): string {
   const lines = [
-    `RealTrack Portfolio Update — ${month}`,
+    `Acreon Portfolio Update — ${month}`,
     "=".repeat(50),
     "",
     content.greeting,
@@ -396,7 +396,7 @@ function renderText(content: DigestContent, month: string): string {
     content.closingLine,
     "",
     "—",
-    "RealTrack · Manage your email preferences in Settings.",
+    "Acreon · Manage your email preferences in Settings.",
   ];
   return lines.join("\n");
 }
@@ -431,7 +431,7 @@ export async function sendMonthlyDigest(
   content: DigestContent
 ): Promise<void> {
   const month = new Date().toLocaleString("default", { month: "long", year: "numeric" });
-  const subject = `Your RealTrack Portfolio Update — ${month}`;
+  const subject = `Your Acreon Portfolio Update — ${month}`;
   const html = renderHtml(content, month);
   const text = renderText(content, month);
 

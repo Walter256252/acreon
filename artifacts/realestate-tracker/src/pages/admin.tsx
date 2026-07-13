@@ -513,7 +513,7 @@ function FeedbackTab({ isAdmin }: { isAdmin: boolean }) {
                       </a>
                     </div>
                     <a
-                      href={`mailto:${item.userEmail}?subject=Re: Your RealTrack feedback`}
+                      href={`mailto:${item.userEmail}?subject=Re: Your Acreon feedback`}
                       onClick={(e) => e.stopPropagation()}
                       className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-border bg-background hover:bg-muted transition-colors shrink-0"
                     >
@@ -886,7 +886,7 @@ export default function AdminDashboard() {
                   <Label htmlFor="email-subject">Subject</Label>
                   <Input
                     id="email-subject"
-                    placeholder="Important update about RealTrack"
+                    placeholder="Important update about Acreon"
                     value={emailSubject}
                     onChange={e => setEmailSubject(e.target.value)}
                   />

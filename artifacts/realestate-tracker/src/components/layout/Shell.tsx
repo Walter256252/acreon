@@ -42,7 +42,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
         <div className="p-6">
           <Link href="/" className="flex items-center gap-3 text-sidebar-foreground font-bold text-xl tracking-tight cursor-pointer">
             <Building2 className="w-6 h-6 text-sidebar-primary" />
-            <span>RealTrack</span>
+            <span>Acreon</span>
           </Link>
         </div>
         <nav className="flex-1 px-4 space-y-1">

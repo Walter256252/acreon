@@ -44,7 +44,7 @@ export default function Landing() {
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2.5 font-bold text-xl tracking-tight">
             <Building2 className="w-6 h-6 text-[hsl(25,85%,45%)]" />
-            RealTrack
+            Acreon
           </div>
           <div className="flex items-center gap-3">
             <Link href="/sign-in" className="text-sm font-medium text-[hsl(30,15%,45%)] hover:text-[hsl(30,20%,15%)] transition-colors px-3 py-2 cursor-pointer">
@@ -71,7 +71,7 @@ export default function Landing() {
         </h1>
 
         <p className="text-lg text-[hsl(30,15%,45%)] max-w-2xl mx-auto mb-10 leading-relaxed">
-          RealTrack gives real estate investors a clear view of equity, amortization,
+          Acreon gives real estate investors a clear view of equity, amortization,
           and long-term projections across every property — with an AI assistant that
           knows your data.
         </p>
@@ -146,7 +146,7 @@ export default function Landing() {
             href="/sign-up"
             className="inline-flex items-center gap-2 bg-[hsl(25,85%,45%)] text-white font-semibold px-8 py-3.5 rounded-md hover:bg-[hsl(25,85%,38%)] transition-colors cursor-pointer"
           >
-            Join RealTrack
+            Join Acreon
             <ChevronRight className="w-4 h-4" />
           </Link>
         </div>
@@ -157,7 +157,7 @@ export default function Landing() {
         <div className="max-w-6xl mx-auto px-6 flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-2 font-semibold text-sm">
             <Building2 className="w-4 h-4 text-[hsl(25,85%,45%)]" />
-            RealTrack
+            Acreon
           </div>
           <p className="text-xs text-[hsl(30,15%,55%)]">
             Real estate portfolio tracker. Built for investors.

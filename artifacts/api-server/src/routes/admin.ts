@@ -219,15 +219,15 @@ router.post("/admin/broadcast-email", requireAdmin, async (req, res) => {
   const html = `
     <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px">
       <div style="margin-bottom:24px">
-        <img src="https://realtrack.app/logo.svg" alt="RealTrack" style="height:32px" onerror="this.style.display='none'" />
-        <h2 style="margin:0;font-size:20px;color:#1a1a1a">Message from RealTrack</h2>
+        <img src="https://realtrack.app/logo.svg" alt="Acreon" style="height:32px" onerror="this.style.display='none'" />
+        <h2 style="margin:0;font-size:20px;color:#1a1a1a">Message from Acreon</h2>
       </div>
       <div style="white-space:pre-wrap;color:#333;line-height:1.6">${message.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>
       <hr style="margin:32px 0;border:none;border-top:1px solid #eee" />
-      <p style="font-size:12px;color:#999">You're receiving this because you have a RealTrack account.</p>
+      <p style="font-size:12px;color:#999">You're receiving this because you have a Acreon account.</p>
     </div>`;
 
-  const text = `Message from RealTrack\n\n${message}\n\n---\nYou're receiving this because you have a RealTrack account.`;
+  const text = `Message from Acreon\n\n${message}\n\n---\nYou're receiving this because you have a Acreon account.`;
 
   const connectors = new ReplitConnectors();
   const gmail = connectors.gmail as {
@@ -290,16 +290,16 @@ router.post("/onboarding/complete", async (req, res) => {
       const acceptedAt = new Date().toLocaleString("en-US", { timeZone: "UTC", dateStyle: "long", timeStyle: "short" });
       const html = `
         <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px">
-          <h2 style="font-size:18px;color:#1a1a1a;margin-bottom:16px">✅ New User T&amp;C Acceptance — RealTrack</h2>
+          <h2 style="font-size:18px;color:#1a1a1a;margin-bottom:16px">✅ New User T&amp;C Acceptance — Acreon</h2>
           <table style="width:100%;border-collapse:collapse;font-size:14px">
             <tr><td style="padding:8px 12px;background:#f5f5f5;font-weight:600;width:130px">Email</td><td style="padding:8px 12px;border-bottom:1px solid #eee">${email}</td></tr>
             <tr><td style="padding:8px 12px;background:#f5f5f5;font-weight:600">Phone</td><td style="padding:8px 12px;border-bottom:1px solid #eee">${phone}</td></tr>
             <tr><td style="padding:8px 12px;background:#f5f5f5;font-weight:600">Accepted at</td><td style="padding:8px 12px;border-bottom:1px solid #eee">${acceptedAt} UTC</td></tr>
             <tr><td style="padding:8px 12px;background:#f5f5f5;font-weight:600">IP Address</td><td style="padding:8px 12px;border-bottom:1px solid #eee">${ip ?? "—"}</td></tr>
           </table>
-          <p style="margin-top:20px;font-size:12px;color:#999">Full acceptance log available in your RealTrack Admin Dashboard → T&amp;C Acceptances.</p>
+          <p style="margin-top:20px;font-size:12px;color:#999">Full acceptance log available in your Acreon Admin Dashboard → T&amp;C Acceptances.</p>
         </div>`;
-      const text = `New T&C acceptance on RealTrack\n\nEmail: ${email}\nPhone: ${phone}\nAccepted at: ${acceptedAt} UTC\nIP: ${ip ?? "—"}`;
+      const text = `New T&C acceptance on Acreon\n\nEmail: ${email}\nPhone: ${phone}\nAccepted at: ${acceptedAt} UTC\nIP: ${ip ?? "—"}`;
 
       const connectors = new ReplitConnectors();
       const gmail = connectors.gmail as {
@@ -309,7 +309,7 @@ router.post("/onboarding/complete", async (req, res) => {
         await gmail.request({
           method: "POST",
           path: "/gmail/v1/users/me/messages/send",
-          body: { raw: buildRawEmail(adminEmail, "New user accepted T&C — RealTrack", html, text) },
+          body: { raw: buildRawEmail(adminEmail, "New user accepted T&C — Acreon", html, text) },
         }).catch(() => { /* don't block signup if email fails */ });
       }
     }

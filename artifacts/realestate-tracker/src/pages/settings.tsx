@@ -32,7 +32,7 @@ function LivePreviewCard({ preview }: { preview: LivePreview }) {
     <div className="rounded-xl border border-primary/30 overflow-hidden text-sm ring-1 ring-primary/10">
       <div className="bg-stone-900 px-5 py-4">
         <p className="text-orange-400 text-xs font-bold tracking-widest uppercase mb-1">{month} Update</p>
-        <p className="text-white font-bold text-base">Your RealTrack Portfolio</p>
+        <p className="text-white font-bold text-base">Your Acreon Portfolio</p>
       </div>
       <div className="bg-orange-500 px-5 py-3 flex items-center gap-6">
         {[
@@ -77,7 +77,7 @@ function LivePreviewCard({ preview }: { preview: LivePreview }) {
         </div>
       </div>
       <div className="bg-gray-50 border-t border-gray-100 px-5 py-3">
-        <p className="text-xs text-gray-400">You're receiving this because you enabled monthly digests in RealTrack.</p>
+        <p className="text-xs text-gray-400">You're receiving this because you enabled monthly digests in Acreon.</p>
       </div>
     </div>
   );
@@ -253,7 +253,7 @@ export default function Settings() {
         <div className="p-5 space-y-5">
           {/* Description */}
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Once a month, RealTrack's AI reviews your portfolio and sends you a personalised summary — equity progress, highlights, and anything worth your attention — straight to{" "}
+            Once a month, Acreon's AI reviews your portfolio and sends you a personalised summary — equity progress, highlights, and anything worth your attention — straight to{" "}
             <span className="font-medium text-foreground">{primaryEmail ?? "your account email"}</span>.
           </p>
 

@@ -245,13 +245,13 @@ function ClerkProviderWithRoutes() {
       localization={{
         signIn: {
           start: {
-            title: "Welcome back to RealTrack",
+            title: "Welcome back to Acreon",
             subtitle: "Sign in to your portfolio",
           },
         },
         signUp: {
           start: {
-            title: "Join RealTrack",
+            title: "Join Acreon",
             subtitle: "Track your real estate portfolio",
           },
         },
