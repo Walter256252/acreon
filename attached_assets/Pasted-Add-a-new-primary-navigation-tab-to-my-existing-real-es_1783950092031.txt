@@ -1,0 +1,1075 @@
+Add a new primary navigation tab to my existing real estate equity-tracking website called:
+
+**Finances**
+
+Within the Finances tab, create a real-estate-specific bookkeeping and CPA preparation system for long-term rentals and short-term rentals.
+
+The purpose is not to recreate the full complexity of QuickBooks. The purpose is to let real estate investors track income, expenses, loans, improvements, owner activity, and supporting documents by property, then generate clean property-by-property reports that can be given to a CPA.
+
+## Important development requirements
+
+Before writing code:
+
+1. Review the existing application structure, database schema, authentication system, property records, user accounts, components, styling, and navigation.
+2. Reuse the existing technology stack, database, design system, authentication, and property IDs.
+3. Do not rebuild or replace existing working features.
+4. Do not remove or rename existing database fields without confirming they are unused.
+5. Make all database migrations backward-compatible.
+6. Make the new Finances area consistent with the existing website's visual design.
+7. Ensure each user's financial information is private and isolated from every other user.
+8. Ensure users can only access properties and transactions belonging to their own account.
+9. Build responsive layouts for desktop, tablet, and mobile.
+10. Use realistic empty states instead of inserting fake financial data into production accounts.
+
+## Main navigation
+
+Add a new primary navigation item:
+
+**Finances**
+
+The Finances tab should contain the following sections:
+
+* Overview
+* Transactions
+* Income
+* Expenses
+* Loans
+* Capital Improvements
+* Assets
+* Mileage
+* Documents
+* CPA Reports
+* Settings
+
+Use sub-navigation, sidebar navigation, or tabs depending on the design patterns already used in the website.
+
+# 1. Finances Overview
+
+Create a financial dashboard that can be filtered by:
+
+* All properties
+* Individual property
+* Long-term rentals
+* Short-term rentals
+* Custom date range
+* Current month
+* Current quarter
+* Current year
+* Previous year
+
+Display summary cards for:
+
+* Gross income
+* Operating expenses
+* Net operating income
+* Mortgage principal paid
+* Mortgage interest paid
+* Capital improvements
+* Owner contributions
+* Owner draws
+* Unreviewed transactions
+* Transactions missing receipts
+
+Display property-level financial performance in a table with:
+
+* Property name
+* Property type
+* Gross income
+* Operating expenses
+* Net operating income
+* Debt payments
+* Cash flow
+* Capital improvements
+* Current loan balance
+
+Where the application already has equity and property value information, connect the financial data to the existing equity dashboard without duplicating records.
+
+# 2. Transactions
+
+Create a central transaction ledger.
+
+Each transaction must support:
+
+* Transaction date
+* Description
+* Amount
+* Transaction type
+* Income or expense
+* Category
+* Subcategory
+* Property
+* Unit, when applicable
+* Vendor or payer
+* Payment account
+* Payment method
+* Rental type
+* Tax year
+* Receipt or document attachment
+* Notes
+* Review status
+* Reconciliation status
+* Recurring transaction status
+* Created by
+* Created date
+* Last updated date
+
+Transaction types should include:
+
+* Income
+* Expense
+* Loan payment
+* Owner contribution
+* Owner draw or distribution
+* Security deposit received
+* Security deposit returned
+* Security deposit applied to damages
+* Property purchase
+* Property sale
+* Capital improvement
+* Depreciable asset purchase
+* Transfer between accounts
+* Refund
+* Reimbursement
+
+Allow users to:
+
+* Add transactions manually
+* Edit transactions
+* Duplicate transactions
+* Delete transactions with confirmation
+* Split one transaction into multiple categories or properties
+* Add transactions in bulk
+* Import transactions from CSV
+* Export transactions to CSV
+* Filter and search transactions
+* Attach receipts or supporting documents
+* Mark transactions as reviewed
+* Mark transactions as reconciled
+* Assign uncategorized transactions
+* Create recurring transactions
+* Apply bulk category changes
+* Apply bulk property assignments
+
+When a transaction is split, ensure the split amounts equal the original transaction amount.
+
+Create filters for:
+
+* Date
+* Property
+* Category
+* Income or expense
+* Transaction type
+* Review status
+* Receipt status
+* Reconciliation status
+* Vendor
+* Amount range
+
+# 3. Property-specific accounting
+
+Every financial record should be associated with:
+
+* A specific property
+* Multiple properties through a split transaction
+* A general business or portfolio-level category when it cannot reasonably be assigned to one property
+
+Allow users to allocate a portfolio-level expense across properties using:
+
+* Equal allocation
+* Ownership percentage
+* Number of units
+* User-entered percentages
+* User-entered dollar amounts
+
+The allocation total must equal 100% or the original transaction amount.
+
+# 4. Income tracking
+
+Create income categories appropriate for rental property owners.
+
+Long-term rental income categories:
+
+* Rental income
+* Late fees
+* Pet fees
+* Parking income
+* Laundry income
+* Storage income
+* Application fees
+* Lease termination fees
+* Utility reimbursements
+* Insurance proceeds
+* Other rental income
+
+Short-term rental income categories:
+
+* Nightly accommodation revenue
+* Cleaning fees charged to guests
+* Pet fees
+* Extra guest fees
+* Early check-in fees
+* Late checkout fees
+* Damage reimbursements
+* Cancellation income
+* Airbnb payouts
+* Vrbo payouts
+* Booking.com payouts
+* Direct booking income
+* Other short-term rental income
+
+For short-term rental transactions, support:
+
+* Reservation ID
+* Booking platform
+* Guest name
+* Check-in date
+* Checkout date
+* Number of nights
+* Gross booking revenue
+* Cleaning fee charged
+* Taxes collected
+* Platform service fee
+* Refunds
+* Adjustments
+* Net payout
+
+Do not require guest names when users prefer not to store them.
+
+# 5. Expense tracking
+
+Create real-estate-specific expense categories, including:
+
+* Advertising and marketing
+* Auto and travel
+* Bank fees
+* Cleaning and turnover
+* Commissions
+* HOA or condo fees
+* Insurance
+* Internet
+* Landscaping
+* Legal and professional fees
+* Licensing and permits
+* Management fees
+* Merchant and payment-processing fees
+* Mortgage interest
+* Office expenses
+* Pest control
+* Property taxes
+* Repairs
+* Maintenance
+* Security
+* Software and subscriptions
+* Supplies
+* Telephone
+* Utilities
+* Water and sewer
+* Gas
+* Electricity
+* Trash
+* Cable or streaming services
+* Snow removal
+* Short-term rental platform fees
+* Other expenses
+
+Allow users to create custom categories, but preserve the standard category mappings used in CPA reports.
+
+# 6. Repairs versus capital improvements
+
+Whenever a user enters or categorizes a large property-related expense, provide a clear classification selector:
+
+* Repair
+* Maintenance
+* Capital improvement
+* Depreciable asset
+* Unsure — ask CPA
+
+Show brief educational guidance:
+
+* Repair: generally restores something to its previous working condition.
+* Maintenance: routine work intended to keep the property operating.
+* Capital improvement: generally adds value, extends useful life, or adapts the property to a new use.
+* Depreciable asset: a separately identifiable item such as furniture, equipment, or an appliance.
+
+Do not present this guidance as definitive tax advice.
+
+If the user selects “Unsure — ask CPA,” include the transaction in a CPA questions report.
+
+Flag potentially significant expenses for review based on a configurable dollar threshold. Do not automatically make the final tax classification for the user.
+
+# 7. Capital improvements
+
+Create a capital improvements register.
+
+Each improvement should include:
+
+* Property
+* Improvement name
+* Description
+* Category
+* Vendor
+* Project start date
+* Placed-in-service date
+* Total cost
+* Related transactions
+* Receipt and invoice attachments
+* Expected useful life, when entered by the user or CPA
+* Depreciation method, when entered by the user or CPA
+* Notes
+* CPA review status
+
+Example improvement categories:
+
+* Roof
+* HVAC
+* Plumbing system
+* Electrical system
+* Windows
+* Flooring
+* Kitchen renovation
+* Bathroom renovation
+* Addition
+* Deck or patio
+* Driveway
+* Landscaping improvement
+* Structural work
+* Other improvement
+
+Allow multiple transactions to be grouped into one capital improvement project.
+
+# 8. Depreciable assets
+
+Create an asset register for items such as:
+
+* Appliances
+* Furniture
+* Electronics
+* Equipment
+* Washer and dryer
+* Refrigerator
+* Stove
+* Short-term rental furnishings
+
+Each asset should support:
+
+* Property
+* Asset name
+* Asset category
+* Purchase date
+* Placed-in-service date
+* Purchase price
+* Vendor
+* Related transaction
+* Receipt
+* Serial number
+* Useful life
+* Depreciation method
+* Disposal date
+* Disposal proceeds
+* Notes
+* CPA review status
+
+The software should organize this information but should not independently provide a final tax depreciation calculation unless a CPA-configured method is later added.
+
+# 9. Loan tracking
+
+Connect loans to the existing property and equity records.
+
+Each loan should support:
+
+* Property
+* Lender
+* Loan type
+* Original loan amount
+* Original loan date
+* Original interest rate
+* Current interest rate
+* Fixed or adjustable rate
+* Loan term
+* Amortization term
+* Monthly payment
+* Current principal balance
+* Escrow balance
+* PMI
+* Maturity date
+* Payment due date
+* Loan account number, stored securely
+* Closing costs
+* Loan documents
+* Notes
+
+Each loan payment should be split into:
+
+* Principal
+* Interest
+* Escrow
+* PMI
+* Fees
+* Other
+
+Principal payments should reduce the loan balance and increase the user's tracked equity, but principal should not appear as an operating expense.
+
+Interest, PMI, and qualifying fees should remain separate categories for reporting.
+
+Allow users to upload monthly mortgage statements and annual lender statements.
+
+Include an annual mortgage reconciliation area that compares:
+
+* Total payments entered
+* Principal entered
+* Interest entered
+* Escrow entered
+* Ending loan balance
+* Annual lender statement totals
+
+Flag discrepancies for review.
+
+# 10. Security deposits
+
+Track security deposits separately from rental income.
+
+Each security deposit record should support:
+
+* Property
+* Unit
+* Tenant or reservation reference
+* Date collected
+* Amount collected
+* Account holding the deposit
+* Date returned
+* Amount returned
+* Amount retained
+* Reason retained
+* Related damage or expense
+* Current liability balance
+* Notes
+
+Security deposits should not be counted as income unless the user records an amount as retained or applied and confirms the treatment.
+
+# 11. Owner contributions and draws
+
+Track:
+
+* Owner contributions
+* Owner-paid expenses
+* Owner reimbursements
+* Owner draws
+* Partner contributions
+* Partner distributions
+
+Each record should support:
+
+* Owner or partner
+* Property
+* Date
+* Amount
+* Transaction type
+* Payment account
+* Ownership entity
+* Notes
+* Supporting document
+
+Do not count owner contributions as rental income.
+
+Do not count owner draws as operating expenses.
+
+# 12. Entity and ownership tracking
+
+Allow users to associate properties with an ownership entity.
+
+Entity fields:
+
+* Entity name
+* Entity type
+* Tax identification reference
+* Properties owned
+* Owners or partners
+* Ownership percentages
+* Effective dates
+* CPA or bookkeeper contact
+* Notes
+
+Protect sensitive identification fields. Display masked values by default.
+
+Support changes in ownership percentage over time without overwriting historical records.
+
+# 13. Mileage tracking
+
+Create a mileage log with:
+
+* Date
+* Starting location
+* Destination
+* Business purpose
+* Property
+* Miles driven
+* Round trip status
+* Vehicle
+* Parking costs
+* Tolls
+* Notes
+* Supporting document
+
+Allow users to export the mileage log by tax year.
+
+Do not automatically determine tax deductibility. Include mileage records in the CPA package for review.
+
+# 14. Documents
+
+Create a secure document center.
+
+Document types should include:
+
+* Receipt
+* Invoice
+* Lease
+* Closing statement
+* Settlement statement
+* Mortgage statement
+* Annual lender statement
+* Property tax bill
+* Insurance policy
+* Insurance claim
+* Appraisal
+* Inspection
+* Contractor estimate
+* Contractor agreement
+* W-9
+* 1099
+* Tax return
+* Depreciation schedule
+* HOA statement
+* Utility bill
+* Platform payout report
+* Other
+
+Each document should be linkable to:
+
+* Property
+* Transaction
+* Loan
+* Capital improvement
+* Asset
+* Reservation
+* Tax year
+* Entity
+
+Allow document preview, download, rename, tagging, and deletion with confirmation.
+
+Use secure private storage. Do not make uploaded financial documents publicly accessible.
+
+# 15. Short-term rental performance
+
+For short-term rental properties, calculate and display:
+
+* Available nights
+* Booked nights
+* Occupancy rate
+* Average daily rate
+* Revenue per available night
+* Gross booking revenue
+* Net payout
+* Cleaning revenue
+* Cleaning expense
+* Platform fees
+* Refunds
+* Average stay length
+* Revenue by booking platform
+
+Clearly separate operational performance metrics from tax reports.
+
+# 16. Monthly review workflow
+
+Create a monthly bookkeeping review checklist.
+
+For each property and month, show:
+
+* Transactions imported or entered
+* Uncategorized transactions
+* Transactions missing property assignments
+* Transactions missing receipts
+* Loan payments not split
+* Unreconciled accounts
+* Unreviewed capital expenditures
+* Security deposit activity
+* Income totals
+* Expense totals
+* Month marked complete
+
+Allow the user to mark a month as:
+
+* Not started
+* In progress
+* Ready for review
+* Complete
+* Reopened
+
+Do not permanently lock completed months. Require confirmation before reopening.
+
+# 17. CPA Reports
+
+Create a CPA Reports section that generates downloadable reports by tax year, entity, and property.
+
+Reports should include:
+
+## Property income and expense summary
+
+For each property:
+
+* Gross rental income
+* Other income
+* Advertising
+* Auto and travel
+* Cleaning and maintenance
+* Commissions
+* Insurance
+* Legal and professional fees
+* Management fees
+* Mortgage interest
+* Other interest
+* Repairs
+* Supplies
+* Taxes
+* Utilities
+* Other expenses
+* Net income or loss
+
+Use categories that can be mapped to common rental-property tax reporting, but include a disclaimer that the user's CPA determines the final tax treatment and tax-return placement.
+
+## Additional reports
+
+Generate:
+
+* Property-by-property profit and loss
+* Portfolio profit and loss
+* Monthly income statement
+* Transaction ledger
+* General categorized transaction export
+* Rental income summary
+* Expense summary
+* Loan principal and interest summary
+* Capital improvements report
+* Depreciable assets report
+* Security deposit liability report
+* Owner contributions report
+* Owner draws and distributions report
+* Mileage report
+* Missing receipts report
+* Uncategorized transactions report
+* Questions for CPA report
+* Short-term rental platform payout reconciliation
+* Year-over-year property comparison
+
+Allow reports to be:
+
+* Viewed in the application
+* Printed
+* Downloaded as PDF
+* Downloaded as CSV
+* Downloaded as Excel-compatible files where appropriate
+
+# 18. Prepare CPA Package
+
+Create a prominent button:
+
+**Prepare CPA Package**
+
+The user selects:
+
+* Tax year
+* Entity
+* All properties or selected properties
+* Reports to include
+* Whether to include receipt files
+* Whether to include transaction-level details
+
+Before generating the package, run a readiness review.
+
+Flag:
+
+* Uncategorized transactions
+* Transactions without a property
+* Transactions missing receipts
+* Loan payments not split into principal and interest
+* Large expenses not classified
+* Capital improvements missing placed-in-service dates
+* Assets missing purchase information
+* Security deposit discrepancies
+* Duplicate transactions
+* Income months with unusually low or missing rent
+* Short-term rental payouts that do not reconcile
+* Transactions marked “Ask CPA”
+
+Let the user resolve issues or generate the package with warnings.
+
+The generated CPA package should include:
+
+* Cover summary
+* Property list
+* Entity information
+* Property-by-property income and expense summaries
+* Detailed transaction ledger
+* Loan summaries
+* Capital improvements
+* Asset purchases
+* Owner activity
+* Mileage
+* Security deposits
+* Unresolved questions
+* Supporting documents organized into folders by property and category
+
+Create the package as a downloadable ZIP file when documents are included.
+
+Use clear file and folder names, such as:
+
+Tax Year 2026
+→ Entity Name
+→ Property Name
+→ Income and Expenses
+→ Loan Documents
+→ Capital Improvements
+→ Receipts
+→ Tax Documents
+→ Questions for CPA
+
+# 19. CSV import
+
+Build a flexible CSV transaction importer.
+
+The import process should:
+
+1. Upload the file.
+2. Preview the rows.
+3. Let the user map CSV columns.
+4. Identify date, description, debit, credit, and amount columns.
+5. Assign an account.
+6. Suggest categories.
+7. Suggest properties when possible.
+8. Detect possible duplicates.
+9. Let the user review changes.
+10. Import confirmed transactions.
+
+Save import mappings so the same bank or platform export can be imported again.
+
+Do not require a bank connection for the first version.
+
+Prepare the architecture so Plaid or another bank-data provider could be added later.
+
+# 20. Automation and intelligent suggestions
+
+Add rule-based categorization suggestions.
+
+Examples:
+
+* A recurring payment to a known utility provider can suggest Utilities.
+* A payment to a known lender can suggest Loan Payment.
+* Airbnb deposits can suggest Short-Term Rental Income.
+* Home Depot or Lowe's transactions can be flagged for the user to classify as repair, supplies, improvement, or asset.
+* Property management payments can suggest Management Fees.
+
+Every automated suggestion must require user review or allow easy correction.
+
+Do not claim that an automated category is guaranteed to be correct for tax purposes.
+
+Allow users to create custom rules based on:
+
+* Description contains
+* Vendor
+* Amount
+* Account
+* Property
+* Income or expense
+* Recurrence
+
+# 21. Accounts and reconciliation
+
+Create basic financial accounts, including:
+
+* Checking account
+* Savings account
+* Credit card
+* Mortgage account
+* Security deposit account
+* Cash account
+* Other account
+
+Each account should support:
+
+* Account name
+* Institution
+* Last four digits
+* Opening balance
+* Current tracked balance
+* Property or entity
+* Active or inactive status
+
+Create a reconciliation workflow where the user enters:
+
+* Statement start date
+* Statement end date
+* Beginning balance
+* Ending balance
+
+The user can check off cleared transactions and see the remaining difference.
+
+# 22. Notifications and dashboard warnings
+
+Show useful alerts for:
+
+* Uncategorized transactions
+* Missing receipts
+* Upcoming property tax payments
+* Upcoming insurance renewals
+* Loan statements that need reconciliation
+* Incomplete monthly reviews
+* Capital improvements missing documentation
+* CPA package readiness issues
+
+Allow users to dismiss or resolve alerts.
+
+# 23. Settings
+
+Create Finances settings for:
+
+* Fiscal or tax year
+* Default currency
+* Default expense categories
+* Custom categories
+* Large-expense review threshold
+* Receipt-required threshold
+* Default property allocations
+* Account management
+* Import rules
+* Report preferences
+* CPA contact information
+
+# 24. CPA access
+
+Prepare the database and permissions architecture for future CPA access.
+
+The future access levels should include:
+
+* View-only
+* View and comment
+* Edit categories
+* Full financial access
+
+Do not enable CPA access until permissions are securely implemented.
+
+Never allow a CPA or invited user to see properties or entities outside the access explicitly granted by the account owner.
+
+# 25. Database structure
+
+Create normalized database tables or equivalent models for:
+
+* financial_accounts
+* transactions
+* transaction_splits
+* categories
+* category_mappings
+* vendors
+* loans
+* loan_payments
+* security_deposits
+* capital_projects
+* depreciable_assets
+* mileage_entries
+* financial_documents
+* document_links
+* entities
+* entity_owners
+* ownership_history
+* monthly_reviews
+* import_batches
+* import_mappings
+* categorization_rules
+* reconciliations
+* reconciliation_items
+* cpa_questions
+* report_exports
+
+Each financial table should include appropriate:
+
+* User ID
+* Property ID when relevant
+* Entity ID when relevant
+* Created timestamp
+* Updated timestamp
+* Audit information
+* Soft-delete or archival support when appropriate
+
+Use proper indexes, foreign keys, validation, and ownership checks.
+
+# 26. Audit history
+
+Create an audit trail for important financial changes.
+
+Track:
+
+* Who made the change
+* Date and time
+* Original value
+* New value
+* Record affected
+* Reason, when entered
+
+Audit important actions such as:
+
+* Transaction edits
+* Transaction deletion
+* Loan balance changes
+* Ownership changes
+* Report generation
+* Monthly review completion
+* Document deletion
+
+# 27. Security
+
+Apply strong financial-data protections:
+
+* Server-side authorization for every financial request
+* User and property ownership validation
+* Secure document storage
+* No public file URLs
+* Input validation
+* Protection against unauthorized object access
+* Rate limiting where appropriate
+* Secure handling of account numbers
+* Mask sensitive values
+* Safe file-type and file-size restrictions
+* Audit logging
+* Protection against duplicate form submissions
+
+Do not expose API keys or secrets in client-side code.
+
+# 28. Disclaimers
+
+Add a clear disclaimer in the Finances and CPA Reports areas:
+
+“This software helps organize financial records and prepare information for review. It does not provide tax, legal, accounting, or investment advice. Tax classifications and filing decisions should be reviewed by a qualified CPA or tax professional.”
+
+Do not make definitive statements that a transaction is deductible.
+
+Use language such as:
+
+* Suggested category
+* Potential capital improvement
+* Review with your CPA
+* Tax treatment not confirmed
+
+# 29. User experience
+
+The experience should be designed for rental property investors who do not understand formal accounting.
+
+Avoid displaying unnecessary accounting terminology such as:
+
+* Debits
+* Credits
+* Journal entries
+* Chart-of-accounts codes
+
+The system can use proper accounting logic behind the scenes, but the interface should use plain language:
+
+* Money in
+* Money out
+* Property
+* Category
+* Loan principal
+* Loan interest
+* Owner contribution
+* Owner draw
+* Receipt
+* Needs review
+
+Add tooltips explaining unfamiliar terms.
+
+Use clear onboarding to help a new user:
+
+1. Confirm properties.
+2. Choose long-term or short-term rental.
+3. Add financial accounts.
+4. Add loans.
+5. Import or enter transactions.
+6. Review categories.
+7. Upload documents.
+8. Complete monthly review.
+9. Prepare CPA package.
+
+# 30. Testing
+
+Add automated tests for:
+
+* User data isolation
+* Property ownership authorization
+* Transaction creation
+* Split transaction totals
+* Property expense allocations
+* Loan principal balance updates
+* Security deposit treatment
+* Owner contribution treatment
+* Owner draw treatment
+* CSV import
+* Duplicate detection
+* Monthly review status
+* CPA report totals
+* Report filters
+* Document permissions
+* Date-range calculations
+
+Test both long-term rental and short-term rental workflows.
+
+# 31. Implementation order
+
+Build this feature in stages.
+
+## Phase 1: Core MVP
+
+Build first:
+
+* Finances navigation
+* Financial overview
+* Transactions
+* Categories
+* Property assignment
+* Income and expenses
+* Receipt uploads
+* Loans and loan-payment splits
+* Capital improvements
+* Assets
+* Owner contributions and draws
+* CSV import
+* Core CPA reports
+* Prepare CPA Package readiness checklist
+* Security and testing
+
+## Phase 2
+
+Prepare or add:
+
+* Bank integrations
+* Automated receipt extraction
+* Short-term rental platform integrations
+* Mortgage statement extraction
+* Advanced reconciliation
+* CPA collaboration
+* Advanced rule automation
+* Depreciation schedules configured by a tax professional
+
+Complete Phase 1 before beginning optional Phase 2 integrations.
+
+# 32. Final deliverables
+
+After implementation, provide:
+
+1. A summary of what was added.
+2. A list of database changes and migrations.
+3. A list of new routes and pages.
+4. A list of new API endpoints or server actions.
+5. A description of authorization protections.
+6. Testing results.
+7. Any environment variables required.
+8. Any features left as placeholders.
+9. Instructions for testing the Finances tab as a user.
+10. A clear explanation of how to safely deploy the changes.
+
+Do not mark the project complete if the pages are only visual mockups. Forms, database persistence, authorization, filtering, reports, and uploads must work end to end.
