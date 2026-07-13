@@ -84,6 +84,7 @@ interface PortfolioImpactProps {
   monthlyPayment: number;
   loanTermYears: number;
   totalInterest: number | null; // from calc result
+  hasData: boolean;
   onClear: () => void;
 }
 
@@ -111,7 +112,7 @@ function DeltaRow({
   );
 }
 
-function PortfolioImpact({ loanAmount, interestRate, monthlyPayment, loanTermYears, totalInterest, onClear }: PortfolioImpactProps) {
+function PortfolioImpact({ loanAmount, interestRate, monthlyPayment, loanTermYears, totalInterest, hasData, onClear }: PortfolioImpactProps) {
   const [open, setOpen] = useState(true);
   const [showBreakdown, setShowBreakdown] = useState(false);
 
@@ -161,7 +162,12 @@ function PortfolioImpact({ loanAmount, interestRate, monthlyPayment, loanTermYea
 
       {open && (
         <CardContent className="pt-5 space-y-5">
-          {isLoading ? (
+          {!hasData ? (
+            <div className="text-center py-6 text-muted-foreground text-sm">
+              <BarChart3 className="w-8 h-8 mx-auto mb-2 opacity-30" />
+              <p>Enter loan parameters and click <span className="font-medium text-foreground">Calculate Scenario</span> to see how this property would affect your portfolio.</p>
+            </div>
+          ) : isLoading ? (
             <div className="space-y-2">{[1, 2, 3].map((i) => <div key={i} className="h-8 bg-muted animate-pulse rounded" />)}</div>
           ) : !hasPortfolio ? (
             <div className="text-center py-6 text-muted-foreground text-sm">
@@ -344,7 +350,7 @@ function PortfolioImpact({ loanAmount, interestRate, monthlyPayment, loanTermYea
 
 export default function Calculator() {
   const runCalc = useRunCalculator();
-  const [impactVisible, setImpactVisible] = useState(true);
+  const [hasData, setHasData] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -365,7 +371,7 @@ export default function Calculator() {
   });
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    setImpactVisible(true);
+    setHasData(true);
     runCalc.mutate({ data: values });
   }
 
@@ -672,18 +678,17 @@ export default function Calculator() {
       </div>
 
       {/* Portfolio Impact — full width, centered below the grid */}
-      {impactVisible && (
-        <div className="max-w-3xl mx-auto">
-          <PortfolioImpact
-            loanAmount={watchedLoan}
-            interestRate={watchedRate}
-            monthlyPayment={watchedMonthly}
-            loanTermYears={watchedTermYears}
-            totalInterest={result?.summary.totalInterest ?? null}
-            onClear={() => setImpactVisible(false)}
-          />
-        </div>
-      )}
+      <div className="max-w-3xl mx-auto">
+        <PortfolioImpact
+          loanAmount={watchedLoan}
+          interestRate={watchedRate}
+          monthlyPayment={watchedMonthly}
+          loanTermYears={watchedTermYears}
+          totalInterest={result?.summary.totalInterest ?? null}
+          hasData={hasData}
+          onClear={() => setHasData(false)}
+        />
+      </div>
     </div>
   );
 }
