@@ -77,15 +77,18 @@ router.get("/admin/properties-geo", requireAdmin, async (_req, res) => {
   const cached = await db.select().from(propertyGeocodesTable).where(inArray(propertyGeocodesTable.propertyId, propIds));
   const cachedMap = new Map(cached.map(c => [c.propertyId, c]));
 
-  // Any property whose cached state doesn't match its stored state is stale — re-geocode it
+  // Bust cached geocodes that are stale:
+  //  (a) cached state doesn't match the property's stored state, or
+  //  (b) geocode has no state but the property now has one (was cached before city/state/zip existed)
   const staleIds = allProperties
     .filter(p => {
       const cached = cachedMap.get(p.id);
       if (!cached) return false; // uncached, handled below
-      if (!p.state) return false; // no expected state to compare
-      const cachedState = (cached.state ?? "").toLowerCase().trim();
+      if (!p.state) return false; // nothing to compare against
+      if (!cached.state) return true; // (b) cached without state, now we have one
+      const cachedState = cached.state.toLowerCase().trim();
       const propState = p.state.toLowerCase().trim();
-      // Compare abbreviation or full name: if clearly different, bust
+      // (a) clearly different state — bust (allow abbreviation containment matches)
       return cachedState !== propState && !cachedState.includes(propState) && !propState.includes(cachedState);
     })
     .map(p => p.id);
@@ -210,13 +213,16 @@ router.get("/properties-geo", async (req, res) => {
   const cached = await db.select().from(propertyGeocodesTable).where(inArray(propertyGeocodesTable.propertyId, propIds));
   const cachedMap = new Map(cached.map(c => [c.propertyId, c]));
 
-  // Any property whose cached state doesn't match its stored state is stale — re-geocode it
+  // Bust cached geocodes that are stale:
+  //  (a) cached state doesn't match the property's stored state, or
+  //  (b) geocode has no state but the property now has one (was cached before city/state/zip existed)
   const staleIds = allProperties
     .filter(p => {
       const cached = cachedMap.get(p.id);
       if (!cached) return false;
       if (!p.state) return false;
-      const cachedState = (cached.state ?? "").toLowerCase().trim();
+      if (!cached.state) return true; // (b) cached without state, now we have one
+      const cachedState = cached.state.toLowerCase().trim();
       const propState = p.state.toLowerCase().trim();
       return cachedState !== propState && !cachedState.includes(propState) && !propState.includes(cachedState);
     })
