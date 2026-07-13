@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { Wallet, LayoutDashboard, List, FileBarChart } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useListProperties } from "@workspace/api-client-react";
 import FinancesOverview from "./overview";
 import FinancesTransactions from "./transactions";
 import FinancesReport from "./report";
@@ -23,12 +23,8 @@ function isoDate(d: Date) { return d.toISOString().split("T")[0]; }
 // ── Filter bar ────────────────────────────────────────────────────────────
 
 const RANGE_OPTIONS = [
-  { value: "ytd",  label: "Year to date" },
-  { value: "year", label: "Full year" },
-  { value: "q1",   label: "Q1" },
-  { value: "q2",   label: "Q2" },
-  { value: "q3",   label: "Q3" },
-  { value: "q4",   label: "Q4" },
+  { value: "ytd",    label: "Year to date" },
+  { value: "year",   label: "Full year" },
   { value: "custom", label: "Custom range" },
 ];
 
@@ -38,10 +34,6 @@ function rangeForOption(opt: string, year: number): { from: string; to: string }
   switch (opt) {
     case "ytd":  return { from: `${y}-01-01`, to: isoDate(now) };
     case "year": return { from: `${y}-01-01`, to: `${y}-12-31` };
-    case "q1":   return { from: `${y}-01-01`, to: `${y}-03-31` };
-    case "q2":   return { from: `${y}-04-01`, to: `${y}-06-30` };
-    case "q3":   return { from: `${y}-07-01`, to: `${y}-09-30` };
-    case "q4":   return { from: `${y}-10-01`, to: `${y}-12-31` };
     default:     return { from: "", to: "" };
   }
 }
@@ -67,10 +59,7 @@ export default function Finances() {
     ? { from: customFrom, to: customTo }
     : rangeForOption(rangeOpt, year);
 
-  const { data: properties = [] } = useQuery<Property[]>({
-    queryKey: ["/api/properties"],
-    queryFn: () => fetch("/api/properties").then(r => r.json()),
-  });
+  const { data: properties = [] } = useListProperties();
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -182,7 +171,7 @@ export default function Finances() {
         />
       )}
       {tab === "report" && (
-        <FinancesReport properties={properties} />
+        <FinancesReport />
       )}
     </div>
   );

@@ -1,12 +1,9 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  Plus, Pencil, Trash2, CheckCircle, Circle, X, Search,
-} from "lucide-react";
+import { Plus, Pencil, Trash2, CheckCircle, Circle, X, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  TX_TYPE_LABELS, categoriesForType, type TxType, isOutflow,
-} from "./categories";
+import { useListProperties } from "@workspace/api-client-react";
+import { TX_TYPE_LABELS, categoriesForType, type TxType, isOutflow } from "./categories";
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -281,11 +278,8 @@ export default function FinancesTransactions({ filterPropertyId, dateFrom, dateT
   const [reviewFilter, setReviewFilter] = useState("");
   const [deleteId, setDeleteId] = useState<number | null>(null);
 
-  // Fetch properties directly so the dropdown is always populated
-  const { data: properties = [] } = useQuery<Property[]>({
-    queryKey: ["/api/properties"],
-    queryFn: () => fetch("/api/properties").then(r => r.json()),
-  });
+  // Use the authenticated api-client hook so the Bearer token is included
+  const { data: properties = [] } = useListProperties();
 
   const params = new URLSearchParams();
   if (filterPropertyId) params.set("propertyId", filterPropertyId);

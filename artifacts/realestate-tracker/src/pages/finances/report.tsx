@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Download, FileText, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useListProperties } from "@workspace/api-client-react";
 import { TX_TYPE_LABELS, type TxType, isOutflow } from "./categories";
 
 // ── Types ─────────────────────────────────────────────────────────────────
@@ -21,8 +22,6 @@ interface Transaction {
   taxYear: number | null;
   isReviewed: boolean;
 }
-
-interface Props { properties: Property[]; }
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -183,7 +182,8 @@ function PropertyPL({
 
 // ── Main Component ────────────────────────────────────────────────────────
 
-export default function FinancesReport({ properties }: Props) {
+export default function FinancesReport() {
+  const { data: properties = [] } = useListProperties();
   const [taxYear, setTaxYear] = useState(String(currentYear()));
   const [propFilter, setPropFilter] = useState("");
 
