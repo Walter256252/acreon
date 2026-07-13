@@ -40,6 +40,9 @@ router.post("/properties", async (req, res) => {
       clerkUserId: userId,
       name: body.name,
       address: body.address,
+      city: body.city ?? null,
+      state: body.state ?? null,
+      zip: body.zip ?? null,
       yearBought: body.yearBought,
       purchasePrice: String(body.purchasePrice),
       currentValue: String(body.currentValue),
@@ -78,6 +81,9 @@ router.put("/properties/:id", async (req, res) => {
   const updates: Record<string, unknown> = { updatedAt: new Date() };
   if (body.name !== undefined) updates.name = body.name;
   if (body.address !== undefined) updates.address = body.address;
+  if ("city" in body) updates.city = body.city ?? null;
+  if ("state" in body) updates.state = body.state ?? null;
+  if ("zip" in body) updates.zip = body.zip ?? null;
   if (body.yearBought !== undefined) updates.yearBought = body.yearBought;
   if (body.purchasePrice !== undefined) updates.purchasePrice = String(body.purchasePrice);
   if (body.currentValue !== undefined) updates.currentValue = String(body.currentValue);
@@ -232,6 +238,9 @@ function toApiProperty(row: typeof propertiesTable.$inferSelect) {
     id: row.id,
     name: row.name,
     address: row.address,
+    city: row.city ?? null,
+    state: row.state ?? null,
+    zip: row.zip ?? null,
     yearBought: row.yearBought,
     purchasePrice: Number(row.purchasePrice),
     currentValue: Number(row.currentValue),

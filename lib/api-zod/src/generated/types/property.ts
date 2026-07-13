@@ -11,6 +11,12 @@ export interface Property {
   id: number;
   name: string;
   address: string;
+  /** @nullable */
+  city?: string | null;
+  /** @nullable */
+  state?: string | null;
+  /** @nullable */
+  zip?: string | null;
   yearBought: number;
   purchasePrice: number;
   currentValue: number;
@@ -21,6 +27,11 @@ export interface Property {
   /** ISO date string (YYYY-MM-DD) */
   loanStartDate: string;
   monthlyPayment: number;
+  /**
+     * Known remaining loan balance; overrides computed balance in amortization schedule
+     * @nullable
+     */
+  currentLoanBalance?: number | null;
   /** @nullable */
   notes?: string | null;
   /**

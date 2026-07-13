@@ -11,6 +11,12 @@ export interface PropertyInput {
   name: string;
   /** @minLength 1 */
   address: string;
+  /** City (used for map placement) */
+  city?: string;
+  /** State abbreviation (e.g. CA) */
+  state?: string;
+  /** ZIP / postal code */
+  zip?: string;
   yearBought: number;
   purchasePrice: number;
   currentValue: number;

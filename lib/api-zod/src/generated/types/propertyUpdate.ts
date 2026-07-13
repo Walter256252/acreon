@@ -10,6 +10,12 @@ import type { ExtraPaymentEntry } from './extraPaymentEntry';
 export interface PropertyUpdate {
   name?: string;
   address?: string;
+  /** @nullable */
+  city?: string | null;
+  /** @nullable */
+  state?: string | null;
+  /** @nullable */
+  zip?: string | null;
   yearBought?: number;
   purchasePrice?: number;
   currentValue?: number;

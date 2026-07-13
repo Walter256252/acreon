@@ -80,14 +80,15 @@ router.get("/admin/properties-geo", requireAdmin, async (_req, res) => {
   // Geocode any that aren't cached yet
   const uncached = allProperties.filter(p => !cachedMap.has(p.id));
   for (const prop of uncached) {
-    const geo = await geocodeAddress(prop.address);
+    const query = [prop.address, prop.city, prop.state, prop.zip].filter(Boolean).join(", ");
+    const geo = await geocodeAddress(query);
     if (geo) {
       const [inserted] = await db.insert(propertyGeocodesTable).values({
         propertyId: prop.id,
         lat: String(geo.lat),
         lng: String(geo.lng),
-        city: geo.city,
-        state: geo.state,
+        city: geo.city ?? prop.city ?? null,
+        state: geo.state ?? prop.state ?? null,
         country: geo.country,
         displayName: geo.displayName,
       }).onConflictDoUpdate({
@@ -95,8 +96,8 @@ router.get("/admin/properties-geo", requireAdmin, async (_req, res) => {
         set: {
           lat: String(geo.lat),
           lng: String(geo.lng),
-          city: geo.city,
-          state: geo.state,
+          city: geo.city ?? prop.city ?? null,
+          state: geo.state ?? prop.state ?? null,
           country: geo.country,
           displayName: geo.displayName,
         },
@@ -195,14 +196,15 @@ router.get("/properties-geo", async (req, res) => {
   // Geocode any that aren't cached yet (Nominatim, 1 req/sec)
   const uncached = allProperties.filter(p => !cachedMap.has(p.id));
   for (const prop of uncached) {
-    const geo = await geocodeAddress(prop.address);
+    const query = [prop.address, prop.city, prop.state, prop.zip].filter(Boolean).join(", ");
+    const geo = await geocodeAddress(query);
     if (geo) {
       const [inserted] = await db.insert(propertyGeocodesTable).values({
         propertyId: prop.id,
         lat: String(geo.lat),
         lng: String(geo.lng),
-        city: geo.city,
-        state: geo.state,
+        city: geo.city ?? prop.city ?? null,
+        state: geo.state ?? prop.state ?? null,
         country: geo.country,
         displayName: geo.displayName,
       }).onConflictDoUpdate({
@@ -210,8 +212,8 @@ router.get("/properties-geo", async (req, res) => {
         set: {
           lat: String(geo.lat),
           lng: String(geo.lng),
-          city: geo.city,
-          state: geo.state,
+          city: geo.city ?? prop.city ?? null,
+          state: geo.state ?? prop.state ?? null,
           country: geo.country,
           displayName: geo.displayName,
         },

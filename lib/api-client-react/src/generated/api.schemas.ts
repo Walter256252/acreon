@@ -18,6 +18,12 @@ export interface Property {
   id: number;
   name: string;
   address: string;
+  /** @nullable */
+  city?: string | null;
+  /** @nullable */
+  state?: string | null;
+  /** @nullable */
+  zip?: string | null;
   yearBought: number;
   purchasePrice: number;
   currentValue: number;
@@ -28,6 +34,11 @@ export interface Property {
   /** ISO date string (YYYY-MM-DD) */
   loanStartDate: string;
   monthlyPayment: number;
+  /**
+     * Known remaining loan balance; overrides computed balance in amortization schedule
+     * @nullable
+     */
+  currentLoanBalance?: number | null;
   /** @nullable */
   notes?: string | null;
   /**
@@ -61,6 +72,12 @@ export interface PropertyInput {
   name: string;
   /** @minLength 1 */
   address: string;
+  /** City (used for map placement) */
+  city?: string;
+  /** State abbreviation (e.g. CA) */
+  state?: string;
+  /** ZIP / postal code */
+  zip?: string;
   yearBought: number;
   purchasePrice: number;
   currentValue: number;
@@ -96,6 +113,12 @@ export interface BulkImportResult {
 export interface PropertyUpdate {
   name?: string;
   address?: string;
+  /** @nullable */
+  city?: string | null;
+  /** @nullable */
+  state?: string | null;
+  /** @nullable */
+  zip?: string | null;
   yearBought?: number;
   purchasePrice?: number;
   currentValue?: number;

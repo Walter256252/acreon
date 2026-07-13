@@ -652,6 +652,12 @@ components:
           type: string
         address:
           type: string
+        city:
+          type: ["string", "null"]
+        state:
+          type: ["string", "null"]
+        zip:
+          type: ["string", "null"]
         yearBought:
           type: integer
         purchasePrice:
@@ -670,6 +676,9 @@ components:
           description: ISO date string (YYYY-MM-DD)
         monthlyPayment:
           type: number
+        currentLoanBalance:
+          type: ["number", "null"]
+          description: Known remaining loan balance; overrides computed balance in amortization schedule
         notes:
           type: ["string", "null"]
         valueLastUpdatedAt:
@@ -745,6 +754,15 @@ components:
         address:
           type: string
           minLength: 1
+        city:
+          type: string
+          description: City (used for map placement)
+        state:
+          type: string
+          description: State abbreviation (e.g. CA)
+        zip:
+          type: string
+          description: ZIP / postal code
         yearBought:
           type: integer
         purchasePrice:
@@ -776,6 +794,12 @@ components:
           type: string
         address:
           type: string
+        city:
+          type: ["string", "null"]
+        state:
+          type: ["string", "null"]
+        zip:
+          type: ["string", "null"]
         yearBought:
           type: integer
         purchasePrice:

@@ -429,7 +429,7 @@ export default function PropertyDetail() {
 
   // Current balance = amortized balance at today's payment number, not the final payoff row
   const currentBalanceRow = baseSchedule[currentPaymentNumber - 1];
-  const currentBalance = currentBalanceRow?.remainingBalance ?? Number(property.loanAmount);
+  const currentBalance = currentBalanceRow?.remainingBalance ?? Number(property.currentLoanBalance ?? property.loanAmount);
   const estimatedEquity = property.currentValue - currentBalance;
 
   const hasSavedExtras = property.savedExtraMonthly || property.savedExtraPayments?.length;

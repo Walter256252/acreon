@@ -40,12 +40,11 @@ function stripCurrency(val: unknown): unknown {
   return val;
 }
 
-/** Standard mortgage P&I formula */
-function computePI(loanAmount: number, interestRate: number, loanTermYears: number): number {
-  const r = interestRate / 100 / 12;
-  const n = loanTermYears * 12;
-  if (!r || !n || loanAmount <= 0) return 0;
-  return (loanAmount * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+/** Compute P&I from principal, annual rate %, and remaining months */
+function computePIFromMonths(principal: number, annualRate: number, months: number): number {
+  const r = annualRate / 100 / 12;
+  if (!r || !months || principal <= 0) return 0;
+  return (principal * r * Math.pow(1 + r, months)) / (Math.pow(1 + r, months) - 1);
 }
 
 /** Remaining loan balance based on loan parameters and elapsed time */
@@ -61,12 +60,10 @@ function computeRemainingBalance(
   const now = new Date();
   const monthsElapsed =
     (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
-
   if (monthsElapsed <= 0) return loanAmount;
   if (monthsElapsed >= n) return 0;
   if (!r) return Math.max(0, loanAmount - (loanAmount / n) * monthsElapsed);
-
-  const M = computePI(loanAmount, interestRate, loanTermYears);
+  const M = computePIFromMonths(loanAmount, interestRate, n);
   const remaining =
     loanAmount * Math.pow(1 + r, monthsElapsed) - (M * (Math.pow(1 + r, monthsElapsed) - 1)) / r;
   return Math.max(0, Math.round(remaining * 100) / 100);
@@ -77,6 +74,9 @@ function computeRemainingBalance(
 const formSchema = z.object({
   name: z.string().min(1, "Name is required"),
   address: z.string().min(1, "Address is required"),
+  city: z.string().optional().nullable(),
+  state: z.string().optional().nullable(),
+  zip: z.string().optional().nullable(),
   yearBought: z.coerce
     .number()
     .min(1900, "Invalid year")
@@ -90,10 +90,10 @@ const formSchema = z.object({
   ),
   loanTermYears: z.coerce.number().min(1, "Must be positive"),
   loanStartDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD"),
-  monthlyPayment: z.preprocess(stripCurrency, z.coerce.number().min(0, "Must be positive")),
   currentLoanBalance: z.preprocess(stripCurrency, z.coerce.number().min(0, "Must be positive"))
     .optional()
     .nullable(),
+  monthlyPayment: z.preprocess(stripCurrency, z.coerce.number().min(0, "Must be positive")),
   notes: z.string().optional().nullable(),
   zillowUrl: z.string().url("Must be a valid URL").optional().nullable().or(z.literal("")),
 });
@@ -119,6 +119,9 @@ export default function PropertyEdit() {
     defaultValues: {
       name: "",
       address: "",
+      city: "",
+      state: "",
+      zip: "",
       yearBought: new Date().getFullYear(),
       purchasePrice: 0,
       currentValue: 0,
@@ -126,8 +129,8 @@ export default function PropertyEdit() {
       interestRate: 0,
       loanTermYears: 30,
       loanStartDate: "",
-      monthlyPayment: 0,
       currentLoanBalance: undefined,
+      monthlyPayment: 0,
       notes: "",
     },
   });
@@ -137,6 +140,9 @@ export default function PropertyEdit() {
       form.reset({
         name: property.name,
         address: property.address,
+        city: property.city ?? "",
+        state: property.state ?? "",
+        zip: property.zip ?? "",
         yearBought: property.yearBought,
         purchasePrice: property.purchasePrice,
         currentValue: property.currentValue,
@@ -148,23 +154,46 @@ export default function PropertyEdit() {
         notes: property.notes || "",
         zillowUrl: property.zillowUrl || "",
       });
+      // Pre-fill knowCurrentBalance if property has one saved
+      if (property.currentLoanBalance != null) {
+        setKnowCurrentBalance(true);
+        form.setValue("currentLoanBalance", property.currentLoanBalance);
+      }
     }
   }, [property, form]);
 
-  // Auto-compute P&I when loan params change
+  // Watch loan params + balance for P&I auto-calculation
   const watchedLoan = useWatch({ control: form.control, name: "loanAmount" });
   const watchedRate = useWatch({ control: form.control, name: "interestRate" });
   const watchedTerm = useWatch({ control: form.control, name: "loanTermYears" });
+  const watchedBalance = useWatch({ control: form.control, name: "currentLoanBalance" });
+  const watchedStartDate = useWatch({ control: form.control, name: "loanStartDate" });
 
   useEffect(() => {
     const loan = Number(String(watchedLoan).replace(/[$,\s]/g, "")) || 0;
+    const balance = Number(String(watchedBalance ?? "").replace(/[$,\s]/g, "")) || 0;
     const rate = Number(String(watchedRate).replace(/[$,%\s]/g, "")) || 0;
     const term = Number(watchedTerm) || 0;
-    if (loan > 0 && rate > 0 && term > 0) {
-      const pi = computePI(loan, rate, term);
+
+    // When balance is known, use it as principal and compute remaining months
+    const useBalance = knowCurrentBalance && balance > 0;
+    const principal = useBalance ? balance : loan;
+
+    let months = term * 12;
+    if (useBalance && watchedStartDate && term > 0) {
+      const start = new Date(watchedStartDate);
+      const now = new Date();
+      const elapsed =
+        (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
+      const remaining = term * 12 - elapsed;
+      if (remaining > 0 && remaining < term * 12) months = remaining;
+    }
+
+    if (principal > 0 && rate > 0 && months > 0) {
+      const pi = computePIFromMonths(principal, rate, months);
       form.setValue("monthlyPayment", Math.round(pi * 100) / 100, { shouldDirty: false });
     }
-  }, [watchedLoan, watchedRate, watchedTerm, form]);
+  }, [watchedLoan, watchedRate, watchedTerm, watchedBalance, watchedStartDate, knowCurrentBalance, form]);
 
   const updateProperty = useUpdateProperty();
 
@@ -174,7 +203,6 @@ export default function PropertyEdit() {
     if (knowCurrentBalance && values.currentLoanBalance != null && values.currentLoanBalance > 0) {
       balanceToSend = values.currentLoanBalance;
     } else {
-      // Compute remaining balance from loan parameters
       const loan = Number(String(values.loanAmount).replace(/[$,\s]/g, "")) || 0;
       const rate = Number(String(values.interestRate).replace(/[$,%\s]/g, "")) || 0;
       const term = Number(values.loanTermYears) || 0;
@@ -189,6 +217,9 @@ export default function PropertyEdit() {
         id,
         data: {
           ...values,
+          city: values.city || null,
+          state: values.state || null,
+          zip: values.zip || null,
           currentLoanBalance: balanceToSend,
           zillowUrl: values.zillowUrl || null,
         },
@@ -244,6 +275,7 @@ export default function PropertyEdit() {
       <Card className="p-6">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+
             {/* ── Property Details ───────────────────────────────────────── */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold border-b pb-2">Property Details</h3>
@@ -266,9 +298,58 @@ export default function PropertyEdit() {
                   name="address"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Address</FormLabel>
+                      <FormLabel>Street Address</FormLabel>
                       <FormControl>
-                        <Input {...field} />
+                        <Input placeholder="123 Main St" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="city"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>City</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g. Austin" {...field} value={field.value ?? ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="state"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>State</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="e.g. TX"
+                          maxLength={2}
+                          {...field}
+                          value={field.value ?? ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="zip"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>ZIP Code</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="e.g. 78701"
+                          inputMode="numeric"
+                          {...field}
+                          value={field.value ?? ""}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -396,30 +477,9 @@ export default function PropertyEdit() {
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="monthlyPayment"
-                  render={({ field }) => (
-                    <FormItem className="md:col-span-2">
-                      <FormLabel>Monthly P&amp;I ($)</FormLabel>
-                      <FormControl>
-                        <Input
-                          inputMode="decimal"
-                          placeholder="Auto-calculated from loan details"
-                          {...field}
-                          value={field.value ?? ""}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Principal + Interest — auto-calculated from your loan details above. Edit to override.
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
               </div>
 
-              {/* ── Current balance toggle ──────────────────────────────── */}
+              {/* ── Current balance toggle — above Monthly P&I ──────────── */}
               <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
                 <label className="flex items-center gap-3 cursor-pointer select-none">
                   <input
@@ -437,9 +497,8 @@ export default function PropertyEdit() {
                 </label>
                 <p className="text-xs text-muted-foreground flex items-start gap-1.5 pl-7">
                   <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                  If unchecked, your remaining balance is automatically calculated from the loan
-                  parameters above. Check this to enter what your lender shows as today's exact
-                  balance.
+                  Entering your balance recalculates the monthly P&amp;I using the remaining term.
+                  If unchecked, both are calculated automatically from your loan parameters above.
                 </p>
                 {knowCurrentBalance && (
                   <div className="pl-7">
@@ -458,8 +517,8 @@ export default function PropertyEdit() {
                             />
                           </FormControl>
                           <FormDescription>
-                            What your lender shows you owe right now — used as the starting point
-                            for the amortization schedule and debt calculations.
+                            What your lender shows you owe right now — the monthly P&amp;I and
+                            amortization schedule will both update to reflect this.
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
@@ -468,6 +527,31 @@ export default function PropertyEdit() {
                   </div>
                 )}
               </div>
+
+              {/* Monthly P&I — below the balance toggle */}
+              <FormField
+                control={form.control}
+                name="monthlyPayment"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Monthly P&amp;I ($)</FormLabel>
+                    <FormControl>
+                      <Input
+                        inputMode="decimal"
+                        placeholder="Auto-calculated from loan details"
+                        {...field}
+                        value={field.value ?? ""}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {knowCurrentBalance
+                        ? "Calculated from your current balance and remaining term. Edit to override."
+                        : "Principal + Interest — auto-calculated from your loan details above. Edit to override."}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
 
             {/* ── Valuation ──────────────────────────────────────────────── */}
@@ -488,8 +572,7 @@ export default function PropertyEdit() {
                       />
                     </FormControl>
                     <FormDescription>
-                      Paste the exact Zillow listing page for this property. "Check on Zillow"
-                      buttons will link directly to it.
+                      Paste the exact Zillow listing page. "Check on Zillow" buttons link here.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
