@@ -761,6 +761,9 @@ components:
           type: string
         monthlyPayment:
           type: number
+        currentLoanBalance:
+          type: ["number", "null"]
+          description: Known remaining loan balance; overrides computed balance in amortization schedule
         notes:
           type: string
         zillowUrl:
@@ -799,6 +802,9 @@ components:
           type: ["array", "null"]
           items:
             $ref: "#/components/schemas/ExtraPaymentEntry"
+        currentLoanBalance:
+          type: ["number", "null"]
+          description: Known remaining loan balance; overrides computed balance in amortization schedule
         valueLastUpdatedAt:
           type: ["string", "null"]
         zillowUrl:

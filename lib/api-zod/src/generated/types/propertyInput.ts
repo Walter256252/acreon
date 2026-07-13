@@ -19,6 +19,11 @@ export interface PropertyInput {
   loanTermYears: number;
   loanStartDate: string;
   monthlyPayment: number;
+  /**
+     * Known remaining loan balance; overrides computed balance in amortization schedule
+     * @nullable
+     */
+  currentLoanBalance?: number | null;
   notes?: string;
   zillowUrl?: string;
 }

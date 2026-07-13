@@ -382,6 +382,7 @@ export const CreatePropertyBody = zod.object({
   "loanTermYears": zod.number(),
   "loanStartDate": zod.string(),
   "monthlyPayment": zod.number(),
+  "currentLoanBalance": zod.number().nullish().describe('Known remaining loan balance; overrides computed balance in amortization schedule'),
   "notes": zod.string().optional(),
   "zillowUrl": zod.string().optional()
 })
@@ -431,6 +432,7 @@ export const BulkImportPropertiesBody = zod.object({
   "loanTermYears": zod.number(),
   "loanStartDate": zod.string(),
   "monthlyPayment": zod.number(),
+  "currentLoanBalance": zod.number().nullish().describe('Known remaining loan balance; overrides computed balance in amortization schedule'),
   "notes": zod.string().optional(),
   "zillowUrl": zod.string().optional()
 }))
@@ -504,6 +506,7 @@ export const UpdatePropertyBody = zod.object({
   "paymentNumber": zod.number(),
   "amount": zod.number()
 })).nullish(),
+  "currentLoanBalance": zod.number().nullish().describe('Known remaining loan balance; overrides computed balance in amortization schedule'),
   "valueLastUpdatedAt": zod.string().nullish(),
   "zillowUrl": zod.string().nullish()
 })

@@ -1,6 +1,6 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import * as z from "zod";
 import { useLocation } from "wouter";
 import {
@@ -34,18 +34,55 @@ import { cn } from "@/lib/utils";
 
 // ─── Manual form ────────────────────────────────────────────────────────────
 
+/** Strip currency/percent symbols and commas before number coercion */
+function stripCurrency(val: unknown): unknown {
+  if (val === null || val === undefined || val === "") return val;
+  if (typeof val === "string") return val.replace(/[$,%\s]/g, "");
+  return val;
+}
+
+/** Standard mortgage P&I formula */
+function computePI(loanAmount: number, interestRate: number, loanTermYears: number): number {
+  const r = interestRate / 100 / 12;
+  const n = loanTermYears * 12;
+  if (!r || !n || loanAmount <= 0) return 0;
+  return (loanAmount * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+}
+
+/** Remaining loan balance based on loan parameters and elapsed time */
+function computeRemainingBalance(
+  loanAmount: number,
+  interestRate: number,
+  loanTermYears: number,
+  loanStartDate: string,
+): number {
+  const r = interestRate / 100 / 12;
+  const n = loanTermYears * 12;
+  const start = new Date(loanStartDate);
+  const now = new Date();
+  const monthsElapsed =
+    (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
+  if (monthsElapsed <= 0) return loanAmount;
+  if (monthsElapsed >= n) return 0;
+  if (!r) return Math.max(0, loanAmount - (loanAmount / n) * monthsElapsed);
+  const M = computePI(loanAmount, interestRate, loanTermYears);
+  const remaining =
+    loanAmount * Math.pow(1 + r, monthsElapsed) - (M * (Math.pow(1 + r, monthsElapsed) - 1)) / r;
+  return Math.max(0, Math.round(remaining * 100) / 100);
+}
+
 const formSchema = z.object({
   name: z.string().min(1, "Name is required"),
   address: z.string().min(1, "Address is required"),
   yearBought: z.coerce.number().min(1900, "Invalid year").max(new Date().getFullYear() + 1, "Year cannot be far in the future"),
-  purchasePrice: z.coerce.number().min(0, "Must be positive"),
-  currentValue: z.coerce.number().min(0, "Must be positive"),
-  loanAmount: z.coerce.number().min(0, "Must be positive"),
-  interestRate: z.coerce.number().min(0, "Must be positive").max(100, "Invalid rate"),
+  purchasePrice: z.preprocess(stripCurrency, z.coerce.number().min(0, "Must be positive")),
+  currentValue: z.preprocess(stripCurrency, z.coerce.number().min(0, "Must be positive")),
+  loanAmount: z.preprocess(stripCurrency, z.coerce.number().min(0, "Must be positive")),
+  interestRate: z.preprocess(stripCurrency, z.coerce.number().min(0, "Must be positive").max(100, "Invalid rate")),
   loanTermYears: z.coerce.number().min(1, "Must be positive"),
   loanStartDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD"),
-  monthlyPayment: z.coerce.number().min(0, "Must be positive"),
-  currentLoanBalance: z.coerce.number().min(0, "Must be positive").optional(),
+  monthlyPayment: z.preprocess(stripCurrency, z.coerce.number().min(0, "Must be positive")),
+  currentLoanBalance: z.preprocess(stripCurrency, z.coerce.number().min(0, "Must be positive")).optional(),
   notes: z.string().optional(),
   zillowUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
 });
@@ -483,7 +520,7 @@ export default function PropertyNew() {
       purchasePrice: 0,
       currentValue: 0,
       loanAmount: 0,
-      interestRate: 6.5,
+      interestRate: 0,
       loanTermYears: 30,
       loanStartDate: new Date().toISOString().split("T")[0],
       monthlyPayment: 0,
@@ -492,10 +529,37 @@ export default function PropertyNew() {
     },
   });
 
+  // Auto-compute P&I when loan params change
+  const watchedLoan = useWatch({ control: form.control, name: "loanAmount" });
+  const watchedRate = useWatch({ control: form.control, name: "interestRate" });
+  const watchedTerm = useWatch({ control: form.control, name: "loanTermYears" });
+
+  useEffect(() => {
+    const loan = Number(String(watchedLoan).replace(/[$,\s]/g, "")) || 0;
+    const rate = Number(String(watchedRate).replace(/[$,%\s]/g, "")) || 0;
+    const term = Number(watchedTerm) || 0;
+    if (loan > 0 && rate > 0 && term > 0) {
+      const pi = computePI(loan, rate, term);
+      form.setValue("monthlyPayment", Math.round(pi * 100) / 100, { shouldDirty: false });
+    }
+  }, [watchedLoan, watchedRate, watchedTerm, form]);
+
   const createProperty = useCreateProperty();
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    createProperty.mutate({ data: { ...values, zillowUrl: values.zillowUrl || undefined } }, {
+    // Compute remaining balance from loan params (or use the explicitly entered balance)
+    let currentLoanBalance = values.currentLoanBalance;
+    if (!knowCurrentBalance || currentLoanBalance == null) {
+      const loan = Number(values.loanAmount) || 0;
+      const rate = Number(values.interestRate) || 0;
+      const term = Number(values.loanTermYears) || 0;
+      const startDate = values.loanStartDate;
+      if (loan > 0 && rate > 0 && term > 0 && startDate) {
+        currentLoanBalance = computeRemainingBalance(loan, rate, term, startDate);
+      }
+    }
+
+    createProperty.mutate({ data: { ...values, currentLoanBalance, zillowUrl: values.zillowUrl || undefined } }, {
       onSuccess: (property) => {
         toast({ title: "Property Added", description: "Successfully added to your portfolio." });
         queryClient.invalidateQueries({ queryKey: getListPropertiesQueryKey() });
@@ -587,14 +651,14 @@ export default function PropertyNew() {
                   <FormField control={form.control} name="purchasePrice" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Purchase Price ($)</FormLabel>
-                      <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
+                      <FormControl><Input inputMode="decimal" placeholder="e.g. 450,000" {...field} value={field.value || ""} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
                   <FormField control={form.control} name="currentValue" render={({ field }) => (
                     <FormItem className="md:col-span-2">
                       <FormLabel>Current Estimated Value ($)</FormLabel>
-                      <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
+                      <FormControl><Input inputMode="decimal" placeholder="e.g. 520,000" {...field} value={field.value || ""} /></FormControl>
                       <FormDescription>Update this over time to track equity accurately.</FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -608,14 +672,14 @@ export default function PropertyNew() {
                   <FormField control={form.control} name="loanAmount" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Original Loan Amount ($)</FormLabel>
-                      <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
+                      <FormControl><Input inputMode="decimal" placeholder="e.g. 360,000" {...field} value={field.value || ""} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
                   <FormField control={form.control} name="interestRate" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Interest Rate (%)</FormLabel>
-                      <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
+                      <FormControl><Input inputMode="decimal" placeholder="e.g. 6.5" {...field} value={field.value || ""} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
@@ -636,9 +700,9 @@ export default function PropertyNew() {
                   )} />
                   <FormField control={form.control} name="monthlyPayment" render={({ field }) => (
                     <FormItem className="md:col-span-2">
-                      <FormLabel>Monthly Payment ($)</FormLabel>
-                      <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
-                      <FormDescription>Principal + Interest (exclude taxes/insurance if you want pure debt tracking)</FormDescription>
+                      <FormLabel>Monthly P&amp;I ($)</FormLabel>
+                      <FormControl><Input inputMode="decimal" placeholder="Auto-calculated from loan details" {...field} value={field.value || ""} /></FormControl>
+                      <FormDescription>Principal + Interest — auto-calculated from your loan details above. Edit to override.</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )} />
@@ -671,9 +735,8 @@ export default function PropertyNew() {
                           <FormLabel>Current Remaining Balance ($)</FormLabel>
                           <FormControl>
                             <Input
-                              type="number"
-                              step="0.01"
-                              placeholder="e.g. 187000"
+                              inputMode="decimal"
+                              placeholder="e.g. 187,000"
                               {...field}
                               value={field.value ?? ""}
                             />
