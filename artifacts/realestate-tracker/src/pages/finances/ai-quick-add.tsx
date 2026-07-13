@@ -1,6 +1,6 @@
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Sparkles, Send, Check, X, ChevronDown, ChevronUp, Loader2, Repeat } from "lucide-react";
+import { Sparkles, Send, Check, X, ChevronDown, ChevronUp, Loader2, Repeat, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useListProperties } from "@workspace/api-client-react";
 import { TX_TYPE_LABELS, categoriesForType, type TxType } from "./categories";
@@ -94,15 +94,36 @@ function inp(extra = "") {
   );
 }
 
+// ── Suggestion pre-fill type (from email-suggestions) ────────────────────
+
+export interface EmailSuggestionInput {
+  id: number;
+  emailSubject: string;
+  emailSummary: string;
+  propertyId: number | null;
+  suggestedDate: string;
+  suggestedDescription: string;
+  suggestedAmount: number | null;
+  suggestedType: string;
+  suggestedCategory: string;
+  suggestedVendor: string | null;
+}
+
+interface AiQuickAddProps {
+  suggestion?: EmailSuggestionInput | null;
+  onSuggestionConsumed?: () => void;
+}
+
 // ── Main Component ────────────────────────────────────────────────────────
 
-export default function AiQuickAdd() {
+export default function AiQuickAdd({ suggestion, onSuggestionConsumed }: AiQuickAddProps = {}) {
   const qc = useQueryClient();
   const { data: properties = [] } = useListProperties();
 
   const [expanded, setExpanded] = useState(true);
   const [input, setInput] = useState("");
   const [parsed, setParsed] = useState<ParsedTransaction | null>(null);
+  const activeSuggestionIdRef = useRef<number | null>(null);
 
   // Editable review state
   const [date, setDate] = useState(today());
@@ -122,6 +143,45 @@ export default function AiQuickAdd() {
   const [recurringEndDate, setRecurringEndDate] = useState("");
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Pre-fill review card when an email suggestion is passed in
+  useEffect(() => {
+    if (!suggestion) return;
+    activeSuggestionIdRef.current = suggestion.id;
+    setExpanded(true);
+    setInput("");
+    setParsed({
+      date: suggestion.suggestedDate,
+      description: suggestion.suggestedDescription,
+      amount: suggestion.suggestedAmount,
+      type: (suggestion.suggestedType as TxType) || "expense",
+      category: suggestion.suggestedCategory,
+      propertyId: suggestion.propertyId,
+      propertyName: null,
+      vendorPayer: suggestion.suggestedVendor,
+      rentalType: null,
+      notes: null,
+      confidence: "medium",
+      clarification: `Pre-filled from email: "${suggestion.emailSubject}"`,
+      isRecurring: false,
+      recurringFrequency: null,
+    });
+    setDate(suggestion.suggestedDate);
+    setDescription(suggestion.suggestedDescription);
+    setAmount(suggestion.suggestedAmount != null ? String(suggestion.suggestedAmount) : "");
+    setType((suggestion.suggestedType as TxType) || "expense");
+    setCategory(suggestion.suggestedCategory);
+    setPropertyId(suggestion.propertyId != null ? String(suggestion.propertyId) : "");
+    setVendorPayer(suggestion.suggestedVendor || "");
+    setRentalType("");
+    setNotes("");
+    setIsRecurring(false);
+    setRecurringFrequency("monthly");
+    setRecurringEndType("end_of_year");
+    setRecurringEndDate("");
+    parseMut.reset();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [suggestion]);
 
   const availableCategories = categoriesForType(type);
 
@@ -224,7 +284,22 @@ export default function AiQuickAdd() {
         return r.json();
       }
     },
-    onSuccess: () => {
+    onSuccess: async (data) => {
+      // If this came from an email suggestion, mark it converted
+      const suggId = activeSuggestionIdRef.current;
+      if (suggId) {
+        const txId = data?.id ?? data?.ids?.[0] ?? null;
+        if (txId) {
+          await fetch(`/api/finances/email-suggestions/${suggId}/convert`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ txId }),
+          });
+        }
+        qc.invalidateQueries({ queryKey: ["/api/finances/email-suggestions"] });
+        activeSuggestionIdRef.current = null;
+        onSuggestionConsumed?.();
+      }
       qc.invalidateQueries({ queryKey: ["/api/finances/transactions"] });
       qc.invalidateQueries({ queryKey: ["/api/finances/summary"] });
       reset();

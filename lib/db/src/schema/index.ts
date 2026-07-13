@@ -11,3 +11,4 @@ export * from "./propertyGeocodes";
 export * from "./feedback";
 export * from "./occupancy";
 export * from "./finances";
+export * from "./finEmailSuggestions";

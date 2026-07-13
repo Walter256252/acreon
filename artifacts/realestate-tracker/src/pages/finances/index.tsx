@@ -5,7 +5,8 @@ import { useListProperties } from "@workspace/api-client-react";
 import FinancesOverview from "./overview";
 import FinancesTransactions from "./transactions";
 import FinancesReport from "./report";
-import AiQuickAdd from "./ai-quick-add";
+import AiQuickAdd, { type EmailSuggestionInput } from "./ai-quick-add";
+import EmailSuggestions from "./email-suggestions";
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -57,6 +58,9 @@ export default function Finances() {
   const [customTo, setCustomTo]     = useState("");
   const [propFilter, setPropFilter] = useState("");
 
+  // Email suggestion pre-fill state
+  const [activeSuggestion, setActiveSuggestion] = useState<EmailSuggestionInput | null>(null);
+
   const derived = rangeOpt === "custom"
     ? { from: customFrom, to: customTo }
     : rangeForOption(rangeOpt, year);
@@ -76,8 +80,19 @@ export default function Finances() {
         </p>
       </div>
 
+      {/* Email Finance Suggestions (only visible when email is connected) */}
+      <EmailSuggestions
+        onAddSuggestion={(s) => {
+          setActiveSuggestion(s);
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }}
+      />
+
       {/* AI Quick Add */}
-      <AiQuickAdd />
+      <AiQuickAdd
+        suggestion={activeSuggestion}
+        onSuggestionConsumed={() => setActiveSuggestion(null)}
+      />
 
       {/* Filter bar */}
       <div className="flex flex-wrap gap-3 items-end p-4 rounded-xl border border-border bg-card">

@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { finTransactionsTable, propertiesTable } from "@workspace/db";
-import { eq, and, gte, lte, desc, asc } from "drizzle-orm";
+import { finTransactionsTable, propertiesTable, emailNotesTable, finEmailSuggestionsTable, emailConnectionsTable } from "@workspace/db";
+import { eq, and, gte, lte, desc, asc, isNull, ne } from "drizzle-orm";
 import { getAuth } from "@clerk/express";
 import { openai } from "@workspace/integrations-openai-ai-server";
 
@@ -499,6 +499,216 @@ router.get("/finances/report.csv", async (req, res) => {
     `attachment; filename="finances-${year}.csv"`,
   );
   res.send(csvRows.join("\n"));
+});
+
+// ── GET /finances/email-suggestions ──────────────────────────────────────
+router.get("/finances/email-suggestions", async (req, res) => {
+  const userId = uid(req);
+
+  const suggestions = await db
+    .select()
+    .from(finEmailSuggestionsTable)
+    .where(
+      and(
+        eq(finEmailSuggestionsTable.userId, userId),
+        eq(finEmailSuggestionsTable.dismissed, false),
+        isNull(finEmailSuggestionsTable.convertedTxId),
+      ),
+    )
+    .orderBy(desc(finEmailSuggestionsTable.createdAt));
+
+  res.json(suggestions.map((s) => ({
+    id: s.id,
+    emailNoteId: s.emailNoteId,
+    emailSubject: s.emailSubject,
+    emailSummary: s.emailSummary,
+    emailDate: s.emailDate,
+    propertyId: s.propertyId,
+    suggestedDate: s.suggestedDate,
+    suggestedDescription: s.suggestedDescription,
+    suggestedAmount: s.suggestedAmount ? parseFloat(String(s.suggestedAmount)) : null,
+    suggestedType: s.suggestedType,
+    suggestedCategory: s.suggestedCategory,
+    suggestedVendor: s.suggestedVendor,
+    createdAt: s.createdAt.toISOString(),
+  })));
+});
+
+// ── POST /finances/email-suggestions/scan ────────────────────────────────
+// Scan recent email notes for finance-relevant content, store suggestions.
+router.post("/finances/email-suggestions/scan", async (req, res) => {
+  const userId = uid(req);
+
+  // Check email is connected
+  const [conn] = await db
+    .select({ id: emailConnectionsTable.id })
+    .from(emailConnectionsTable)
+    .where(and(eq(emailConnectionsTable.userId, userId), eq(emailConnectionsTable.verified, true)));
+  if (!conn) {
+    res.status(400).json({ error: "No email connected" });
+    return;
+  }
+
+  // Get user's properties for context
+  const props = await db
+    .select({ id: propertiesTable.id, name: propertiesTable.name })
+    .from(propertiesTable)
+    .where(eq(propertiesTable.clerkUserId, userId));
+  const propMap = new Map(props.map((p) => [p.id, p.name]));
+
+  // Fetch email notes from the last 90 days that haven't already been suggested
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 90);
+
+  const existingNoteIds = new Set(
+    (await db
+      .select({ emailNoteId: finEmailSuggestionsTable.emailNoteId })
+      .from(finEmailSuggestionsTable)
+      .where(eq(finEmailSuggestionsTable.userId, userId))
+    ).map((r) => r.emailNoteId),
+  );
+
+  const notes = await db
+    .select()
+    .from(emailNotesTable)
+    .where(
+      and(
+        eq(emailNotesTable.userId, userId),
+        gte(emailNotesTable.threadDate, cutoff),
+      ),
+    )
+    .orderBy(desc(emailNotesTable.threadDate))
+    .limit(60);
+
+  const newNotes = notes.filter((n) => !existingNoteIds.has(n.id));
+  if (newNotes.length === 0) {
+    res.json({ scanned: 0, found: 0 });
+    return;
+  }
+
+  const propList = props.map((p) => `id=${p.id}: "${p.name}"`).join(", ");
+  const todayStr = new Date().toISOString().split("T")[0];
+
+  let found = 0;
+
+  // Process in batches of 10 for efficiency
+  const batchSize = 10;
+  for (let i = 0; i < newNotes.length; i += batchSize) {
+    const batch = newNotes.slice(i, i + batchSize);
+
+    const emailBlock = batch
+      .map((n, idx) => {
+        const propName = propMap.get(n.propertyId) ?? "Unknown";
+        const actions = JSON.parse(n.actionItems) as string[];
+        return `[${idx}] Date: ${n.threadDate.toISOString().split("T")[0]} | Property: ${propName} | Subject: ${n.subject}\nSummary: ${n.aiSummary}\nAction items: ${actions.join("; ") || "none"}`;
+      })
+      .join("\n\n");
+
+    const systemPrompt = `You are a real estate bookkeeping assistant. You will receive a list of property-related email summaries.
+For each email, decide if it represents a financial transaction that should be logged (e.g. repairs, maintenance invoices, rent received, payments made, contractor bills, HOA fees, insurance, utilities, etc.).
+
+Today: ${todayStr}
+User's properties: ${propList || "(none)"}
+
+For each email index that is finance-relevant, return a JSON entry. Skip emails that are purely informational, scheduling-only, or have no financial content.
+
+Return a JSON array (may be empty []):
+[
+  {
+    "idx": number,
+    "description": "short clear transaction description",
+    "amount": number or null,
+    "type": "income" | "expense" | "loan_payment" | "capital_improvement" | "owner_contribution" | "owner_draw",
+    "category": "string",
+    "propertyId": number or null,
+    "vendor": "string or null",
+    "date": "YYYY-MM-DD"
+  }
+]
+
+Category must be one of: Rental Income, Repairs & Maintenance, Cleaning & Turnover, Landscaping & Snow Removal, Pest Control, Utilities, HOA Fees, Property Management Fees, Homeowner's Insurance, Property Taxes, Legal & Professional Fees, Mortgage Interest, Principal Payment, Mortgage Payment (Combined), Capital Improvement, Other Expense, Other Income.
+Only include entries where you're reasonably confident a real dollar amount was exchanged or is owed. Do not hallucinate amounts — set amount to null if none is mentioned.`;
+
+    try {
+      const completion = await openai.chat.completions.create({
+        model: "gpt-5.4-mini",
+        max_completion_tokens: 1024,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: emailBlock },
+        ],
+      });
+
+      const raw = completion.choices[0]?.message?.content ?? "{}";
+      // The model returns { results: [...] } or just [...] — handle both
+      let parsed: Array<{
+        idx: number;
+        description: string;
+        amount: number | null;
+        type: string;
+        category: string;
+        propertyId: number | null;
+        vendor: string | null;
+        date: string;
+      }> = [];
+
+      try {
+        const obj = JSON.parse(raw);
+        parsed = Array.isArray(obj) ? obj : (obj.results ?? obj.suggestions ?? []);
+      } catch { /* skip */ }
+
+      for (const item of parsed) {
+        const note = batch[item.idx];
+        if (!note) continue;
+
+        await db.insert(finEmailSuggestionsTable).values({
+          userId,
+          emailNoteId: note.id,
+          emailSubject: note.subject,
+          emailSummary: note.aiSummary,
+          emailDate: note.threadDate.toISOString().split("T")[0],
+          propertyId: item.propertyId ?? note.propertyId,
+          suggestedDate: item.date ?? note.threadDate.toISOString().split("T")[0],
+          suggestedDescription: item.description,
+          suggestedAmount: item.amount != null ? String(item.amount) : null,
+          suggestedType: item.type,
+          suggestedCategory: item.category,
+          suggestedVendor: item.vendor ?? null,
+          dismissed: false,
+          convertedTxId: null,
+        });
+        found++;
+      }
+    } catch (err) {
+      console.error("Email suggestion scan error:", err);
+    }
+  }
+
+  res.json({ scanned: newNotes.length, found });
+});
+
+// ── PATCH /finances/email-suggestions/:id/dismiss ─────────────────────────
+router.patch("/finances/email-suggestions/:id/dismiss", async (req, res) => {
+  const userId = uid(req);
+  const id = parseInt(req.params.id);
+  await db
+    .update(finEmailSuggestionsTable)
+    .set({ dismissed: true })
+    .where(and(eq(finEmailSuggestionsTable.id, id), eq(finEmailSuggestionsTable.userId, userId)));
+  res.json({ success: true });
+});
+
+// ── PATCH /finances/email-suggestions/:id/convert ─────────────────────────
+router.patch("/finances/email-suggestions/:id/convert", async (req, res) => {
+  const userId = uid(req);
+  const id = parseInt(req.params.id);
+  const { txId } = req.body as { txId: number };
+  await db
+    .update(finEmailSuggestionsTable)
+    .set({ convertedTxId: txId })
+    .where(and(eq(finEmailSuggestionsTable.id, id), eq(finEmailSuggestionsTable.userId, userId)));
+  res.json({ success: true });
 });
 
 // ── POST /finances/ai-parse ──────────────────────────────────────────────
