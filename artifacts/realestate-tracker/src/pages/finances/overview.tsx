@@ -296,8 +296,8 @@ export default function FinancesOverview({ dateFrom, dateTo, propertyId }: Overv
         )}
       </div>
 
-      {/* Per-property table */}
-      {data.byProperty.length > 0 && (
+      {/* Per-property table — only shown when viewing all properties */}
+      {!propertyId && data.byProperty.length > 0 && (
         <div className="rounded-xl border border-border bg-card overflow-hidden">
           <div className="px-5 py-4 border-b border-border">
             <h3 className="font-semibold text-foreground">By Property</h3>
