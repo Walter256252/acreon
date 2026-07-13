@@ -12,6 +12,7 @@ import settingsRouter from "./settings";
 import adminRouter from "./admin";
 import propertiesGeoRouter from "./propertiesGeo";
 import occupancyRouter from "./occupancy";
+import financesRouter from "./finances";
 
 const router: IRouter = Router();
 
@@ -42,5 +43,6 @@ router.use(settingsRouter);
 router.use(adminRouter);
 router.use(propertiesGeoRouter);
 router.use(occupancyRouter);
+router.use(financesRouter);
 
 export default router;

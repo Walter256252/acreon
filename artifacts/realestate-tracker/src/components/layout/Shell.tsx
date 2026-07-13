@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, PlusCircle, Calculator, Building2, TrendingUp, Mail, Settings, ShieldCheck, Scale, Map, CalendarDays } from "lucide-react";
+import { LayoutDashboard, PlusCircle, Calculator, Building2, TrendingUp, Mail, Settings, ShieldCheck, Scale, Map, CalendarDays, Wallet } from "lucide-react";
 import { useUser, UserButton } from "@clerk/react";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
@@ -13,6 +13,7 @@ const NAV_ITEMS = [
   { href: "/app/comparison", label: "Smart Comparison", icon: Scale },
   { href: "/app/communications", label: "Communications", icon: Mail },
   { href: "/app/occupancy", label: "Occupancy", icon: CalendarDays },
+  { href: "/app/finances", label: "Finances", icon: Wallet },
   { href: "/app/properties/new", label: "Add Property", icon: PlusCircle },
   { href: "/app/calculator", label: "Calculator", icon: Calculator },
 ];

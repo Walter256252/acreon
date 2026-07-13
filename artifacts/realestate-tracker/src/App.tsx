@@ -24,6 +24,7 @@ import Comparison from "@/pages/comparison";
 import Onboarding from "@/pages/onboarding";
 import MapView from "@/pages/map-view";
 import Occupancy from "@/pages/occupancy";
+import Finances from "@/pages/finances/index";
 import NotFound from "@/pages/not-found";
 
 // REQUIRED — copy verbatim.
@@ -193,6 +194,7 @@ function AppRoute() {
               <Route path="/app/comparison" component={Comparison} />
               <Route path="/app/map" component={MapView} />
               <Route path="/app/occupancy" component={Occupancy} />
+              <Route path="/app/finances" component={Finances} />
               <Route path="/app/settings" component={SettingsPage} />
               <Route path="/app/admin" component={AdminRoute} />
               <Route component={NotFound} />
