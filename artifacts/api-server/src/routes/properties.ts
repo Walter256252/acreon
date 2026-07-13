@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { propertiesTable } from "@workspace/db";
+import { propertiesTable, propertyGeocodesTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { getAuth } from "@clerk/express";
 import { openai } from "@workspace/integrations-openai-ai-server";
@@ -111,12 +111,27 @@ router.put("/properties/:id", async (req, res) => {
     updates.currentLoanBalance =
       body.currentLoanBalance != null ? String(body.currentLoanBalance) : null;
 
+  const locationChanged =
+    body.address !== undefined ||
+    "city" in body ||
+    "state" in body ||
+    "zip" in body;
+
   const [row] = await db
     .update(propertiesTable)
     .set(updates)
     .where(and(eq(propertiesTable.id, id), eq(propertiesTable.clerkUserId, userId)))
     .returning();
   if (!row) { res.status(404).json({ error: "Property not found" }); return; }
+
+  // If the address changed, bust the geocode cache so the map re-geocodes
+  // the property on the next request with the new address.
+  if (locationChanged) {
+    await db
+      .delete(propertyGeocodesTable)
+      .where(eq(propertyGeocodesTable.propertyId, id));
+  }
+
   res.json(toApiProperty(row));
 });
 
