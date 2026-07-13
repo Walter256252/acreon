@@ -15,6 +15,12 @@ import { logger } from "./lib/logger";
 
 const app: Express = express();
 
+// ── Trust proxy ────────────────────────────────────────────────────────────
+// Replit's deployment sits behind a reverse proxy that sets X-Forwarded-For.
+// Without this, express-rate-limit throws a ValidationError on every request
+// and the IP-based rate limiting uses the wrong address.
+app.set("trust proxy", 1);
+
 // ── Security headers ───────────────────────────────────────────────────────
 app.use(
   helmet({
