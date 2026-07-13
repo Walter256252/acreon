@@ -573,6 +573,8 @@ Rules:
 6. Set confidence: "high" if amount + type + category all clear; "medium" if one field is inferred; "low" if two or more are unclear.
 7. Set clarification to a short note if something was ambiguous or assumed (e.g. "Assumed current year for July rent"). null if everything is clear.
 8. rentalType: "long_term" for LTR/month-to-month, "short_term" for STR/Airbnb/VRBO. null if unclear.
+9. isRecurring: true if the user explicitly says "every month", "monthly", "recurring", "repeat", "each month", "quarterly", "annually", "every year", "each quarter", "bi-annual", or any other clear recurring language. false otherwise.
+10. recurringFrequency: if isRecurring is true, set to "monthly" | "quarterly" | "semi_annual" | "annual" based on what the user said. null if isRecurring is false.
 
 Return ONLY valid JSON with these exact keys:
 {
@@ -587,7 +589,9 @@ Return ONLY valid JSON with these exact keys:
   "rentalType": "long_term" | "short_term" | null,
   "notes": "string or null",
   "confidence": "high" | "medium" | "low",
-  "clarification": "string or null"
+  "clarification": "string or null",
+  "isRecurring": boolean,
+  "recurringFrequency": "monthly" | "quarterly" | "semi_annual" | "annual" | null
 }`;
 
   try {
