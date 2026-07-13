@@ -1,8 +1,9 @@
 import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { MapContainer, TileLayer, Marker, Popup, CircleMarker } from "react-leaflet";
 import L from "leaflet";
-import { Map, Loader2, Building2, TrendingUp, DollarSign, Landmark, ChevronDown, CalendarDays } from "lucide-react";
+import { Map, Loader2, Building2, TrendingUp, DollarSign, Landmark, ChevronDown, CalendarDays, AlertTriangle, ExternalLink } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { formatCurrency, formatPercent } from "@/lib/utils";
 import { PortfolioChat } from "@/components/portfolio-chat";
@@ -156,8 +157,15 @@ export default function MapView() {
     );
   }, [occupancyData]);
 
+  const navigate = useNavigate();
+
   const mapped = useMemo(
     () => (data?.properties ?? []).filter(p => p.lat !== null && p.lng !== null),
+    [data]
+  );
+
+  const unmapped = useMemo(
+    () => (data?.properties ?? []).filter(p => p.lat === null || p.lng === null),
     [data]
   );
 
@@ -511,6 +519,46 @@ export default function MapView() {
           )}
         </div>
       </Card>
+
+      {/* Ungeocodable properties callout */}
+      {unmapped.length > 0 && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+                {unmapped.length === 1
+                  ? "1 property couldn't be placed on the map"
+                  : `${unmapped.length} properties couldn't be placed on the map`}
+              </p>
+              <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5 mb-3">
+                The address may be misspelled, missing a city/state, or not recognised by the map provider.
+                Please verify each address and save any corrections — the map will update on your next visit.
+              </p>
+              <div className="space-y-2">
+                {unmapped.map(p => (
+                  <div
+                    key={p.id}
+                    className="flex items-center justify-between gap-4 rounded-md bg-amber-100 dark:bg-amber-900/40 px-3 py-2"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-amber-900 dark:text-amber-200 truncate">{p.name}</p>
+                      <p className="text-xs text-amber-700 dark:text-amber-400 truncate">{p.address}</p>
+                    </div>
+                    <button
+                      onClick={() => navigate(`/app/properties/${p.id}/edit`)}
+                      className="flex items-center gap-1.5 text-xs font-medium text-amber-800 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-100 whitespace-nowrap shrink-0 underline underline-offset-2"
+                    >
+                      Edit address
+                      <ExternalLink className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* By-city breakdown */}
       {data && data.byCity.length > 0 && (
