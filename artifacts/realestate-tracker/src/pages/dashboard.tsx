@@ -136,13 +136,13 @@ export default function Dashboard() {
         <StatCard
           title="Total Value"
           value={formatCurrency(data.totalPortfolioValue)}
-          icon={<Building className="w-5 h-5" />}
+          icon={<Building className="w-5 h-5 text-primary" />}
           subtext={`${data.totalProperties} propert${data.totalProperties === 1 ? "y" : "ies"}`}
         />
         <StatCard
           title="Total Debt"
           value={formatCurrency(data.totalLoanBalance)}
-          icon={<Landmark className="w-5 h-5 text-destructive" />}
+          icon={<Landmark className="w-5 h-5 text-primary" />}
         />
         <StatCard
           title="Total Equity"
@@ -156,7 +156,7 @@ export default function Dashboard() {
         <StatCard
           title="Monthly Obligations"
           value={formatCurrency(data.monthlyPaymentTotal)}
-          icon={<DollarSign className="w-5 h-5" />}
+          icon={<DollarSign className="w-5 h-5 text-primary" />}
         />
       </div>
 
