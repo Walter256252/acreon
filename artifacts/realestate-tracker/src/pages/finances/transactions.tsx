@@ -457,7 +457,10 @@ export default function FinancesTransactions({ filterPropertyId, dateFrom, dateT
 
   const { data: txs = [], isLoading } = useQuery<Transaction[]>({
     queryKey: ["/api/finances/transactions", filterPropertyId, dateFrom, dateTo],
-    queryFn: () => fetch(`/api/finances/transactions?${params.toString()}`).then(r => r.json()),
+    queryFn: () => fetch(`/api/finances/transactions?${params.toString()}`).then(r => {
+      if (!r.ok) throw new Error("Failed to load transactions");
+      return r.json();
+    }),
   });
 
   const deleteMut = useMutation({

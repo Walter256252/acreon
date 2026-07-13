@@ -235,6 +235,24 @@ router.post("/properties/estimate-taxes", async (req, res) => {
   }
 });
 
+// ── PATCH /api/properties/:id/receipt-folder ─────────────────────────────
+router.patch("/properties/:id/receipt-folder", async (req, res) => {
+  const userId = getAuth(req).userId!;
+  const id = parseInt(req.params.id);
+  const { url } = req.body as { url: string | null };
+
+  const owned = await assertPropertyOwner(id, userId);
+  if (!owned) { res.status(403).json({ error: "Not found" }); return; }
+
+  const [row] = await db
+    .update(propertiesTable)
+    .set({ receiptFolderUrl: url || null, updatedAt: new Date() })
+    .where(eq(propertiesTable.id, id))
+    .returning();
+
+  res.json(toApiProperty(row));
+});
+
 // ── PATCH /api/properties/:id/rental-type (occupancy sub-route lives here) ─
 // Ownership enforced by matching clerkUserId
 export async function assertPropertyOwner(
@@ -277,6 +295,7 @@ function toApiProperty(row: typeof propertiesTable.$inferSelect) {
       ? row.valueLastUpdatedAt.toISOString()
       : null,
     zillowUrl: row.zillowUrl ?? null,
+    receiptFolderUrl: row.receiptFolderUrl ?? null,
     monthlyTaxes: row.monthlyTaxes != null ? Number(row.monthlyTaxes) : null,
     monthlyInsurance:
       row.monthlyInsurance != null ? Number(row.monthlyInsurance) : null,

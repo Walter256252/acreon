@@ -34,6 +34,8 @@ export const propertiesTable = pgTable("properties", {
   monthlyRent: numeric("monthly_rent", { precision: 15, scale: 2 }),
   // Occupancy tracking
   rentalType: text("rental_type"),
+  // Finance receipts — link to a cloud folder (Drive, Dropbox, etc.)
+  receiptFolderUrl: text("receipt_folder_url"),
   // Auth: Clerk user who owns this property
   clerkUserId: text("clerk_user_id"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
