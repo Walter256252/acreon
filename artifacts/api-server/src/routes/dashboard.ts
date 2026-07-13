@@ -27,6 +27,8 @@ router.get("/dashboard", async (req, res) => {
     const savedExtras =
       (prop.savedExtraPayments as Array<{ paymentNumber: number; amount: number }> | null) ?? [];
 
+    const hasKnownBalance = prop.currentLoanBalance != null;
+
     const schedule = buildAmortizationSchedule({
       loanAmount: Number(prop.loanAmount),
       interestRate: Number(prop.interestRate),
@@ -35,12 +37,16 @@ router.get("/dashboard", async (req, res) => {
       monthlyPayment: Number(prop.monthlyPayment),
       extraPaymentMonthly: prop.savedExtraMonthly != null ? Number(prop.savedExtraMonthly) : 0,
       extraPayments: savedExtras,
+      startingBalance: hasKnownBalance ? Number(prop.currentLoanBalance) : undefined,
     });
 
-    // Current balance = balance at today's payment number (clamped to schedule length)
+    // When the user supplied a known balance, use it directly — the schedule in that case
+    // starts from that balance going forward, so we don't look up a past payment row.
+    // Otherwise compute the balance from the amortization schedule at today's payment index.
     const currentPaymentIdx = Math.max(0, Math.min(monthsElapsed - 1, schedule.length - 1));
-    const estimatedBalance =
-      monthsElapsed <= 0
+    const estimatedBalance = hasKnownBalance
+      ? Number(prop.currentLoanBalance)
+      : monthsElapsed <= 0
         ? Number(prop.loanAmount)
         : (schedule[currentPaymentIdx]?.remainingBalance ?? 0);
 
@@ -50,7 +56,7 @@ router.get("/dashboard", async (req, res) => {
 
     // Find payoff date: last entry in schedule where remainingBalance > 0
     const lastPayment = schedule.findLast((e) => e.remainingBalance > 0.01);
-    const payoffDate = lastPayment ? lastPayment.date : null;
+    const payoffDate = lastPayment ? lastPayment.paymentDate : null;
 
     const purchasePrice = Number(prop.purchasePrice);
     const appreciation = currentValue - purchasePrice;

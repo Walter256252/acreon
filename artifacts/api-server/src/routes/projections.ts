@@ -21,12 +21,15 @@ router.get("/projections", async (req, res) => {
   const today = new Date();
 
   const propertyProjections = properties.map((prop) => {
+    const hasKnownBalance = prop.currentLoanBalance != null;
+
     const schedule = buildAmortizationSchedule({
       loanAmount: Number(prop.loanAmount),
       interestRate: Number(prop.interestRate),
       loanTermYears: prop.loanTermYears,
       loanStartDate: prop.loanStartDate,
       monthlyPayment: Number(prop.monthlyPayment),
+      startingBalance: hasKnownBalance ? Number(prop.currentLoanBalance) : undefined,
     });
 
     // Index schedule by payment number for fast lookup
@@ -75,9 +78,13 @@ router.get("/projections", async (req, res) => {
     });
 
     // Current snapshot (today)
+    // When the user supplied a known balance, use it directly — the schedule starts from
+    // that balance going forward, not from the original loan amount in the past.
     const currentPaymentNum = Math.max(1, Math.min(monthsElapsedToday, schedule.length));
     const currentRow = scheduleByNumber.get(currentPaymentNum) ?? lastRow;
-    const currentBalance = currentRow ? currentRow.remainingBalance : Number(prop.loanAmount);
+    const currentBalance = hasKnownBalance
+      ? Number(prop.currentLoanBalance)
+      : (currentRow ? currentRow.remainingBalance : Number(prop.loanAmount));
 
     return {
       id: prop.id,

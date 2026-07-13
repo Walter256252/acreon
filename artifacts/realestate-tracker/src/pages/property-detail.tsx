@@ -394,7 +394,7 @@ export default function PropertyDetail() {
     const months =
       (now.getFullYear() - start.getFullYear()) * 12 +
       (now.getMonth() - start.getMonth());
-    return Math.min(Math.max(months + 1, 1), schedule?.length || 1);
+    return Math.min(Math.max(months, 1), schedule?.length || 1);
   })();
 
   // Scroll to current row when switching to "all" mode
