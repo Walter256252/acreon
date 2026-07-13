@@ -386,6 +386,9 @@ export default function PropertyDetail() {
   // Calculate which payment number is "current" based on today vs loan start date
   const currentPaymentNumber = (() => {
     if (!property) return 1;
+    // When a known balance was provided, the schedule starts from today (payment #1 = first
+    // upcoming payment), so "current" is always the very first row.
+    if (property.currentLoanBalance != null) return 1;
     const start = new Date(property.loanStartDate);
     const now = new Date();
     const months =
@@ -427,9 +430,14 @@ export default function PropertyDetail() {
   const scenarioSummary = scenarioResult?.summary;
   const maxRows = Math.max(baseSchedule.length, showingScenario ? scenarioSchedule.length : 0);
 
-  // Current balance = amortized balance at today's payment number, not the final payoff row
+  // Current balance = amortized balance at today's payment number, not the final payoff row.
+  // When the user supplied a known balance, use it directly — the schedule in that case starts
+  // from that balance going forward, so schedule[0] is already post-payment-#1.
   const currentBalanceRow = baseSchedule[currentPaymentNumber - 1];
-  const currentBalance = currentBalanceRow?.remainingBalance ?? Number(property.currentLoanBalance ?? property.loanAmount);
+  const currentBalance =
+    property.currentLoanBalance != null
+      ? Number(property.currentLoanBalance)
+      : (currentBalanceRow?.remainingBalance ?? Number(property.loanAmount));
   const estimatedEquity = property.currentValue - currentBalance;
 
   const hasSavedExtras = property.savedExtraMonthly || property.savedExtraPayments?.length;
