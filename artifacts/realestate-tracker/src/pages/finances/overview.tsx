@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { DollarSign, TrendingUp, TrendingDown, AlertCircle, Building2, FolderOpen, ExternalLink, Pencil, Check, X, Link } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, AlertCircle, Building2, FolderOpen, ExternalLink, Pencil, Check, X, Link, ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useListProperties } from "@workspace/api-client-react";
 
@@ -366,21 +366,74 @@ function ReceiptFolderSection({
 }: {
   props: Array<{ id: number; name: string; receiptFolderUrl: string | null }>;
 }) {
+  const [collapsed, setCollapsed] = useState(false);
+  const [focusId, setFocusId] = useState<number | "all">("all");
+
+  const visible = focusId === "all" ? props : props.filter(p => p.id === focusId);
+
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-2">
-        <FolderOpen className="w-4 h-4 text-muted-foreground" />
-        <h3 className="text-sm font-medium text-muted-foreground">Receipt Folders</h3>
-        <span className="text-xs text-muted-foreground/60">· one per property, links to your cloud storage</span>
+      {/* Header row */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <button
+          onClick={() => setCollapsed(c => !c)}
+          className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+        >
+          {collapsed
+            ? <ChevronRight className="w-3.5 h-3.5" />
+            : <ChevronDown className="w-3.5 h-3.5" />}
+          <FolderOpen className="w-4 h-4" />
+          Receipt Folders
+        </button>
+
+        {!collapsed && props.length > 1 && (
+          <div className="flex items-center gap-1 ml-2 flex-wrap">
+            <button
+              onClick={() => setFocusId("all")}
+              className={cn(
+                "px-2.5 py-0.5 rounded-full text-xs font-medium transition-colors",
+                focusId === "all"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:bg-muted/70",
+              )}
+            >
+              All
+            </button>
+            {props.map(p => (
+              <button
+                key={p.id}
+                onClick={() => setFocusId(focusId === p.id ? "all" : p.id)}
+                className={cn(
+                  "px-2.5 py-0.5 rounded-full text-xs font-medium transition-colors",
+                  focusId === p.id
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground hover:bg-muted/70",
+                )}
+              >
+                {p.name}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {collapsed && (
+          <span className="text-xs text-muted-foreground/60">
+            · {props.length} propert{props.length === 1 ? "y" : "ies"} hidden
+          </span>
+        )}
       </div>
-      <div className={cn(
-        "grid gap-2",
-        props.length === 1 ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2",
-      )}>
-        {props.map(p => (
-          <ReceiptFolderCard key={p.id} property={p} />
-        ))}
-      </div>
+
+      {/* Cards */}
+      {!collapsed && (
+        <div className={cn(
+          "grid gap-2",
+          visible.length === 1 ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2",
+        )}>
+          {visible.map(p => (
+            <ReceiptFolderCard key={p.id} property={p} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
