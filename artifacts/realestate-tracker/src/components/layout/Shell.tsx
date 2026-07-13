@@ -41,7 +41,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
       <aside className="w-full md:w-64 flex-shrink-0 bg-sidebar border-r border-sidebar-border flex flex-col">
         <div className="p-6">
           <Link href="/" className="flex items-center gap-3 text-sidebar-foreground font-bold text-xl tracking-tight cursor-pointer">
-            <img src="/logo.png" alt="Acreon" className="w-7 h-7 object-contain" />
+            <div className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0">
+              <img src="/logo.png" alt="Acreon" className="w-full h-full object-cover object-[center_20%]" />
+            </div>
             <span>Acreon</span>
           </Link>
         </div>

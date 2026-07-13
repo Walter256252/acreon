@@ -43,7 +43,9 @@ export default function Landing() {
       <header className="border-b border-[hsl(120,8%,85%)] bg-[hsl(120,6%,97%)]/90 backdrop-blur-sm sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2.5 font-bold text-xl tracking-tight">
-            <img src="/logo.png" alt="Acreon" className="w-7 h-7 object-contain" />
+            <div className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0">
+              <img src="/logo.png" alt="Acreon" className="w-full h-full object-cover object-[center_20%]" />
+            </div>
             Acreon
           </div>
           <div className="flex items-center gap-3">
@@ -156,7 +158,9 @@ export default function Landing() {
       <footer className="border-t border-[hsl(120,8%,85%)] py-8">
         <div className="max-w-6xl mx-auto px-6 flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-2 font-semibold text-sm">
-            <img src="/logo.png" alt="Acreon" className="w-5 h-5 object-contain" />
+            <div className="w-6 h-6 rounded-md overflow-hidden flex-shrink-0">
+              <img src="/logo.png" alt="Acreon" className="w-full h-full object-cover object-[center_20%]" />
+            </div>
             Acreon
           </div>
           <p className="text-xs text-[hsl(160,8%,52%)]">
