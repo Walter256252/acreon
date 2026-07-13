@@ -41,12 +41,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       <aside className="w-full md:w-64 flex-shrink-0 bg-sidebar border-r border-sidebar-border flex flex-col">
         <div className="p-6">
           <Link href="/" className="flex items-center gap-3 text-sidebar-foreground font-bold text-xl tracking-tight cursor-pointer">
-            <img
-              src="/logo-symbol.png"
-              alt="Acreon"
-              className="w-8 h-8 object-cover flex-shrink-0"
-              style={{ clipPath: "polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)" }}
-            />
+            <img src="/logo-symbol.svg" alt="Acreon" className="w-7 h-7 flex-shrink-0" />
             <span>Acreon</span>
           </Link>
         </div>

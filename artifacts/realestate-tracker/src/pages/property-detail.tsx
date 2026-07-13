@@ -52,6 +52,7 @@ import {
   Check,
   Receipt,
   TrendingUp,
+  Building2,
 } from "lucide-react";
 import { Link } from "wouter";
 import {
@@ -443,7 +444,10 @@ export default function PropertyDetail() {
             <ArrowLeft className="w-4 h-4 mr-1" />
             Back to Properties
           </Link>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">{property.name}</h1>
+          <div className="flex items-center gap-3 mb-1">
+            <Building2 className="w-6 h-6 text-primary" />
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">{property.name}</h1>
+          </div>
           <div className="flex items-center gap-2 mt-2 text-muted-foreground">
             <MapPin className="w-4 h-4" />
             <span className="text-sm">{property.address}</span>

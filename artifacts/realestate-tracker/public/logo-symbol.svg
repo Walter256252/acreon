@@ -1,0 +1,18 @@
+<svg viewBox="0 0 100 92" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4ade80"/>
+      <stop offset="100%" stop-color="#16a34a"/>
+    </linearGradient>
+    <clipPath id="c">
+      <polygon points="26,2 74,2 98,46 74,90 26,90 2,46"/>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#c)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M5,30 C15,24 28,30 42,26 C54,23 63,16 72,20 C82,24 88,32 86,40 C84,47 76,50 65,47 C54,44 48,35 38,36 C28,37 18,44 12,40 C7,37 4,34 5,30Z" stroke="#4ade80" stroke-width="2"/>
+    <path d="M8,50 C18,44 32,50 46,46 C58,43 67,35 76,40 C84,44 90,52 87,60 C84,67 74,70 62,66 C51,63 45,53 34,54 C23,55 14,62 9,58 C5,54 5,53 8,50Z" stroke="#22c55e" stroke-width="1.8"/>
+    <path d="M15,68 C24,64 37,68 50,66 C61,64 70,58 78,62 C85,65 89,72 86,78 C83,83 73,86 62,83 C51,80 46,72 35,73 C25,74 17,79 13,75 C10,72 12,70 15,68Z" stroke="#16a34a" stroke-width="1.6"/>
+    <path d="M30,18 C40,14 55,16 64,22 C71,26 70,33 62,35 C54,37 45,30 36,31 C29,32 25,26 30,18Z" stroke="#4ade80" stroke-width="1.8"/>
+  </g>
+  <polygon points="26,2 74,2 98,46 74,90 26,90 2,46" fill="none" stroke="url(#g)" stroke-width="4" stroke-linejoin="round"/>
+</svg>

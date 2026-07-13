@@ -518,7 +518,10 @@ export default function PropertyNew() {
           <ArrowLeft className="w-4 h-4 mr-1" />
           Back to Dashboard
         </Link>
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">Add Property</h1>
+        <div className="flex items-center gap-3 mb-1">
+          <PlusCircle className="w-6 h-6 text-primary" />
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Add Property</h1>
+        </div>
         <p className="text-muted-foreground mt-1 text-sm">Add a single property manually, or upload a spreadsheet to import several at once.</p>
       </div>
 

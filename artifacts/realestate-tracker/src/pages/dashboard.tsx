@@ -3,7 +3,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { formatCurrency, formatPercent } from "@/lib/utils";
 import {
   Building, DollarSign, PieChart, Landmark, TrendingUp, TrendingDown,
-  CalendarCheck, Award, AlertTriangle, BarChart3, Link,
+  CalendarCheck, Award, AlertTriangle, BarChart3, Link, LayoutDashboard,
 } from "lucide-react";
 import { PortfolioChat } from "@/components/portfolio-chat";
 import { useLocation } from "wouter";
@@ -124,7 +124,10 @@ export default function Dashboard() {
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">Portfolio Overview</h1>
+        <div className="flex items-center gap-3 mb-1">
+          <LayoutDashboard className="w-6 h-6 text-primary" />
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Portfolio Overview</h1>
+        </div>
         <p className="text-muted-foreground mt-1 text-sm">Real-time valuation and equity breakdown.</p>
       </div>
 

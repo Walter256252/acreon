@@ -48,7 +48,10 @@ export default function Properties() {
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Properties</h1>
+          <div className="flex items-center gap-3 mb-1">
+            <Building className="w-6 h-6 text-primary" />
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">Properties</h1>
+          </div>
           <p className="text-muted-foreground mt-1 text-sm">
             {data.properties.length === 0
               ? "No properties tracked yet."

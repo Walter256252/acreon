@@ -416,7 +416,10 @@ export default function Occupancy() {
     <div className="space-y-6 animate-in fade-in duration-500">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">Occupancy</h1>
+        <div className="flex items-center gap-3 mb-1">
+          <CalendarDays className="w-6 h-6 text-primary" />
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Occupancy</h1>
+        </div>
         <p className="text-muted-foreground mt-1 text-sm">
           Track which properties are rented out month-by-month or day-by-day.
         </p>

@@ -368,7 +368,10 @@ export default function Communications() {
     <div className="space-y-8 animate-in fade-in duration-500">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">Communications</h1>
+        <div className="flex items-center gap-3 mb-1">
+          <Mail className="w-6 h-6 text-primary" />
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Communications</h1>
+        </div>
         <p className="text-muted-foreground mt-1 text-sm">
           Connect your email and let AI turn property-related threads into organized monthly notes.
         </p>

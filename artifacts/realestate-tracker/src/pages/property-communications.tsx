@@ -320,9 +320,12 @@ export default function PropertyCommunications() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            {property?.name ?? "Property"} — Communications
-          </h1>
+          <div className="flex items-center gap-3 mb-1">
+            <Mail className="w-5 h-5 text-primary" />
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">
+              {property?.name ?? "Property"} — Communications
+            </h1>
+          </div>
           <p className="text-muted-foreground text-sm mt-0.5">{property?.address}</p>
         </div>
         <div className="flex items-center gap-3">

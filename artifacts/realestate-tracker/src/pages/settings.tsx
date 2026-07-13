@@ -4,6 +4,7 @@ import { useUser, useClerk } from "@clerk/react";
 import {
   User, Mail, Bell, ChevronRight, CheckCircle2, Loader2, Send,
   Sparkles, Eye, TrendingUp, ShieldCheck, RefreshCw, WifiOff, Wifi, MessageSquare,
+  Settings as SettingsIcon,
 } from "lucide-react";
 import {
   useGetUserPreferences,
@@ -161,7 +162,10 @@ export default function Settings() {
   return (
     <div className="space-y-8 max-w-2xl animate-in fade-in duration-500">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">Settings</h1>
+        <div className="flex items-center gap-3 mb-1">
+          <SettingsIcon className="w-6 h-6 text-primary" />
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Settings</h1>
+        </div>
         <p className="text-muted-foreground mt-1 text-sm">Manage your account and notification preferences.</p>
       </div>
 
