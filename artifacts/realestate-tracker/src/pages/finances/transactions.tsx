@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, CheckCircle, Circle, X, Search, Repeat } from "lucide-react";
+import { Plus, Pencil, Trash2, CheckCircle, Circle, X, Search, Repeat, ArrowDownUp, LayoutList, Tag } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useListProperties } from "@workspace/api-client-react";
 import { TX_TYPE_LABELS, categoriesForType, type TxType, isOutflow } from "./categories";
@@ -437,6 +437,78 @@ function TransactionModal({
   );
 }
 
+// ── Shared transaction row ────────────────────────────────────────────────
+
+function TxRow({
+  tx,
+  showCategory,
+  propMap,
+  onEdit,
+  onDelete,
+  onToggleReview,
+}: {
+  tx: Transaction;
+  showCategory: boolean;
+  propMap: Map<number, string>;
+  onEdit: () => void;
+  onDelete: () => void;
+  onToggleReview: () => void;
+}) {
+  const outflow = isOutflow(tx.type as TxType);
+  return (
+    <tr className="hover:bg-muted/30 transition-colors">
+      <td className="px-4 py-3">
+        <button
+          onClick={onToggleReview}
+          title={tx.isReviewed ? "Mark unreviewed" : "Mark reviewed"}
+          className="text-muted-foreground hover:text-primary transition-colors"
+        >
+          {tx.isReviewed
+            ? <CheckCircle className="w-4 h-4 text-emerald-600" />
+            : <Circle className="w-4 h-4" />}
+        </button>
+      </td>
+      <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{tx.date}</td>
+      <td className="px-4 py-3 text-foreground max-w-48 truncate" title={tx.description}>
+        {tx.description}
+        {tx.vendorPayer && (
+          <span className="block text-xs text-muted-foreground">{tx.vendorPayer}</span>
+        )}
+      </td>
+      <td className="px-4 py-3">
+        <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full", TYPE_COLORS[tx.type] ?? "bg-muted text-foreground")}>
+          {TX_TYPE_LABELS[tx.type as TxType] ?? tx.type}
+        </span>
+      </td>
+      {showCategory && (
+        <td className="px-4 py-3 text-muted-foreground text-xs">{tx.category}</td>
+      )}
+      <td className="px-4 py-3 text-muted-foreground text-xs truncate max-w-32">
+        {tx.propertyId ? (propMap.get(tx.propertyId) ?? "—") : "Unassigned"}
+      </td>
+      <td className={cn("px-4 py-3 text-right font-medium whitespace-nowrap", outflow ? "text-red-600 dark:text-red-400" : "text-emerald-700 dark:text-emerald-400")}>
+        {outflow ? "−" : "+"}{fmt$(tx.amount)}
+      </td>
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-1 justify-end">
+          <button
+            onClick={onEdit}
+            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={onDelete}
+            className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
 // ── Main Component ────────────────────────────────────────────────────────
 
 export default function FinancesTransactions({ filterPropertyId, dateFrom, dateTo }: Props) {
@@ -446,6 +518,8 @@ export default function FinancesTransactions({ filterPropertyId, dateFrom, dateT
   const [typeFilter, setTypeFilter] = useState("");
   const [reviewFilter, setReviewFilter] = useState("");
   const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [viewMode, setViewMode] = useState<"date" | "category">("date");
+  const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
 
   // Use the authenticated api-client hook so the Bearer token is included
   const { data: properties = [] } = useListProperties();
@@ -490,20 +564,44 @@ export default function FinancesTransactions({ filterPropertyId, dateFrom, dateT
 
   const propMap = new Map(properties.map(p => [p.id, p.name]));
 
-  const filtered = txs.filter(tx => {
-    if (typeFilter && tx.type !== typeFilter) return false;
-    if (reviewFilter === "reviewed" && !tx.isReviewed) return false;
-    if (reviewFilter === "unreviewed" && tx.isReviewed) return false;
-    if (search) {
-      const q = search.toLowerCase();
-      return (
-        tx.description.toLowerCase().includes(q) ||
-        tx.category.toLowerCase().includes(q) ||
-        (tx.vendorPayer ?? "").toLowerCase().includes(q)
-      );
+  const filtered = useMemo(() => {
+    const base = txs.filter(tx => {
+      if (typeFilter && tx.type !== typeFilter) return false;
+      if (reviewFilter === "reviewed" && !tx.isReviewed) return false;
+      if (reviewFilter === "unreviewed" && tx.isReviewed) return false;
+      if (search) {
+        const q = search.toLowerCase();
+        return (
+          tx.description.toLowerCase().includes(q) ||
+          tx.category.toLowerCase().includes(q) ||
+          (tx.vendorPayer ?? "").toLowerCase().includes(q)
+        );
+      }
+      return true;
+    });
+    // Sort by date for both modes; direction only meaningful in date mode
+    return [...base].sort((a, b) => {
+      const cmp = a.date < b.date ? -1 : a.date > b.date ? 1 : 0;
+      return sortDir === "desc" ? -cmp : cmp;
+    });
+  }, [txs, typeFilter, reviewFilter, search, sortDir]);
+
+  // Category groups — computed once, reused in grouped render
+  const categoryGroups = useMemo(() => {
+    const map = new Map<string, { txs: Transaction[]; income: number; outflow: number }>();
+    for (const tx of filtered) {
+      const key = tx.category || "Uncategorized";
+      if (!map.has(key)) map.set(key, { txs: [], income: 0, outflow: 0 });
+      const g = map.get(key)!;
+      g.txs.push(tx);
+      if (isOutflow(tx.type as TxType)) g.outflow += tx.amount;
+      else g.income += tx.amount;
     }
-    return true;
-  });
+    // Sort groups by total absolute value descending
+    return [...map.entries()]
+      .sort(([, a], [, b]) => (b.income + b.outflow) - (a.income + a.outflow))
+      .map(([category, data]) => ({ category, ...data }));
+  }, [filtered]);
 
   const totals = filtered.reduce(
     (acc, tx) => {
@@ -573,6 +671,48 @@ export default function FinancesTransactions({ filterPropertyId, dateFrom, dateT
             <option value="reviewed">Reviewed</option>
             <option value="unreviewed">Needs review</option>
           </select>
+          {/* View mode toggle */}
+          <div className="flex items-center rounded-lg border border-border bg-muted/40 p-0.5 gap-0.5">
+            <button
+              onClick={() => setViewMode("date")}
+              title="Sort by date"
+              className={cn(
+                "flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-md transition-colors",
+                viewMode === "date"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <LayoutList className="w-3.5 h-3.5" />
+              Date
+            </button>
+            <button
+              onClick={() => setViewMode("category")}
+              title="Group by category"
+              className={cn(
+                "flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-md transition-colors",
+                viewMode === "category"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Tag className="w-3.5 h-3.5" />
+              Category
+            </button>
+          </div>
+
+          {/* Sort direction — only meaningful in date mode */}
+          {viewMode === "date" && (
+            <button
+              onClick={() => setSortDir(d => d === "desc" ? "asc" : "desc")}
+              title={sortDir === "desc" ? "Newest first — click for oldest first" : "Oldest first — click for newest first"}
+              className="flex items-center gap-1.5 px-3 py-2 border border-border rounded-lg bg-background text-muted-foreground hover:text-foreground text-xs font-medium transition-colors"
+            >
+              <ArrowDownUp className="w-3.5 h-3.5" />
+              {sortDir === "desc" ? "Newest first" : "Oldest first"}
+            </button>
+          )}
+
           <button
             onClick={() => setEditTx("new")}
             className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors"
@@ -618,66 +758,75 @@ export default function FinancesTransactions({ filterPropertyId, dateFrom, dateT
                     <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Date</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Description</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Type</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Category</th>
+                    {viewMode === "date" && (
+                      <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Category</th>
+                    )}
                     <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Property</th>
                     <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">Amount</th>
                     <th className="px-4 py-3 w-16"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {filtered.map(tx => {
-                    const outflow = isOutflow(tx.type as TxType);
-                    return (
-                      <tr key={tx.id} className="hover:bg-muted/30 transition-colors">
-                        <td className="px-4 py-3">
-                          <button
-                            onClick={() => toggleReview.mutate({ id: tx.id, isReviewed: !tx.isReviewed })}
-                            title={tx.isReviewed ? "Mark unreviewed" : "Mark reviewed"}
-                            className="text-muted-foreground hover:text-primary transition-colors"
-                          >
-                            {tx.isReviewed
-                              ? <CheckCircle className="w-4 h-4 text-emerald-600" />
-                              : <Circle className="w-4 h-4" />}
-                          </button>
-                        </td>
-                        <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{tx.date}</td>
-                        <td className="px-4 py-3 text-foreground max-w-48 truncate" title={tx.description}>
-                          {tx.description}
-                          {tx.vendorPayer && (
-                            <span className="block text-xs text-muted-foreground">{tx.vendorPayer}</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full", TYPE_COLORS[tx.type] ?? "bg-muted text-foreground")}>
-                            {TX_TYPE_LABELS[tx.type as TxType] ?? tx.type}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-muted-foreground text-xs">{tx.category}</td>
-                        <td className="px-4 py-3 text-muted-foreground text-xs truncate max-w-32">
-                          {tx.propertyId ? (propMap.get(tx.propertyId) ?? "—") : "Unassigned"}
-                        </td>
-                        <td className={cn("px-4 py-3 text-right font-medium whitespace-nowrap", outflow ? "text-red-600 dark:text-red-400" : "text-emerald-700 dark:text-emerald-400")}>
-                          {outflow ? "−" : "+"}{fmt$(tx.amount)}
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-1 justify-end">
-                            <button
-                              onClick={() => setEditTx(tx)}
-                              className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                            >
-                              <Pencil className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => setDeleteId(tx.id)}
-                              className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {viewMode === "date" ? (
+                    /* ── Date view: flat sorted list ── */
+                    filtered.map(tx => (
+                      <TxRow
+                        key={tx.id}
+                        tx={tx}
+                        showCategory
+                        propMap={propMap}
+                        onEdit={() => setEditTx(tx)}
+                        onDelete={() => setDeleteId(tx.id)}
+                        onToggleReview={() => toggleReview.mutate({ id: tx.id, isReviewed: !tx.isReviewed })}
+                      />
+                    ))
+                  ) : (
+                    /* ── Category view: grouped with subtotal headers ── */
+                    categoryGroups.map(group => (
+                      <>
+                        {/* Group header */}
+                        <tr key={`hdr-${group.category}`} className="bg-muted/50 border-y border-border">
+                          <td colSpan={2} className="px-4 py-2">
+                            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-foreground uppercase tracking-wider">
+                              <Tag className="w-3 h-3 text-primary" />
+                              {group.category}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2 text-xs text-muted-foreground">
+                            {group.txs.length} transaction{group.txs.length !== 1 ? "s" : ""}
+                          </td>
+                          <td className="px-4 py-2" />
+                          <td className="px-4 py-2" />
+                          <td className="px-4 py-2 text-right">
+                            {group.income > 0 && group.outflow > 0 ? (
+                              <span className="text-xs text-muted-foreground">
+                                <span className="text-emerald-700 dark:text-emerald-400 font-medium">{fmt$(group.income)}</span>
+                                {" / "}
+                                <span className="text-red-600 dark:text-red-400 font-medium">{fmt$(group.outflow)}</span>
+                              </span>
+                            ) : group.income > 0 ? (
+                              <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">+{fmt$(group.income)}</span>
+                            ) : (
+                              <span className="text-xs font-semibold text-red-600 dark:text-red-400">−{fmt$(group.outflow)}</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-2" />
+                        </tr>
+                        {/* Transactions in group */}
+                        {group.txs.map(tx => (
+                          <TxRow
+                            key={tx.id}
+                            tx={tx}
+                            showCategory={false}
+                            propMap={propMap}
+                            onEdit={() => setEditTx(tx)}
+                            onDelete={() => setDeleteId(tx.id)}
+                            onToggleReview={() => toggleReview.mutate({ id: tx.id, isReviewed: !tx.isReviewed })}
+                          />
+                        ))}
+                      </>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
