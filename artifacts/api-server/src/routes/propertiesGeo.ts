@@ -169,25 +169,31 @@ router.get("/admin/properties-geo", requireAdmin, async (_req, res) => {
   const properties = allProperties.map(prop => {
     const geo = cachedMap.get(prop.id);
 
-    const start = new Date(prop.loanStartDate);
-    const monthsElapsed =
-      (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
-    const savedExtras =
-      (prop.savedExtraPayments as Array<{ paymentNumber: number; amount: number }> | null) ?? [];
-    const schedule = buildAmortizationSchedule({
-      loanAmount: Number(prop.loanAmount),
-      interestRate: Number(prop.interestRate),
-      loanTermYears: prop.loanTermYears,
-      loanStartDate: prop.loanStartDate,
-      monthlyPayment: Number(prop.monthlyPayment),
-      extraPaymentMonthly: prop.savedExtraMonthly != null ? Number(prop.savedExtraMonthly) : 0,
-      extraPayments: savedExtras,
-      startingBalance: prop.currentLoanBalance != null ? Number(prop.currentLoanBalance) : undefined,
-    });
-    const idx = Math.max(0, Math.min(monthsElapsed - 1, schedule.length - 1));
-    const balance = monthsElapsed <= 0
-      ? (prop.currentLoanBalance != null ? Number(prop.currentLoanBalance) : Number(prop.loanAmount))
-      : (schedule[idx]?.remainingBalance ?? 0);
+    let balance: number;
+    if (prop.currentLoanBalance != null) {
+      // User supplied a known remaining balance — use it directly
+      balance = Number(prop.currentLoanBalance);
+    } else {
+      const start = new Date(prop.loanStartDate);
+      const monthsElapsed =
+        (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
+      const savedExtras =
+        (prop.savedExtraPayments as Array<{ paymentNumber: number; amount: number }> | null) ?? [];
+      const schedule = buildAmortizationSchedule({
+        loanAmount: Number(prop.loanAmount),
+        interestRate: Number(prop.interestRate),
+        loanTermYears: prop.loanTermYears,
+        loanStartDate: prop.loanStartDate,
+        monthlyPayment: Number(prop.monthlyPayment),
+        extraPaymentMonthly: prop.savedExtraMonthly != null ? Number(prop.savedExtraMonthly) : 0,
+        extraPayments: savedExtras,
+      });
+      const idx = Math.max(0, Math.min(monthsElapsed - 1, schedule.length - 1));
+      balance = monthsElapsed <= 0
+        ? Number(prop.loanAmount)
+        : (schedule[idx]?.remainingBalance ?? 0);
+    }
+
     const currentValue = Number(prop.currentValue);
     const equity = currentValue - balance;
 
@@ -302,25 +308,31 @@ router.get("/properties-geo", async (req, res) => {
   const properties = allProperties.map(prop => {
     const geo = cachedMap.get(prop.id);
 
-    const start = new Date(prop.loanStartDate);
-    const monthsElapsed =
-      (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
-    const savedExtras =
-      (prop.savedExtraPayments as Array<{ paymentNumber: number; amount: number }> | null) ?? [];
-    const schedule = buildAmortizationSchedule({
-      loanAmount: Number(prop.loanAmount),
-      interestRate: Number(prop.interestRate),
-      loanTermYears: prop.loanTermYears,
-      loanStartDate: prop.loanStartDate,
-      monthlyPayment: Number(prop.monthlyPayment),
-      extraPaymentMonthly: prop.savedExtraMonthly != null ? Number(prop.savedExtraMonthly) : 0,
-      extraPayments: savedExtras,
-      startingBalance: prop.currentLoanBalance != null ? Number(prop.currentLoanBalance) : undefined,
-    });
-    const idx = Math.max(0, Math.min(monthsElapsed - 1, schedule.length - 1));
-    const balance = monthsElapsed <= 0
-      ? (prop.currentLoanBalance != null ? Number(prop.currentLoanBalance) : Number(prop.loanAmount))
-      : (schedule[idx]?.remainingBalance ?? 0);
+    let balance: number;
+    if (prop.currentLoanBalance != null) {
+      // User supplied a known remaining balance — use it directly
+      balance = Number(prop.currentLoanBalance);
+    } else {
+      const start = new Date(prop.loanStartDate);
+      const monthsElapsed =
+        (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
+      const savedExtras =
+        (prop.savedExtraPayments as Array<{ paymentNumber: number; amount: number }> | null) ?? [];
+      const schedule = buildAmortizationSchedule({
+        loanAmount: Number(prop.loanAmount),
+        interestRate: Number(prop.interestRate),
+        loanTermYears: prop.loanTermYears,
+        loanStartDate: prop.loanStartDate,
+        monthlyPayment: Number(prop.monthlyPayment),
+        extraPaymentMonthly: prop.savedExtraMonthly != null ? Number(prop.savedExtraMonthly) : 0,
+        extraPayments: savedExtras,
+      });
+      const idx = Math.max(0, Math.min(monthsElapsed - 1, schedule.length - 1));
+      balance = monthsElapsed <= 0
+        ? Number(prop.loanAmount)
+        : (schedule[idx]?.remainingBalance ?? 0);
+    }
+
     const currentValue = Number(prop.currentValue);
     const equity = currentValue - balance;
     const equityPct = currentValue > 0 ? (equity / currentValue) * 100 : 0;
