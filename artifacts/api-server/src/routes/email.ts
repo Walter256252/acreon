@@ -179,7 +179,7 @@ router.get("/email/gmail/auth-url", async (req, res) => {
       "profile",
     ].join(" "),
     access_type: "offline",
-    prompt: "consent", // always return a refresh_token
+    prompt: "select_account consent", // force account picker, then consent for refresh_token
     state,
   });
 
