@@ -718,10 +718,7 @@ export default function Communications() {
               <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">More precise</span>
             </div>
             <p className="text-sm text-muted-foreground">
-              You create a label in Gmail (like a tag) for a property, then Acreon only pulls emails with that label — so you stay in control of exactly what gets synced.
-            </p>
-            <p className="text-sm text-muted-foreground">
-              To use it: create a label in Gmail, drag the relevant emails there, then switch the property below to <span className="font-medium text-foreground">By Label</span> and type the label name.
+              You create a label in Gmail (like a tag) for a property and drag relevant emails there. Acreon then only pulls emails with that label — so you decide exactly what gets synced.
             </p>
           </div>
         </div>
