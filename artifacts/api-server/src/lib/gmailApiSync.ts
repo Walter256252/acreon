@@ -15,6 +15,15 @@ interface GmailMessageListResponse {
   nextPageToken?: string;
 }
 
+interface GmailLabel {
+  id: string;
+  name: string;
+}
+
+interface GmailLabelsResponse {
+  labels?: GmailLabel[];
+}
+
 interface GmailBodyPart {
   mimeType?: string;
   body?: { data?: string; size?: number };
@@ -154,19 +163,35 @@ export async function syncPropertyEmailsViaGmail(
 
   const headers = { Authorization: `Bearer ${token}` };
 
-  // Build Gmail search query
-  let query: string;
-  if (pullMode === "label" && folderName) {
-    query = `label:${folderName.replace(/\s+/g, "-")}`;
-  } else {
-    const street = address.split(",")[0].trim();
-    query = `"${street}"`;
-  }
-
-  // Fetch message IDs (up to 50 newest)
+  // Build the message list request
   const listUrl = new URL("https://www.googleapis.com/gmail/v1/users/me/messages");
-  listUrl.searchParams.set("q", query);
   listUrl.searchParams.set("maxResults", "50");
+
+  if (pullMode === "label" && folderName) {
+    // Look up the label ID by name — much more reliable than the label:name query syntax,
+    // which breaks for nested labels, special characters, or capitalization differences.
+    const labelsRes = await fetch("https://www.googleapis.com/gmail/v1/users/me/labels", { headers });
+    if (!labelsRes.ok) throw new Error(`Gmail labels list failed: ${labelsRes.statusText}`);
+    const labelsData = (await labelsRes.json()) as GmailLabelsResponse;
+    const allLabels = labelsData.labels ?? [];
+
+    // Case-insensitive match against name and also the trimmed name
+    const needle = folderName.trim().toLowerCase();
+    const matched = allLabels.find((l) => l.name.trim().toLowerCase() === needle);
+
+    if (!matched) {
+      // Log available labels to help debug mismatch
+      const names = allLabels.map((l) => l.name).join(", ");
+      console.warn(`[gmail-sync] Label "${folderName}" not found. Available: ${names}`);
+      return 0;
+    }
+
+    listUrl.searchParams.set("labelIds", matched.id);
+  } else {
+    // Address-based: search for the street portion
+    const street = address.split(",")[0].trim();
+    listUrl.searchParams.set("q", `"${street}"`);
+  }
 
   const listRes = await fetch(listUrl.toString(), { headers });
   if (!listRes.ok) throw new Error(`Gmail list failed: ${listRes.statusText}`);
