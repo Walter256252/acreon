@@ -51,6 +51,19 @@ export function createOAuthState(userId: string, returnTo: string): string {
 
 export { getCallbackUrl };
 
+// ── GET /email/gmail/callback-url — shows the exact redirect URI for this environment ──
+router.get("/email/gmail/callback-url", (req, res) => {
+  const url = getCallbackUrl(req);
+  res.send(`
+    <html><body style="font-family:sans-serif;padding:2rem;max-width:600px">
+      <h2>Gmail OAuth Callback URL</h2>
+      <p>Add this URL to <strong>Authorized redirect URIs</strong> in your Google Cloud Console OAuth client:</p>
+      <code style="display:block;background:#f4f4f4;padding:1rem;border-radius:6px;word-break:break-all;font-size:1rem">${url}</code>
+      <p style="margin-top:1.5rem;color:#666">Go to: <a href="https://console.cloud.google.com/apis/credentials" target="_blank">console.cloud.google.com/apis/credentials</a></p>
+    </body></html>
+  `);
+});
+
 // ── GET /email/gmail/callback ─────────────────────────────────────────────
 
 interface TokenResponse {
