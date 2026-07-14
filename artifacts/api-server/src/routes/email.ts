@@ -311,12 +311,15 @@ router.post("/email/sync", async (req, res) => {
   const settings = await db.select().from(gmailSettingsTable).where(eq(gmailSettingsTable.userId, userId));
   const settingsMap = new Map(settings.map((s) => [s.propertyId, s]));
 
+  console.log("[sync-all] connection provider:", emailConn.provider, "isGmailOAuth:", isGmailOAuth(emailConn), "hasAccessToken:", !!emailConn.gmailAccessToken, "hasRefreshToken:", !!emailConn.gmailRefreshToken, "properties:", properties.length);
+
   let total = 0;
   for (const p of properties) {
     const s = settingsMap.get(p.id);
     try {
       if (isGmailOAuth(emailConn)) {
-        total += await syncPropertyEmailsViaGmail(
+        console.log("[sync-all] syncing property via Gmail:", p.id, p.address);
+        const count = await syncPropertyEmailsViaGmail(
           userId,
           emailConn.gmailAccessToken,
           emailConn.gmailRefreshToken,
@@ -326,11 +329,16 @@ router.post("/email/sync", async (req, res) => {
           s?.gmailLabel ?? null,
           p.address,
         );
+        console.log("[sync-all] property", p.id, "synced:", count);
+        total += count;
       } else {
+        console.log("[sync-all] falling back to IMAP for property:", p.id);
         const creds = toCredsOrNull(emailConn);
         if (creds) total += await syncPropertyEmails(creds, p.id, userId, s?.pullMode ?? "address", s?.gmailLabel ?? null, p.address);
       }
-    } catch { /* continue with other properties */ }
+    } catch (err) {
+      console.error("[sync-all] error syncing property", p.id, ":", err);
+    }
   }
 
   res.json({ synced: total });
