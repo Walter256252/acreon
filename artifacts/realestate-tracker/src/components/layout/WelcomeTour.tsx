@@ -27,7 +27,7 @@ const SLIDES = [
     color: "bg-emerald-500/10",
     title: "Finances",
     description:
-      "Log rent income, expenses, and mortgage payments. The AI Quick Add lets you type a transaction in plain English — it does the rest.",
+      "Log rent income, expenses, and mortgage payments. The AI Quick Add lets you describe a transaction and it does the rest.",
   },
   {
     icon: <TrendingUp className="w-10 h-10 text-amber-500" />,
