@@ -8,6 +8,7 @@ import calculatorRouter from "./calculator";
 import openaiRouter from "./openai/index";
 import projectionsRouter from "./projections";
 import emailRouter from "./email";
+import emailPublicRouter from "./emailPublic";
 import settingsRouter from "./settings";
 import adminRouter from "./admin";
 import propertiesGeoRouter from "./propertiesGeo";
@@ -18,6 +19,7 @@ const router: IRouter = Router();
 
 // ── Public routes (no auth required) ──────────────────────────────────────
 router.use(healthRouter);
+router.use(emailPublicRouter); // Gmail OAuth callback — must be before requireAuth
 
 // ── Global auth middleware — all routes below require authentication ────────
 function requireAuth(req: Request, res: Response, next: NextFunction) {

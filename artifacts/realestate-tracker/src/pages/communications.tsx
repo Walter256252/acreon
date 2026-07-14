@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link } from "wouter";
+import { useState, useEffect } from "react";
+import { Link, useLocation } from "wouter";
 import {
   Mail, Tag, MapPin, RefreshCw, Save, CheckCircle2, ChevronRight,
   Info, Eye, EyeOff, X, Wifi, WifiOff, Loader2, Clock,
@@ -145,6 +145,101 @@ function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+// ── Gmail OAuth step ─────────────────────────────────────────────────────
+
+function GmailOAuthStep({
+  email,
+  onBack,
+  error,
+  setError,
+}: {
+  email: string;
+  onBack: () => void;
+  error: string | null;
+  setError: (e: string | null) => void;
+}) {
+  const [loading, setLoading] = useState(false);
+
+  const handleSignInWithGoogle = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const returnTo = window.location.href.split("?")[0]; // strip any existing params
+      const res = await fetch(`/api/email/gmail/auth-url?returnTo=${encodeURIComponent(returnTo)}`, {
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({})) as { error?: string };
+        setError(data.error ?? "Could not start Google sign-in. Please try again.");
+        setLoading(false);
+        return;
+      }
+      const { url } = await res.json() as { url: string };
+      window.location.href = url;
+    } catch {
+      setError("Something went wrong. Please try again.");
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-xl border border-red-200 bg-red-50 p-5 space-y-4">
+        {/* Google logo + text */}
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-white border border-red-200 flex items-center justify-center flex-shrink-0">
+            {/* Google "G" logo using coloured spans */}
+            <span className="text-base font-bold" style={{ fontFamily: "sans-serif" }}>
+              <span style={{ color: "#4285F4" }}>G</span>
+            </span>
+          </div>
+          <div>
+            <p className="font-semibold text-sm text-foreground">Sign in with Google</p>
+            <p className="text-xs text-muted-foreground">No passwords or app passwords needed</p>
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          Click the button below and sign in to <span className="font-medium text-foreground">{email}</span> in the
+          Google window that opens. Acreon will only be able to <strong>read</strong> your emails — it cannot
+          send, delete, or modify anything.
+        </p>
+        <button
+          onClick={handleSignInWithGoogle}
+          disabled={loading}
+          className="w-full flex items-center justify-center gap-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg px-4 py-2.5 text-sm font-medium hover:bg-gray-50 disabled:opacity-50 shadow-sm transition-colors"
+        >
+          {loading ? (
+            <><Loader2 className="w-4 h-4 animate-spin text-gray-500" /> Opening Google…</>
+          ) : (
+            <>
+              <svg className="w-4 h-4" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+              </svg>
+              Sign in with Google
+            </>
+          )}
+        </button>
+      </div>
+
+      {error && (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2">
+          <p className="text-xs text-destructive">{error}</p>
+        </div>
+      )}
+
+      <button
+        onClick={onBack}
+        className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+      >
+        ← Back
+      </button>
+    </div>
+  );
+}
+
 // ── Connect email form — 2-step wizard ───────────────────────────────────
 
 function ConnectEmailForm({ onConnected }: { onConnected: () => void }) {
@@ -261,129 +356,147 @@ function ConnectEmailForm({ onConnected }: { onConnected: () => void }) {
           </>
         )}
 
-        {/* ── Step 2: password ── */}
+        {/* ── Step 2: connect ── */}
         {step === "password" && (
           <>
-            {/* Provider guide */}
-            {guide ? (
-              <div className={cn("rounded-xl border p-4 space-y-3", guide.color)}>
-                <p className="font-semibold text-sm text-foreground">
-                  {guide.emoji} {guide.name} requires an App Password
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  For security, {guide.name} doesn't allow your regular password here. Follow these steps to create a special one:
-                </p>
-                <ol className="space-y-2">
-                  {guide.steps.map((s, i) => (
-                    <li key={i} className="flex gap-2.5 text-xs text-foreground">
-                      <span className="flex-shrink-0 w-5 h-5 rounded-full bg-background border border-border flex items-center justify-center font-semibold text-muted-foreground">{i + 1}</span>
-                      <span className="leading-relaxed mt-0.5">{s.text}</span>
-                    </li>
-                  ))}
-                </ol>
-                {guide.link && (
-                  <a
-                    href={guide.link.href}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
-                  >
-                    {guide.link.label}
-                  </a>
-                )}
-              </div>
+            {/* Gmail — OAuth button */}
+            {detected?.provider === "gmail" ? (
+              <GmailOAuthStep
+                email={email}
+                onBack={handleBack}
+                error={error}
+                setError={setError}
+              />
             ) : (
-              /* Unknown provider */
-              <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-3">
-                <p className="font-semibold text-sm text-foreground">Custom or business email</p>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  We don't recognise this domain. You'll need your mail server details — check
-                  with your email provider or IT administrator if you're not sure.
-                </p>
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="col-span-2">
-                    <label className="text-xs font-medium text-foreground block mb-1">IMAP Server</label>
-                    <input
-                      type="text"
-                      placeholder="imap.yourprovider.com"
-                      value={imapHost}
-                      onChange={(e) => setImapHost(e.target.value)}
-                      className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-                    />
+              <>
+                {/* Other known providers — App Password guide */}
+                {guide ? (
+                  <div className={cn("rounded-xl border p-4 space-y-3", guide.color)}>
+                    <p className="font-semibold text-sm text-foreground">
+                      {guide.emoji} {guide.name} requires an App Password
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      For security, {guide.name} doesn't allow your regular password here. Follow these steps to create a special one:
+                    </p>
+                    <ol className="space-y-2">
+                      {guide.steps.map((s, i) => (
+                        <li key={i} className="flex gap-2.5 text-xs text-foreground">
+                          <span className="flex-shrink-0 w-5 h-5 rounded-full bg-background border border-border flex items-center justify-center font-semibold text-muted-foreground">{i + 1}</span>
+                          <span className="leading-relaxed mt-0.5">{s.text}</span>
+                        </li>
+                      ))}
+                    </ol>
+                    {guide.link && (
+                      <a href={guide.link.href} target="_blank" rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors">
+                        {guide.link.label}
+                      </a>
+                    )}
                   </div>
-                  <div>
-                    <label className="text-xs font-medium text-foreground block mb-1">Port</label>
-                    <input
-                      type="number"
-                      value={imapPort}
-                      onChange={(e) => setImapPort(e.target.value)}
-                      className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-                    />
-                  </div>
-                  <div className="col-span-3 flex items-center gap-2">
-                    <input type="checkbox" id="imap-tls" checked={imapTls} onChange={(e) => setImapTls(e.target.checked)} className="rounded" />
-                    <label htmlFor="imap-tls" className="text-xs text-foreground">Use SSL/TLS (recommended)</label>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Password field */}
-            <div>
-              <label className="text-xs font-medium text-foreground block mb-1.5">
-                {guide?.passwordLabel ?? "Password"}
-              </label>
-              <div className="relative">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  autoFocus
-                  placeholder="Paste your password here"
-                  value={password}
-                  onChange={(e) => { setPassword(e.target.value); setError(null); }}
-                  onKeyDown={(e) => e.key === "Enter" && handleConnect()}
-                  className="w-full border border-border rounded-lg px-3 py-2.5 pr-10 text-sm bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-              <p className="text-xs text-muted-foreground mt-1.5">
-                Connecting as <span className="font-medium text-foreground">{email}</span> —{" "}
-                <button onClick={handleBack} className="text-primary hover:text-primary/80 underline underline-offset-2 transition-colors">
-                  change email
-                </button>
-              </p>
-            </div>
-
-            {error && (
-              <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2">
-                <p className="text-xs text-destructive">{error}</p>
-              </div>
-            )}
-
-            <div className="flex gap-3">
-              <button
-                onClick={handleBack}
-                className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
-              >
-                ← Back
-              </button>
-              <button
-                onClick={handleConnect}
-                disabled={connectMutation.isPending}
-                className="flex-1 flex items-center justify-center gap-2 bg-primary text-primary-foreground rounded-lg px-4 py-2.5 text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
-              >
-                {connectMutation.isPending ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" /> Testing connection…</>
                 ) : (
-                  <><Wifi className="w-4 h-4" /> Connect</>
+                  /* Unknown / custom domain — IMAP details */
+                  <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-4">
+                    <div>
+                      <p className="font-semibold text-sm text-foreground mb-1">Custom or business email</p>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        We don't automatically know how to reach this email provider, so you'll need to tell us where
+                        your mail server lives. Think of it like a postal address for your inbox — every provider
+                        has one, and your email provider's support pages will list it.
+                      </p>
+                    </div>
+                    <div className="rounded-lg bg-background border border-border px-3 py-2.5 space-y-1">
+                      <p className="text-xs font-medium text-foreground">How to find these details</p>
+                      <ul className="text-xs text-muted-foreground space-y-0.5 list-disc list-inside">
+                        <li>Google <span className="font-medium text-foreground">"{email.split("@")[1] ?? "yourprovider"} IMAP settings"</span></li>
+                        <li>Open your email app's account settings — look for "Incoming server"</li>
+                        <li>Or ask whoever manages your company email (IT / admin)</li>
+                      </ul>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="col-span-2">
+                        <label className="text-xs font-medium text-foreground block mb-1">
+                          IMAP Server <span className="text-muted-foreground font-normal">(Incoming mail server)</span>
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. imap.yourprovider.com"
+                          value={imapHost}
+                          onChange={(e) => setImapHost(e.target.value)}
+                          className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-foreground block mb-1">
+                          Port <span className="text-muted-foreground font-normal">(usually 993)</span>
+                        </label>
+                        <input
+                          type="number"
+                          value={imapPort}
+                          onChange={(e) => setImapPort(e.target.value)}
+                          className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                        />
+                      </div>
+                      <div className="col-span-3 flex items-center gap-2">
+                        <input type="checkbox" id="imap-tls" checked={imapTls} onChange={(e) => setImapTls(e.target.checked)} className="rounded" />
+                        <label htmlFor="imap-tls" className="text-xs text-foreground">Use SSL/TLS <span className="text-muted-foreground">(leave on unless told otherwise)</span></label>
+                      </div>
+                    </div>
+                  </div>
                 )}
-              </button>
-            </div>
+
+                {/* Password field */}
+                <div>
+                  <label className="text-xs font-medium text-foreground block mb-1.5">
+                    {guide?.passwordLabel ?? "Password"}
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      autoFocus
+                      placeholder="Paste your password here"
+                      value={password}
+                      onChange={(e) => { setPassword(e.target.value); setError(null); }}
+                      onKeyDown={(e) => e.key === "Enter" && handleConnect()}
+                      className="w-full border border-border rounded-lg px-3 py-2.5 pr-10 text-sm bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1.5">
+                    Connecting as <span className="font-medium text-foreground">{email}</span> —{" "}
+                    <button onClick={handleBack} className="text-primary hover:text-primary/80 underline underline-offset-2 transition-colors">
+                      change email
+                    </button>
+                  </p>
+                </div>
+
+                {error && (
+                  <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2">
+                    <p className="text-xs text-destructive">{error}</p>
+                  </div>
+                )}
+
+                <div className="flex gap-3">
+                  <button onClick={handleBack}
+                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors">
+                    ← Back
+                  </button>
+                  <button onClick={handleConnect} disabled={connectMutation.isPending}
+                    className="flex-1 flex items-center justify-center gap-2 bg-primary text-primary-foreground rounded-lg px-4 py-2.5 text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors">
+                    {connectMutation.isPending ? (
+                      <><Loader2 className="w-4 h-4 animate-spin" /> Testing connection…</>
+                    ) : (
+                      <><Wifi className="w-4 h-4" /> Connect</>
+                    )}
+                  </button>
+                </div>
+              </>
+            )}
           </>
         )}
       </div>
@@ -437,10 +550,32 @@ export default function Communications() {
   const saveMutation = usePutEmailSettingsPropertyId();
   const syncAllMutation = usePostEmailSync();
   const syncOneMutation = usePostEmailSyncPropertyId();
+  useLocation(); // used to read search params on mount
 
   const [localSettings, setLocalSettings] = useState<Record<number, LocalSetting>>({});
   const [syncingId, setSyncingId] = useState<number | null>(null);
   const [savedIds, setSavedIds] = useState<Set<number>>(new Set());
+  const [oauthBanner, setOauthBanner] = useState<"success" | "denied" | "error" | null>(null);
+
+  // Detect Gmail OAuth callback result from query params
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const connected = params.get("gmail_connected");
+    const oauthError = params.get("gmail_error");
+    if (connected === "1") {
+      setOauthBanner("success");
+      void refetchStatus();
+      void queryClient.invalidateQueries();
+      // Clean the URL
+      const clean = window.location.pathname;
+      window.history.replaceState({}, "", clean);
+    } else if (oauthError) {
+      setOauthBanner(oauthError === "access_denied" ? "denied" : "error");
+      const clean = window.location.pathname;
+      window.history.replaceState({}, "", clean);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const connected = status?.connected ?? false;
   const connEmail = status?.email ?? connDetail?.displayEmail ?? "";
@@ -491,6 +626,29 @@ export default function Communications() {
           Connect your email and let AI turn property-related threads into organized monthly notes.
         </p>
       </div>
+
+      {/* OAuth result banners */}
+      {oauthBanner === "success" && (
+        <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+          <p className="text-sm font-medium text-emerald-800 flex-1">Gmail connected successfully via Google sign-in.</p>
+          <button onClick={() => setOauthBanner(null)} className="text-emerald-600 hover:text-emerald-800"><X className="w-4 h-4" /></button>
+        </div>
+      )}
+      {oauthBanner === "denied" && (
+        <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+          <Info className="w-4 h-4 text-amber-600 flex-shrink-0" />
+          <p className="text-sm font-medium text-amber-800 flex-1">Google sign-in was cancelled. You can try again below.</p>
+          <button onClick={() => setOauthBanner(null)} className="text-amber-600 hover:text-amber-800"><X className="w-4 h-4" /></button>
+        </div>
+      )}
+      {oauthBanner === "error" && (
+        <div className="flex items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3">
+          <Info className="w-4 h-4 text-destructive flex-shrink-0" />
+          <p className="text-sm font-medium text-destructive flex-1">Something went wrong during Google sign-in. Please try again.</p>
+          <button onClick={() => setOauthBanner(null)} className="text-destructive/60 hover:text-destructive"><X className="w-4 h-4" /></button>
+        </div>
+      )}
 
       {/* Connect form or connected status */}
       {!connected ? (

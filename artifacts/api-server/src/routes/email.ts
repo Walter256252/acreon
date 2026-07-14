@@ -9,6 +9,8 @@ import {
 } from "@workspace/db";
 import { and, eq } from "drizzle-orm";
 import { testConnection, syncPropertyEmails, type ImapCredentials } from "../lib/imapSync";
+import { syncPropertyEmailsViaGmail } from "../lib/gmailApiSync";
+import { createOAuthState, getCallbackUrl } from "./emailPublic";
 
 const router: IRouter = Router();
 
@@ -22,11 +24,24 @@ function toCredsOrNull(conn: typeof emailConnectionsTable.$inferSelect | undefin
   if (!conn?.imapHost || !conn?.imapEmail || !conn?.imapPassword) return null;
   return {
     host: conn.imapHost,
-    port: conn.imapPort!,
+    port: conn.imapPort ?? 993,
     email: conn.imapEmail,
     password: conn.imapPassword,
     tls: conn.imapTls ?? true,
   };
+}
+
+function isGmailOAuth(conn: typeof emailConnectionsTable.$inferSelect | null): conn is typeof emailConnectionsTable.$inferSelect & {
+  gmailAccessToken: string;
+  gmailRefreshToken: string;
+  gmailTokenExpiry: Date;
+} {
+  return (
+    conn?.provider === "gmail" &&
+    !!conn.gmailAccessToken &&
+    !!conn.gmailRefreshToken &&
+    !!conn.gmailTokenExpiry
+  );
 }
 
 async function getUserConnection(userId: string) {
@@ -139,6 +154,38 @@ router.delete("/email/connection", async (req, res) => {
   res.json({ success: true });
 });
 
+// ── Gmail OAuth ───────────────────────────────────────────────────────────
+
+// GET /email/gmail/auth-url — returns the Google OAuth URL to redirect the user to
+router.get("/email/gmail/auth-url", async (req, res) => {
+  const userId = getConn(req);
+  if (!userId) { res.status(401).json({ error: "Not authenticated" }); return; }
+
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+    res.status(503).json({ error: "Google OAuth is not configured on this server." });
+    return;
+  }
+
+  const returnTo = String(req.query.returnTo ?? "");
+  const state = createOAuthState(userId, returnTo);
+
+  const params = new URLSearchParams({
+    client_id: process.env.GOOGLE_CLIENT_ID,
+    redirect_uri: getCallbackUrl(req),
+    response_type: "code",
+    scope: [
+      "https://www.googleapis.com/auth/gmail.readonly",
+      "email",
+      "profile",
+    ].join(" "),
+    access_type: "offline",
+    prompt: "consent", // always return a refresh_token
+    state,
+  });
+
+  res.json({ url: `https://accounts.google.com/o/oauth2/v2/auth?${params}` });
+});
+
 // ── Pull settings ─────────────────────────────────────────────────────────
 
 // GET /email/settings
@@ -211,8 +258,7 @@ router.post("/email/sync/:propertyId", async (req, res) => {
 
   const propertyId = Number(req.params.propertyId);
   const emailConn = await getUserConnection(userId);
-  const creds = toCredsOrNull(emailConn ?? undefined);
-  if (!creds) { res.status(503).json({ error: "Email not connected" }); return; }
+  if (!emailConn) { res.status(503).json({ error: "Email not connected" }); return; }
 
   // Verify the property exists AND belongs to this user
   const [property] = await db.select().from(propertiesTable)
@@ -225,14 +271,23 @@ router.post("/email/sync/:propertyId", async (req, res) => {
     .where(and(eq(gmailSettingsTable.propertyId, propertyId), eq(gmailSettingsTable.userId, userId)));
 
   try {
-    const synced = await syncPropertyEmails(
-      creds,
-      propertyId,
-      userId,
-      setting?.pullMode ?? "address",
-      setting?.gmailLabel ?? null,
-      property.address
-    );
+    let synced: number;
+    if (isGmailOAuth(emailConn)) {
+      synced = await syncPropertyEmailsViaGmail(
+        userId,
+        emailConn.gmailAccessToken,
+        emailConn.gmailRefreshToken,
+        emailConn.gmailTokenExpiry,
+        propertyId,
+        setting?.pullMode ?? "address",
+        setting?.gmailLabel ?? null,
+        property.address,
+      );
+    } else {
+      const creds = toCredsOrNull(emailConn);
+      if (!creds) { res.status(503).json({ error: "Email connection is incomplete" }); return; }
+      synced = await syncPropertyEmails(creds, propertyId, userId, setting?.pullMode ?? "address", setting?.gmailLabel ?? null, property.address);
+    }
     res.json({ synced, propertyId });
   } catch {
     res.status(500).json({ error: "Email sync failed — please try again or re-check your connection settings." });
@@ -245,8 +300,7 @@ router.post("/email/sync", async (req, res) => {
   if (!userId) { res.status(401).json({ error: "Not authenticated" }); return; }
 
   const emailConn = await getUserConnection(userId);
-  const creds = toCredsOrNull(emailConn ?? undefined);
-  if (!creds) { res.status(503).json({ error: "Email not connected" }); return; }
+  if (!emailConn) { res.status(503).json({ error: "Email not connected" }); return; }
 
   // Only sync the authenticated user's own properties
   const properties = await db.select().from(propertiesTable)
@@ -258,7 +312,21 @@ router.post("/email/sync", async (req, res) => {
   for (const p of properties) {
     const s = settingsMap.get(p.id);
     try {
-      total += await syncPropertyEmails(creds, p.id, userId, s?.pullMode ?? "address", s?.gmailLabel ?? null, p.address);
+      if (isGmailOAuth(emailConn)) {
+        total += await syncPropertyEmailsViaGmail(
+          userId,
+          emailConn.gmailAccessToken,
+          emailConn.gmailRefreshToken,
+          emailConn.gmailTokenExpiry,
+          p.id,
+          s?.pullMode ?? "address",
+          s?.gmailLabel ?? null,
+          p.address,
+        );
+      } else {
+        const creds = toCredsOrNull(emailConn);
+        if (creds) total += await syncPropertyEmails(creds, p.id, userId, s?.pullMode ?? "address", s?.gmailLabel ?? null, p.address);
+      }
     } catch { /* continue with other properties */ }
   }
 
