@@ -183,7 +183,10 @@ router.get("/email/gmail/auth-url", async (req, res) => {
     state,
   });
 
-  res.json({ url: `https://accounts.google.com/o/oauth2/v2/auth?${params}` });
+  const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
+  console.log("[gmail-auth-url] redirect_uri:", getCallbackUrl(req));
+  console.log("[gmail-auth-url] client_id:", process.env.GOOGLE_CLIENT_ID?.slice(0, 20) + "...");
+  res.json({ url: authUrl });
 });
 
 // ── Pull settings ─────────────────────────────────────────────────────────
