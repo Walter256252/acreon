@@ -696,38 +696,33 @@ export default function Communications() {
       <div className="rounded-xl border border-border bg-card p-5 space-y-4">
         <div className="flex items-center gap-2">
           <Info className="w-4 h-4 text-muted-foreground" />
-          <h2 className="font-semibold text-foreground">How to get emails pulled in</h2>
+          <h2 className="font-semibold text-foreground">How syncing works</h2>
         </div>
         <div className="grid md:grid-cols-2 gap-4">
-          <div className="rounded-lg border border-border bg-background p-4 space-y-2">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
-                <Tag className="w-3.5 h-3.5 text-primary" />
-              </div>
-              <h3 className="font-semibold text-sm text-foreground">By Folder / Label</h3>
-              <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">Recommended</span>
-            </div>
-            <p className="text-sm text-muted-foreground">Create a folder or label in your email client for each property and move threads there.</p>
-            <ul className="text-sm text-muted-foreground space-y-1">
-              <li className="flex gap-2"><span className="text-xs bg-muted rounded px-1.5 py-0.5 flex-shrink-0 mt-0.5">1</span> In Gmail: create a label like <code className="text-xs bg-muted px-1 rounded">Acreon/123 Main St</code></li>
-              <li className="flex gap-2"><span className="text-xs bg-muted rounded px-1.5 py-0.5 flex-shrink-0 mt-0.5">2</span> In Outlook: create a subfolder with the property name</li>
-              <li className="flex gap-2"><span className="text-xs bg-muted rounded px-1.5 py-0.5 flex-shrink-0 mt-0.5">3</span> For each property below, click <strong>By Folder</strong> and enter the exact label name in the field that appears</li>
-              <li className="flex gap-2"><span className="text-xs bg-muted rounded px-1.5 py-0.5 flex-shrink-0 mt-0.5">4</span> Tip: set up a filter to auto-label emails from tenants</li>
-            </ul>
-          </div>
           <div className="rounded-lg border border-border bg-background p-4 space-y-2">
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 rounded-full bg-secondary/50 flex items-center justify-center">
                 <MapPin className="w-3.5 h-3.5 text-muted-foreground" />
               </div>
               <h3 className="font-semibold text-sm text-foreground">By Address</h3>
+              <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">Easiest</span>
             </div>
-            <p className="text-sm text-muted-foreground">Acreon searches your inbox for the property's street address. Zero setup required.</p>
-            <ul className="text-sm text-muted-foreground space-y-1">
-              <li className="flex gap-2"><span className="text-xs bg-muted rounded px-1.5 py-0.5 flex-shrink-0 mt-0.5">1</span> No setup needed in your email client</li>
-              <li className="flex gap-2"><span className="text-xs bg-muted rounded px-1.5 py-0.5 flex-shrink-0 mt-0.5">2</span> Searches for the street name in email subject &amp; body</li>
-              <li className="flex gap-2"><span className="text-xs bg-muted rounded px-1.5 py-0.5 flex-shrink-0 mt-0.5">3</span> May occasionally catch unrelated emails</li>
-            </ul>
+            <p className="text-sm text-muted-foreground">Acreon scans your inbox for emails that mention the property's street address. Nothing to set up — just connect your email and hit Sync.</p>
+          </div>
+          <div className="rounded-lg border border-border bg-background p-4 space-y-2">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
+                <Tag className="w-3.5 h-3.5 text-primary" />
+              </div>
+              <h3 className="font-semibold text-sm text-foreground">By Label</h3>
+              <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">More precise</span>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              You create a label in Gmail (like a tag) for a property, then Acreon only pulls emails with that label — so you stay in control of exactly what gets synced.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              To use it: create a label in Gmail, drag the relevant emails there, then switch the property below to <span className="font-medium text-foreground">By Label</span> and type the label name.
+            </p>
           </div>
         </div>
       </div>
