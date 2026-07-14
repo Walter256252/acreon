@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import {
   Mail, Tag, MapPin, RefreshCw, Save, CheckCircle2, ChevronRight,
@@ -28,7 +28,7 @@ import {
   useDeleteEmailConnection,
   useGetEmailConnection,
 } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 
 // ── IMAP auto-detection ───────────────────────────────────────────────────
@@ -592,6 +592,19 @@ export default function Communications() {
   const [savedIds, setSavedIds] = useState<Set<number>>(new Set());
   const [oauthBanner, setOauthBanner] = useState<"success" | "denied" | "error" | null>(null);
 
+  // Fetch real Gmail labels for the picker
+  const { data: gmailLabelsData } = useQuery<{ labels: { id: string; name: string }[] }>({
+    queryKey: ["/api/email/gmail/labels"],
+    queryFn: async () => {
+      const res = await fetch("/api/email/gmail/labels");
+      if (!res.ok) return { labels: [] };
+      return res.json() as Promise<{ labels: { id: string; name: string }[] }>;
+    },
+    enabled: connected,
+    staleTime: 60_000,
+  });
+  const gmailLabels = gmailLabelsData?.labels ?? [];
+
   // Detect Gmail OAuth callback result from query params
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -809,15 +822,28 @@ export default function Communications() {
                       ))}
                     </div>
 
-                    {/* Folder input */}
+                    {/* Folder picker */}
                     {local.pullMode === "label" && (
-                      <input
-                        type="text"
-                        placeholder="e.g. Acreon/123 Main St"
-                        value={local.emailFolder}
-                        onChange={(e) => update(prop.propertyId, { emailFolder: e.target.value }, prop)}
-                        className="border border-border rounded-lg px-3 py-1.5 text-sm bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 w-52"
-                      />
+                      gmailLabels.length > 0 ? (
+                        <select
+                          value={local.emailFolder}
+                          onChange={(e) => update(prop.propertyId, { emailFolder: e.target.value }, prop)}
+                          className="border border-border rounded-lg px-3 py-1.5 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 w-52"
+                        >
+                          <option value="">— pick a label —</option>
+                          {gmailLabels.map((l) => (
+                            <option key={l.id} value={l.name}>{l.name}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          type="text"
+                          placeholder="Gmail label name"
+                          value={local.emailFolder}
+                          onChange={(e) => update(prop.propertyId, { emailFolder: e.target.value }, prop)}
+                          className="border border-border rounded-lg px-3 py-1.5 text-sm bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 w-52"
+                        />
+                      )
                     )}
 
                     {/* Save */}

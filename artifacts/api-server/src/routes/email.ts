@@ -186,6 +186,44 @@ router.get("/email/gmail/auth-url", async (req, res) => {
   res.json({ url: `https://accounts.google.com/o/oauth2/v2/auth?${params}` });
 });
 
+// GET /email/gmail/labels — list user's Gmail labels for the settings picker
+router.get("/email/gmail/labels", async (req, res) => {
+  const userId = getConn(req);
+  if (!userId) { res.status(401).json({ error: "Not authenticated" }); return; }
+
+  const emailConn = await getUserConnection(userId);
+  if (!emailConn || !isGmailOAuth(emailConn)) {
+    res.json({ labels: [] });
+    return;
+  }
+
+  try {
+    const { getValidAccessToken } = await import("../lib/gmailApiSync");
+    const token = await getValidAccessToken(
+      userId,
+      emailConn.gmailAccessToken,
+      emailConn.gmailRefreshToken,
+      emailConn.gmailTokenExpiry,
+    );
+
+    const labelsRes = await fetch("https://www.googleapis.com/gmail/v1/users/me/labels", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!labelsRes.ok) { res.json({ labels: [] }); return; }
+
+    const data = (await labelsRes.json()) as { labels?: { id: string; name: string; type?: string }[] };
+    // Only return user-created labels (not system ones like INBOX, TRASH, etc.)
+    const userLabels = (data.labels ?? [])
+      .filter((l) => l.type === "user" || (!l.id.startsWith("CATEGORY_") && l.id === l.id.toLowerCase() === false && !/^[A-Z_]+$/.test(l.id)))
+      .map((l) => ({ id: l.id, name: l.name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    res.json({ labels: userLabels });
+  } catch {
+    res.json({ labels: [] });
+  }
+});
+
 // ── Pull settings ─────────────────────────────────────────────────────────
 
 // GET /email/settings

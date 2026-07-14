@@ -175,9 +175,11 @@ export async function syncPropertyEmailsViaGmail(
     const labelsData = (await labelsRes.json()) as GmailLabelsResponse;
     const allLabels = labelsData.labels ?? [];
 
-    // Case-insensitive match against name and also the trimmed name
-    const needle = folderName.trim().toLowerCase();
-    const matched = allLabels.find((l) => l.name.trim().toLowerCase() === needle);
+    // Normalise for comparison: lowercase, collapse whitespace around hyphens/slashes
+    const normalise = (s: string) =>
+      s.trim().toLowerCase().replace(/\s*[-/]\s*/g, "-").replace(/\s+/g, " ");
+    const needle = normalise(folderName);
+    const matched = allLabels.find((l) => normalise(l.name) === needle);
 
     if (!matched) {
       // Log available labels to help debug mismatch
