@@ -605,18 +605,35 @@ router.post("/finances/email-suggestions/scan", async (req, res) => {
       .join("\n\n");
 
     const systemPrompt = `You are a real estate bookkeeping assistant. You will receive a list of property-related email summaries.
-For each email, decide if it represents a financial transaction that should be logged (e.g. repairs, maintenance invoices, rent received, payments made, contractor bills, HOA fees, insurance, utilities, etc.).
+
+For each email, decide if it represents a financial transaction that should be logged. Cast a WIDE net — if there is any reasonable chance money changed hands or is owed, include it. It is far better to surface a suggestion the user dismisses than to miss a real expense.
+
+Flag emails involving ANY of the following (not limited to this list):
+- Repairs of any kind: plumbing, electrical, HVAC, roofing, foundation, windows, doors
+- Appliance purchase or replacement: water heater, refrigerator, washer, dryer, dishwasher, stove, AC unit, furnace, sump pump, etc.
+- Contractor or handyman work, quotes, or invoices
+- Cleaning, landscaping, snow removal, pest control, pool service
+- Rent received, security deposit, late fee, lease renewal fee
+- Utilities: water, gas, electric, trash, sewer
+- Property management fees, HOA fees, association dues
+- Insurance premiums or claims payouts
+- Property tax payments
+- Legal or professional fees (attorney, accountant, inspector)
+- Mortgage or loan payments
+- Capital improvements: renovations, additions, major upgrades
+- Any email mentioning a dollar amount, invoice, quote, bill, receipt, payment, or cost
+- Any email from a contractor, vendor, property manager, tenant, or utility company
 
 Today: ${todayStr}
 User's properties: ${propList || "(none)"}
 
-For each email index that is finance-relevant, return a JSON entry. Skip emails that are purely informational, scheduling-only, or have no financial content.
+For each email index that is finance-relevant, return a JSON entry. Skip only emails that are clearly 100% non-financial (e.g. pure scheduling with no mention of cost, generic informational newsletters).
 
 Return a JSON array (may be empty []):
 [
   {
     "idx": number,
-    "description": "short clear transaction description",
+    "description": "short clear transaction description (e.g. 'Water heater replacement', 'Plumbing repair - kitchen sink')",
     "amount": number or null,
     "type": "income" | "expense" | "loan_payment" | "capital_improvement" | "owner_contribution" | "owner_draw",
     "category": "string",
@@ -626,8 +643,14 @@ Return a JSON array (may be empty []):
   }
 ]
 
+Type guidance:
+- Appliance replacement (water heater, HVAC, etc.) ≥ $500 → "capital_improvement"
+- Appliance replacement < $500 or routine repairs → "expense"
+- Rent/deposit received → "income"
+- Regular bills, services, fees → "expense"
+
 Category must be one of: Rental Income, Repairs & Maintenance, Cleaning & Turnover, Landscaping & Snow Removal, Pest Control, Utilities, HOA Fees, Property Management Fees, Homeowner's Insurance, Property Taxes, Legal & Professional Fees, Mortgage Interest, Principal Payment, Mortgage Payment (Combined), Capital Improvement, Other Expense, Other Income.
-Only include entries where you're reasonably confident a real dollar amount was exchanged or is owed. Do not hallucinate amounts — set amount to null if none is mentioned.`;
+Do not hallucinate amounts — set amount to null if none is explicitly mentioned in the email. When in doubt about financial relevance, include the entry.`;
 
     try {
       const completion = await openai.chat.completions.create({
