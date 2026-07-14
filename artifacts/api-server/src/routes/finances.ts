@@ -629,19 +629,21 @@ User's properties: ${propList || "(none)"}
 
 For each email index that is finance-relevant, return a JSON entry. Skip only emails that are clearly 100% non-financial (e.g. pure scheduling with no mention of cost, generic informational newsletters).
 
-Return a JSON array (may be empty []):
-[
-  {
-    "idx": number,
-    "description": "short clear transaction description (e.g. 'Water heater replacement', 'Plumbing repair - kitchen sink')",
-    "amount": number or null,
-    "type": "income" | "expense" | "loan_payment" | "capital_improvement" | "owner_contribution" | "owner_draw",
-    "category": "string",
-    "propertyId": number or null,
-    "vendor": "string or null",
-    "date": "YYYY-MM-DD"
-  }
-]
+Return a JSON object with a "results" key containing an array (may be empty):
+{
+  "results": [
+    {
+      "idx": number,
+      "description": "short clear transaction description (e.g. 'Water heater replacement', 'Plumbing repair - kitchen sink')",
+      "amount": number or null,
+      "type": "income" | "expense" | "loan_payment" | "capital_improvement" | "owner_contribution" | "owner_draw",
+      "category": "string",
+      "propertyId": number or null,
+      "vendor": "string or null",
+      "date": "YYYY-MM-DD"
+    }
+  ]
+}
 
 Type guidance:
 - Appliance replacement (water heater, HVAC, etc.) ≥ $500 → "capital_improvement"
