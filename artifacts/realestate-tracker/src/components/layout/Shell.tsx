@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import WelcomeTour from "./WelcomeTour";
 import { Link, useLocation } from "wouter";
 import { LayoutDashboard, PlusCircle, Calculator, Building2, TrendingUp, Mail, Settings, ShieldCheck, Scale, Map, CalendarDays, Wallet, FileText, LogOut, UserCog } from "lucide-react";
 import { useUser, useClerk } from "@clerk/react";
@@ -180,6 +181,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <UserMenu />
         </div>
       </aside>
+
+      <WelcomeTour />
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
