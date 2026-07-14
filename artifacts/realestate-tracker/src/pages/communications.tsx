@@ -33,62 +33,107 @@ import { cn } from "@/lib/utils";
 
 // ── IMAP auto-detection ───────────────────────────────────────────────────
 
-const KNOWN_IMAP: Record<string, { host: string; port: number; tls: boolean; note?: string }> = {
-  "gmail.com": { host: "imap.gmail.com", port: 993, tls: true, note: "gmail" },
-  "googlemail.com": { host: "imap.gmail.com", port: 993, tls: true, note: "gmail" },
-  "outlook.com": { host: "outlook.office365.com", port: 993, tls: true, note: "microsoft" },
-  "hotmail.com": { host: "outlook.office365.com", port: 993, tls: true, note: "microsoft" },
-  "live.com": { host: "outlook.office365.com", port: 993, tls: true, note: "microsoft" },
-  "msn.com": { host: "outlook.office365.com", port: 993, tls: true, note: "microsoft" },
-  "yahoo.com": { host: "imap.mail.yahoo.com", port: 993, tls: true, note: "yahoo" },
-  "ymail.com": { host: "imap.mail.yahoo.com", port: 993, tls: true, note: "yahoo" },
-  "icloud.com": { host: "imap.mail.me.com", port: 993, tls: true, note: "icloud" },
-  "me.com": { host: "imap.mail.me.com", port: 993, tls: true, note: "icloud" },
-  "mac.com": { host: "imap.mail.me.com", port: 993, tls: true, note: "icloud" },
-  "aol.com": { host: "imap.aol.com", port: 993, tls: true },
-  "zoho.com": { host: "imap.zoho.com", port: 993, tls: true },
-  "protonmail.com": { host: "127.0.0.1", port: 1143, tls: false, note: "proton" },
-  "pm.me": { host: "127.0.0.1", port: 1143, tls: false, note: "proton" },
+const KNOWN_IMAP: Record<string, { host: string; port: number; tls: boolean; provider: string }> = {
+  "gmail.com":      { host: "imap.gmail.com",           port: 993, tls: true,  provider: "gmail" },
+  "googlemail.com": { host: "imap.gmail.com",           port: 993, tls: true,  provider: "gmail" },
+  "outlook.com":    { host: "outlook.office365.com",    port: 993, tls: true,  provider: "microsoft" },
+  "hotmail.com":    { host: "outlook.office365.com",    port: 993, tls: true,  provider: "microsoft" },
+  "live.com":       { host: "outlook.office365.com",    port: 993, tls: true,  provider: "microsoft" },
+  "msn.com":        { host: "outlook.office365.com",    port: 993, tls: true,  provider: "microsoft" },
+  "yahoo.com":      { host: "imap.mail.yahoo.com",      port: 993, tls: true,  provider: "yahoo" },
+  "ymail.com":      { host: "imap.mail.yahoo.com",      port: 993, tls: true,  provider: "yahoo" },
+  "icloud.com":     { host: "imap.mail.me.com",         port: 993, tls: true,  provider: "icloud" },
+  "me.com":         { host: "imap.mail.me.com",         port: 993, tls: true,  provider: "icloud" },
+  "mac.com":        { host: "imap.mail.me.com",         port: 993, tls: true,  provider: "icloud" },
+  "aol.com":        { host: "imap.aol.com",             port: 993, tls: true,  provider: "aol" },
+  "zoho.com":       { host: "imap.zoho.com",            port: 993, tls: true,  provider: "zoho" },
 };
 
-const APP_PASSWORD_NOTES: Record<string, React.ReactNode> = {
-  gmail: (
-    <p className="text-xs text-amber-700 leading-relaxed">
-      <strong>Gmail requires an App Password</strong>, not your regular password.{" "}
-      <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noreferrer" className="underline">
-        Create one at myaccount.google.com/apppasswords
-      </a>{" "}
-      (requires 2-Step Verification to be enabled first).
-    </p>
-  ),
-  microsoft: (
-    <p className="text-xs text-amber-700 leading-relaxed">
-      <strong>Outlook/Hotmail requires an App Password</strong> if you have 2FA enabled.{" "}
-      Go to Microsoft Account → Security → Advanced security → App passwords.
-    </p>
-  ),
-  yahoo: (
-    <p className="text-xs text-amber-700 leading-relaxed">
-      <strong>Yahoo requires an App Password.</strong>{" "}
-      Go to Yahoo Account Security → Generate app password → select Mail.
-    </p>
-  ),
-  icloud: (
-    <p className="text-xs text-amber-700 leading-relaxed">
-      <strong>iCloud requires an App-Specific Password.</strong>{" "}
-      Go to{" "}
-      <a href="https://appleid.apple.com" target="_blank" rel="noreferrer" className="underline">
-        appleid.apple.com
-      </a>{" "}
-      → Security → App-Specific Passwords → Generate.
-    </p>
-  ),
-  proton: (
-    <p className="text-xs text-amber-700 leading-relaxed">
-      <strong>ProtonMail requires the Proton Mail Bridge app</strong> to be running locally.
-      Download it at proton.me/mail/bridge.
-    </p>
-  ),
+interface ProviderGuide {
+  name: string;
+  color: string;
+  emoji: string;
+  passwordLabel: string;
+  steps: { text: React.ReactNode }[];
+  link?: { href: string; label: string };
+}
+
+const PROVIDER_GUIDES: Record<string, ProviderGuide> = {
+  gmail: {
+    name: "Gmail",
+    color: "bg-red-50 border-red-200",
+    emoji: "✉️",
+    passwordLabel: "App Password (16 characters)",
+    steps: [
+      { text: <>Go to your <a href="https://myaccount.google.com/security" target="_blank" rel="noreferrer" className="text-primary underline font-medium">Google Account → Security</a></> },
+      { text: "Enable 2-Step Verification if you haven't already" },
+      { text: <>Open <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noreferrer" className="text-primary underline font-medium">myaccount.google.com/apppasswords</a></> },
+      { text: 'Under "Select app" choose Mail, click Generate' },
+      { text: "Copy the 16-character password shown and paste it below" },
+    ],
+    link: { href: "https://myaccount.google.com/apppasswords", label: "Open App Passwords →" },
+  },
+  microsoft: {
+    name: "Outlook / Hotmail",
+    color: "bg-blue-50 border-blue-200",
+    emoji: "📧",
+    passwordLabel: "App Password",
+    steps: [
+      { text: <>Go to <a href="https://account.microsoft.com/security" target="_blank" rel="noreferrer" className="text-primary underline font-medium">account.microsoft.com/security</a></> },
+      { text: "Click Advanced security options" },
+      { text: "Under App passwords, click Create a new app password" },
+      { text: "Copy the generated password and paste it below" },
+    ],
+    link: { href: "https://account.microsoft.com/security", label: "Open Microsoft Security →" },
+  },
+  yahoo: {
+    name: "Yahoo Mail",
+    color: "bg-purple-50 border-purple-200",
+    emoji: "📬",
+    passwordLabel: "App Password",
+    steps: [
+      { text: <>Sign in at <a href="https://login.yahoo.com" target="_blank" rel="noreferrer" className="text-primary underline font-medium">yahoo.com</a> and open Account Security</> },
+      { text: "Click Generate app password" },
+      { text: "Select Other app, give it any name (e.g. Acreon)" },
+      { text: "Copy the password and paste it below" },
+    ],
+  },
+  icloud: {
+    name: "iCloud Mail",
+    color: "bg-sky-50 border-sky-200",
+    emoji: "☁️",
+    passwordLabel: "App-Specific Password",
+    steps: [
+      { text: <>Go to <a href="https://appleid.apple.com" target="_blank" rel="noreferrer" className="text-primary underline font-medium">appleid.apple.com</a> and sign in</> },
+      { text: "Under Security, click App-Specific Passwords → Generate" },
+      { text: "Give it any name (e.g. Acreon) and click Create" },
+      { text: "Copy the password shown and paste it below" },
+    ],
+    link: { href: "https://appleid.apple.com", label: "Open Apple ID →" },
+  },
+  aol: {
+    name: "AOL Mail",
+    color: "bg-orange-50 border-orange-200",
+    emoji: "📩",
+    passwordLabel: "App Password",
+    steps: [
+      { text: <>Go to <a href="https://login.aol.com" target="_blank" rel="noreferrer" className="text-primary underline font-medium">AOL Account Security</a></> },
+      { text: "Click Generate and manage app passwords" },
+      { text: "Select Other App, enter Acreon, click Generate" },
+      { text: "Copy the password and paste it below" },
+    ],
+  },
+  zoho: {
+    name: "Zoho Mail",
+    color: "bg-green-50 border-green-200",
+    emoji: "📮",
+    passwordLabel: "Password or App Password",
+    steps: [
+      { text: "Use your regular Zoho password below" },
+      { text: "If you have 2FA enabled, go to Zoho Account → Security → App Passwords" },
+      { text: "Generate one for Acreon and use that instead" },
+    ],
+  },
 };
 
 function detectImap(email: string) {
@@ -96,47 +141,55 @@ function detectImap(email: string) {
   return domain ? KNOWN_IMAP[domain] ?? null : null;
 }
 
-// ── Connect email form ────────────────────────────────────────────────────
+function isValidEmail(email: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+// ── Connect email form — 2-step wizard ───────────────────────────────────
 
 function ConnectEmailForm({ onConnected }: { onConnected: () => void }) {
+  const [step, setStep] = useState<"email" | "password">("email");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  // manual IMAP override (shown only for unknown providers)
   const [imapHost, setImapHost] = useState("");
   const [imapPort, setImapPort] = useState("993");
   const [imapTls, setImapTls] = useState(true);
-  const [showAdvanced, setShowAdvanced] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const connectMutation = usePostEmailConnect();
   const detected = detectImap(email);
-  const note = detected?.note;
+  const guide = detected?.provider ? PROVIDER_GUIDES[detected.provider] ?? null : null;
+  const isUnknown = step === "password" && !detected;
 
-  const handleEmailChange = (val: string) => {
-    setEmail(val);
-    const d = detectImap(val);
-    if (d) {
-      setImapHost(d.host);
-      setImapPort(String(d.port));
-      setImapTls(d.tls);
-    }
+  const handleContinue = () => {
+    if (!isValidEmail(email)) { setError("Please enter a valid email address."); return; }
+    setError(null);
+    setStep("password");
+  };
+
+  const handleBack = () => {
+    setStep("email");
+    setPassword("");
+    setError(null);
   };
 
   const handleConnect = async () => {
     setError(null);
-    if (!email || !password) { setError("Email and password are required."); return; }
-    const host = imapHost || detected?.host;
-    if (!host) { setError("Could not detect IMAP server. Please expand Advanced Settings and enter it manually."); return; }
+    if (!password) { setError("Please enter your password."); return; }
+    const host = detected?.host || imapHost;
+    if (!host) { setError("Enter the IMAP server address below."); return; }
 
     try {
       await connectMutation.mutateAsync({
         data: {
           displayEmail: email,
           imapHost: host,
-          imapPort: Number(imapPort) || 993,
+          imapPort: Number(detected?.port || imapPort) || 993,
           imapEmail: email,
           imapPassword: password,
-          imapTls,
+          imapTls: detected?.tls ?? imapTls,
         },
       });
       onConnected();
@@ -148,129 +201,191 @@ function ConnectEmailForm({ onConnected }: { onConnected: () => void }) {
   };
 
   return (
-    <div className="rounded-xl border border-border bg-card p-6 space-y-5">
-      <div className="flex items-center gap-2">
-        <Mail className="w-5 h-5 text-primary" />
-        <h2 className="font-semibold text-foreground text-lg">Connect Your Email</h2>
+    <div className="rounded-xl border border-border bg-card overflow-hidden">
+      {/* Header */}
+      <div className="px-6 py-5 border-b border-border flex items-center gap-3">
+        <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
+          <Mail className="w-4 h-4 text-primary" />
+        </div>
+        <div>
+          <h2 className="font-semibold text-foreground">Connect Your Email</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Works with Gmail, Outlook, Yahoo, iCloud, and most email providers
+          </p>
+        </div>
+        {/* Step dots */}
+        <div className="ml-auto flex items-center gap-1.5">
+          {(["email", "password"] as const).map((s, i) => (
+            <div key={s} className={cn("rounded-full transition-all", step === s ? "w-5 h-2 bg-primary" : "w-2 h-2 bg-muted-foreground/30")} />
+          ))}
+        </div>
       </div>
 
-      <p className="text-sm text-muted-foreground leading-relaxed">
-        Connect your personal email account and Acreon will search it for property-related
-        emails and turn them into AI-generated notes. Works with Gmail, Outlook, Yahoo, iCloud,
-        and any provider that supports IMAP.
-      </p>
-
-      <div className="space-y-3">
-        {/* Email */}
-        <div>
-          <label className="text-xs font-medium text-foreground block mb-1">Email address</label>
-          <input
-            type="email"
-            placeholder="you@gmail.com"
-            value={email}
-            onChange={(e) => handleEmailChange(e.target.value)}
-            className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-          />
-          {detected && (
-            <p className="text-xs text-muted-foreground mt-1">
-              ✓ Detected: {detected.host}:{detected.port}
+      <div className="p-6 space-y-5">
+        {/* ── Step 1: email ── */}
+        {step === "email" && (
+          <>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Enter the email address you want to connect. Acreon will search it for property-related emails
+              and turn them into AI-generated notes.
             </p>
-          )}
-        </div>
-
-        {/* App password note */}
-        {note && note in APP_PASSWORD_NOTES && (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5">
-            {APP_PASSWORD_NOTES[note]}
-          </div>
-        )}
-
-        {/* Password */}
-        <div>
-          <label className="text-xs font-medium text-foreground block mb-1">
-            {note === "gmail" || note === "microsoft" || note === "yahoo" || note === "icloud"
-              ? "App Password"
-              : "Password"}
-          </label>
-          <div className="relative">
-            <input
-              type={showPassword ? "text" : "password"}
-              placeholder="••••••••••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full border border-border rounded-lg px-3 py-2 pr-10 text-sm bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword((v) => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            >
-              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
-          </div>
-        </div>
-
-        {/* Advanced settings toggle */}
-        <button
-          type="button"
-          onClick={() => setShowAdvanced((v) => !v)}
-          className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
-        >
-          <span>{showAdvanced ? "▲" : "▶"}</span> Advanced IMAP settings
-        </button>
-
-        {showAdvanced && (
-          <div className="grid grid-cols-3 gap-3">
-            <div className="col-span-2">
-              <label className="text-xs font-medium text-foreground block mb-1">IMAP Host</label>
-              <input
-                type="text"
-                placeholder="imap.example.com"
-                value={imapHost}
-                onChange={(e) => setImapHost(e.target.value)}
-                className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-              />
-            </div>
             <div>
-              <label className="text-xs font-medium text-foreground block mb-1">Port</label>
+              <label className="text-xs font-medium text-foreground block mb-1.5">Your email address</label>
               <input
-                type="number"
-                value={imapPort}
-                onChange={(e) => setImapPort(e.target.value)}
-                className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                type="email"
+                autoFocus
+                placeholder="you@gmail.com"
+                value={email}
+                onChange={(e) => { setEmail(e.target.value); setError(null); }}
+                onKeyDown={(e) => e.key === "Enter" && handleContinue()}
+                className="w-full border border-border rounded-lg px-3 py-2.5 text-sm bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
+              {detected && (
+                <p className="text-xs text-emerald-600 mt-1.5 flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> {guide?.name ?? detected.host} detected — we know how to connect this
+                </p>
+              )}
+              {email.includes("@") && !email.includes("@", email.indexOf("@") + 1) && !detected && email.split("@")[1]?.includes(".") && (
+                <p className="text-xs text-muted-foreground mt-1.5">
+                  Custom domain — you'll need your mail server details in the next step
+                </p>
+              )}
             </div>
-            <div className="col-span-3 flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="imap-tls"
-                checked={imapTls}
-                onChange={(e) => setImapTls(e.target.checked)}
-                className="rounded"
-              />
-              <label htmlFor="imap-tls" className="text-sm text-foreground">Use TLS/SSL</label>
-            </div>
-          </div>
+            {error && <p className="text-xs text-destructive">{error}</p>}
+            <button
+              onClick={handleContinue}
+              className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground rounded-lg px-4 py-2.5 text-sm font-medium hover:bg-primary/90 transition-colors"
+            >
+              Continue →
+            </button>
+          </>
         )}
 
-        {/* Error */}
-        {error && (
-          <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2">
-            <p className="text-xs text-destructive">{error}</p>
-          </div>
-        )}
+        {/* ── Step 2: password ── */}
+        {step === "password" && (
+          <>
+            {/* Provider guide */}
+            {guide ? (
+              <div className={cn("rounded-xl border p-4 space-y-3", guide.color)}>
+                <p className="font-semibold text-sm text-foreground">
+                  {guide.emoji} {guide.name} requires an App Password
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  For security, {guide.name} doesn't allow your regular password here. Follow these steps to create a special one:
+                </p>
+                <ol className="space-y-2">
+                  {guide.steps.map((s, i) => (
+                    <li key={i} className="flex gap-2.5 text-xs text-foreground">
+                      <span className="flex-shrink-0 w-5 h-5 rounded-full bg-background border border-border flex items-center justify-center font-semibold text-muted-foreground">{i + 1}</span>
+                      <span className="leading-relaxed mt-0.5">{s.text}</span>
+                    </li>
+                  ))}
+                </ol>
+                {guide.link && (
+                  <a
+                    href={guide.link.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
+                  >
+                    {guide.link.label}
+                  </a>
+                )}
+              </div>
+            ) : (
+              /* Unknown provider */
+              <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-3">
+                <p className="font-semibold text-sm text-foreground">Custom or business email</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  We don't recognise this domain. You'll need your mail server details — check
+                  with your email provider or IT administrator if you're not sure.
+                </p>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="col-span-2">
+                    <label className="text-xs font-medium text-foreground block mb-1">IMAP Server</label>
+                    <input
+                      type="text"
+                      placeholder="imap.yourprovider.com"
+                      value={imapHost}
+                      onChange={(e) => setImapHost(e.target.value)}
+                      className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-foreground block mb-1">Port</label>
+                    <input
+                      type="number"
+                      value={imapPort}
+                      onChange={(e) => setImapPort(e.target.value)}
+                      className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                  </div>
+                  <div className="col-span-3 flex items-center gap-2">
+                    <input type="checkbox" id="imap-tls" checked={imapTls} onChange={(e) => setImapTls(e.target.checked)} className="rounded" />
+                    <label htmlFor="imap-tls" className="text-xs text-foreground">Use SSL/TLS (recommended)</label>
+                  </div>
+                </div>
+              </div>
+            )}
 
-        <button
-          onClick={handleConnect}
-          disabled={connectMutation.isPending}
-          className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground rounded-lg px-4 py-2.5 text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
-        >
-          {connectMutation.isPending ? (
-            <><Loader2 className="w-4 h-4 animate-spin" /> Testing connection…</>
-          ) : (
-            <><Wifi className="w-4 h-4" /> Test &amp; Connect</>
-          )}
-        </button>
+            {/* Password field */}
+            <div>
+              <label className="text-xs font-medium text-foreground block mb-1.5">
+                {guide?.passwordLabel ?? "Password"}
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  autoFocus
+                  placeholder="Paste your password here"
+                  value={password}
+                  onChange={(e) => { setPassword(e.target.value); setError(null); }}
+                  onKeyDown={(e) => e.key === "Enter" && handleConnect()}
+                  className="w-full border border-border rounded-lg px-3 py-2.5 pr-10 text-sm bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1.5">
+                Connecting as <span className="font-medium text-foreground">{email}</span> —{" "}
+                <button onClick={handleBack} className="text-primary hover:text-primary/80 underline underline-offset-2 transition-colors">
+                  change email
+                </button>
+              </p>
+            </div>
+
+            {error && (
+              <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2">
+                <p className="text-xs text-destructive">{error}</p>
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={handleBack}
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
+              >
+                ← Back
+              </button>
+              <button
+                onClick={handleConnect}
+                disabled={connectMutation.isPending}
+                className="flex-1 flex items-center justify-center gap-2 bg-primary text-primary-foreground rounded-lg px-4 py-2.5 text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+              >
+                {connectMutation.isPending ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Testing connection…</>
+                ) : (
+                  <><Wifi className="w-4 h-4" /> Connect</>
+                )}
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
