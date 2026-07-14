@@ -1,10 +1,28 @@
 import { useState, useEffect } from "react";
 import { useUser } from "@clerk/react";
 import { useLocation } from "wouter";
-import { Phone, ShieldCheck, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+import { Phone, ShieldCheck, ChevronDown, ChevronUp, Loader2, MapPin, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+
+const HOW_FOUND_OPTIONS = [
+  { value: "google", label: "Google Search" },
+  { value: "friend_referral", label: "Friend / Referral" },
+  { value: "social_media", label: "Social Media" },
+  { value: "youtube_podcast", label: "YouTube / Podcast" },
+  { value: "real_estate_agent", label: "Real Estate Agent" },
+  { value: "other", label: "Other" },
+];
+
+const PROPERTY_TYPE_OPTIONS = [
+  { value: "sfr", label: "Single-Family (SFR)" },
+  { value: "multi_family", label: "Multi-Family" },
+  { value: "short_term_rental", label: "Short-Term Rental (STR)" },
+  { value: "commercial", label: "Commercial" },
+  { value: "land", label: "Land" },
+  { value: "mixed", label: "Mixed / Other" },
+];
 
 const TERMS_TEXT = `
 REALTRACK — TERMS OF SERVICE & LIABILITY DISCLAIMER
@@ -80,6 +98,11 @@ export default function Onboarding() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
 
+  // Profile fields
+  const [howFound, setHowFound] = useState("");
+  const [propertyTypes, setPropertyTypes] = useState<string[]>([]);
+  const [geoFocus, setGeoFocus] = useState("");
+
   // If already onboarded, bounce to app (must be before any early returns)
   useEffect(() => {
     if (isLoaded && user?.unsafeMetadata?.onboardingComplete) {
@@ -120,7 +143,13 @@ export default function Onboarding() {
       await fetch("/api/onboarding/complete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: phone.trim(), email: primaryEmail }),
+        body: JSON.stringify({
+          phone: phone.trim(),
+          email: primaryEmail,
+          howFound: howFound || null,
+          propertyTypes: propertyTypes.length ? propertyTypes.join(",") : null,
+          geoFocus: geoFocus.trim() || null,
+        }),
       });
 
       // 2. Store on Clerk user so the gate passes on next load
@@ -178,6 +207,79 @@ export default function Onboarding() {
               <p className="text-xs text-muted-foreground">
                 Used for account security and important service notices only.
               </p>
+            </div>
+
+            {/* How did you find us */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-[hsl(30,20%,15%)]">
+                How did you hear about Acreon?
+                <span className="ml-1 text-muted-foreground font-normal">(optional)</span>
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {HOW_FOUND_OPTIONS.map(opt => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setHowFound(v => v === opt.value ? "" : opt.value)}
+                    className={cn(
+                      "px-3 py-2 rounded-lg border text-sm text-left transition-colors",
+                      howFound === opt.value
+                        ? "border-primary bg-primary/8 text-primary font-medium"
+                        : "border-border text-[hsl(30,15%,35%)] hover:border-primary/40 hover:bg-muted/40"
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Property types */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-[hsl(30,20%,15%)] flex items-center gap-1.5">
+                <Home className="w-3.5 h-3.5 text-muted-foreground" />
+                What types of properties do you invest in?
+                <span className="ml-1 text-muted-foreground font-normal">(optional)</span>
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {PROPERTY_TYPE_OPTIONS.map(opt => {
+                  const selected = propertyTypes.includes(opt.value);
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() =>
+                        setPropertyTypes(prev =>
+                          selected ? prev.filter(v => v !== opt.value) : [...prev, opt.value]
+                        )
+                      }
+                      className={cn(
+                        "px-3 py-2 rounded-lg border text-sm text-left transition-colors",
+                        selected
+                          ? "border-primary bg-primary/8 text-primary font-medium"
+                          : "border-border text-[hsl(30,15%,35%)] hover:border-primary/40 hover:bg-muted/40"
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Geographic focus */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-[hsl(30,20%,15%)] flex items-center gap-1.5">
+                <MapPin className="w-3.5 h-3.5 text-muted-foreground" />
+                Where do you primarily invest?
+                <span className="ml-1 text-muted-foreground font-normal">(optional)</span>
+              </label>
+              <Input
+                type="text"
+                placeholder="e.g. Texas, Greater Phoenix, Pacific Northwest"
+                value={geoFocus}
+                onChange={e => setGeoFocus(e.target.value)}
+              />
             </div>
 
             {/* Terms of Service */}

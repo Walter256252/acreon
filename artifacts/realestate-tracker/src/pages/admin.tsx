@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ShieldCheck, Users, Building2, Mail, Crown, UserX, Loader2,
   RefreshCw, Activity, Search, Send, FileCheck, DollarSign, TrendingUp, Landmark, MapPin,
-  MessageSquare, CheckCheck, Clock, AlertCircle, ChevronDown, ChevronUp,
+  MessageSquare, CheckCheck, Clock, AlertCircle, ChevronDown, ChevronUp, BarChart3, Home,
 } from "lucide-react";
 import { formatCurrency, formatPercent } from "@/lib/utils";
 import { StatCard } from "@/components/ui/stat-card";
@@ -64,6 +64,17 @@ interface TermsAcceptance {
   ipAddress: string | null;
   userAgent: string | null;
   acceptedAt: string;
+  howFound: string | null;
+  propertyTypes: string | null;
+  geoFocus: string | null;
+}
+
+interface BreakdownEntry { label: string; count: number; }
+interface ProfileBreakdown {
+  total: number;
+  howFound: BreakdownEntry[];
+  propertyTypes: BreakdownEntry[];
+  geoFocus: BreakdownEntry[];
 }
 
 interface GeoProperty {
@@ -103,6 +114,12 @@ async function fetchAdminStats(): Promise<AdminStats> {
 
 async function fetchTermsAcceptances(): Promise<TermsAcceptance[]> {
   const res = await fetch("/api/admin/terms-acceptances");
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+async function fetchProfileBreakdown(): Promise<ProfileBreakdown> {
+  const res = await fetch("/api/admin/profile-breakdown");
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
@@ -599,6 +616,13 @@ export default function AdminDashboard() {
     staleTime: 0,
   });
 
+  const { data: profileBreakdown } = useQuery<ProfileBreakdown>({
+    queryKey: ["admin-profile-breakdown"],
+    queryFn: fetchProfileBreakdown,
+    enabled: isAdmin,
+    staleTime: 0,
+  });
+
   // Bootstrap
   const becomeMutation = useMutation({
     mutationFn: becomeAdmin,
@@ -743,6 +767,9 @@ export default function AdminDashboard() {
         <TabsList className="mb-2">
           <TabsTrigger value="overview" className="gap-2">
             <Activity className="w-4 h-4" /> Overview
+          </TabsTrigger>
+          <TabsTrigger value="user-profiles" className="gap-2">
+            <BarChart3 className="w-4 h-4" /> User Profiles
           </TabsTrigger>
           <TabsTrigger value="map" className="gap-2">
             <MapPin className="w-4 h-4" /> Properties Map
@@ -1055,6 +1082,182 @@ export default function AdminDashboard() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* ── User Profiles tab ──────────────────────────────────────────── */}
+        <TabsContent value="user-profiles" className="mt-4 space-y-6">
+          {!profileBreakdown ? (
+            <div className="flex justify-center p-12"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+          ) : profileBreakdown.total === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+                <Users className="w-8 h-8 text-muted-foreground" />
+                <p className="text-muted-foreground text-sm">No profile data yet. It will appear here as users sign up.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              <div className="flex items-center gap-2">
+                <BarChart3 className="w-5 h-5 text-primary" />
+                <h2 className="text-lg font-semibold">Signup Profile Breakdown</h2>
+                <span className="text-sm text-muted-foreground ml-1">— {profileBreakdown.total} user{profileBreakdown.total !== 1 ? "s" : ""} total</span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                {/* How Found */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">How They Found Acreon</CardTitle>
+                    <CardDescription>{profileBreakdown.howFound.length ? `${profileBreakdown.howFound.reduce((s, e) => s + e.count, 0)} responses` : "No responses yet"}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {profileBreakdown.howFound.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No data yet.</p>
+                    ) : (() => {
+                      const max = profileBreakdown.howFound[0]?.count ?? 1;
+                      const labels: Record<string, string> = {
+                        google: "Google Search", friend_referral: "Friend / Referral",
+                        social_media: "Social Media", youtube_podcast: "YouTube / Podcast",
+                        real_estate_agent: "Real Estate Agent", other: "Other",
+                      };
+                      return profileBreakdown.howFound.map(e => (
+                        <div key={e.label} className="space-y-1">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-foreground">{labels[e.label] ?? e.label}</span>
+                            <span className="text-muted-foreground font-medium">{e.count}</span>
+                          </div>
+                          <div className="h-2 bg-muted rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-primary rounded-full transition-all"
+                              style={{ width: `${(e.count / max) * 100}%` }}
+                            />
+                          </div>
+                        </div>
+                      ));
+                    })()}
+                  </CardContent>
+                </Card>
+
+                {/* Property Types */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Property Types Invested In</CardTitle>
+                    <CardDescription>{profileBreakdown.propertyTypes.length ? `${profileBreakdown.propertyTypes.reduce((s, e) => s + e.count, 0)} selections` : "No responses yet"}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {profileBreakdown.propertyTypes.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No data yet.</p>
+                    ) : (() => {
+                      const max = profileBreakdown.propertyTypes[0]?.count ?? 1;
+                      const labels: Record<string, string> = {
+                        sfr: "Single-Family (SFR)", multi_family: "Multi-Family",
+                        short_term_rental: "Short-Term Rental (STR)", commercial: "Commercial",
+                        land: "Land", mixed: "Mixed / Other",
+                      };
+                      return profileBreakdown.propertyTypes.map(e => (
+                        <div key={e.label} className="space-y-1">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-foreground">{labels[e.label] ?? e.label}</span>
+                            <span className="text-muted-foreground font-medium">{e.count}</span>
+                          </div>
+                          <div className="h-2 bg-muted rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-emerald-500 rounded-full transition-all"
+                              style={{ width: `${(e.count / max) * 100}%` }}
+                            />
+                          </div>
+                        </div>
+                      ));
+                    })()}
+                  </CardContent>
+                </Card>
+
+                {/* Geographic Focus */}
+                <Card className="md:col-span-2">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                      <MapPin className="w-4 h-4" /> Geographic Focus
+                    </CardTitle>
+                    <CardDescription>{profileBreakdown.geoFocus.length ? `${profileBreakdown.geoFocus.reduce((s, e) => s + e.count, 0)} responses` : "No responses yet"}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {profileBreakdown.geoFocus.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No data yet.</p>
+                    ) : (
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                        {profileBreakdown.geoFocus.map(e => (
+                          <div key={e.label} className="flex items-center justify-between px-3 py-2 rounded-lg bg-muted/50 border border-border">
+                            <span className="text-sm text-foreground capitalize">{e.label}</span>
+                            <span className="text-xs font-semibold text-muted-foreground bg-background px-1.5 py-0.5 rounded-full border">
+                              {e.count}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+              </div>
+
+              {/* Raw signup table */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">All Signups</CardTitle>
+                  <CardDescription>Each user's profile answers from onboarding</CardDescription>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Signed Up</TableHead>
+                          <TableHead>How Found</TableHead>
+                          <TableHead>Property Types</TableHead>
+                          <TableHead>Geo Focus</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {(acceptances ?? []).map(a => {
+                          const howFoundLabels: Record<string, string> = {
+                            google: "Google", friend_referral: "Friend/Referral",
+                            social_media: "Social Media", youtube_podcast: "YouTube/Podcast",
+                            real_estate_agent: "RE Agent", other: "Other",
+                          };
+                          const typeLabels: Record<string, string> = {
+                            sfr: "SFR", multi_family: "Multi-Family",
+                            short_term_rental: "STR", commercial: "Commercial",
+                            land: "Land", mixed: "Mixed",
+                          };
+                          return (
+                            <TableRow key={a.id}>
+                              <TableCell className="font-mono text-xs">{a.email}</TableCell>
+                              <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                                {new Date(a.acceptedAt).toLocaleDateString()}
+                              </TableCell>
+                              <TableCell className="text-xs">
+                                {a.howFound ? (howFoundLabels[a.howFound] ?? a.howFound) : <span className="text-muted-foreground">—</span>}
+                              </TableCell>
+                              <TableCell className="text-xs">
+                                {a.propertyTypes
+                                  ? a.propertyTypes.split(",").map(t => typeLabels[t.trim()] ?? t.trim()).join(", ")
+                                  : <span className="text-muted-foreground">—</span>}
+                              </TableCell>
+                              <TableCell className="text-xs capitalize">
+                                {a.geoFocus ?? <span className="text-muted-foreground">—</span>}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          )}
         </TabsContent>
 
         {/* ── Properties Map tab ─────────────────────────────────────────── */}

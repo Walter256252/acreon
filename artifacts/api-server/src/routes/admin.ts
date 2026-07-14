@@ -260,7 +260,10 @@ router.post("/onboarding/complete", async (req, res) => {
   const userId = uid(req);
   if (!userId) { res.status(401).json({ error: "Not authenticated" }); return; }
 
-  const { phone, email } = req.body as { phone?: string; email?: string };
+  const { phone, email, howFound, propertyTypes, geoFocus } = req.body as {
+    phone?: string; email?: string;
+    howFound?: string; propertyTypes?: string; geoFocus?: string;
+  };
   if (!phone || !email) { res.status(400).json({ error: "phone and email are required" }); return; }
 
   const ip =
@@ -276,6 +279,9 @@ router.post("/onboarding/complete", async (req, res) => {
     phone,
     ipAddress: ip,
     userAgent,
+    howFound: howFound ?? null,
+    propertyTypes: propertyTypes ?? null,
+    geoFocus: geoFocus ?? null,
   });
 
   // Notify admins via Gmail
@@ -375,7 +381,58 @@ router.get("/admin/terms-acceptances", requireAdmin, async (_req, res) => {
     ipAddress: r.ipAddress ?? null,
     userAgent: r.userAgent ?? null,
     acceptedAt: r.acceptedAt.toISOString(),
+    howFound: r.howFound ?? null,
+    propertyTypes: r.propertyTypes ?? null,
+    geoFocus: r.geoFocus ?? null,
   })));
+});
+
+// ── GET /admin/profile-breakdown ───────────────────────────────────────────
+// Returns aggregate breakdowns of onboarding profile fields
+
+router.get("/admin/profile-breakdown", requireAdmin, async (_req, res) => {
+  const rows = await db
+    .select({
+      howFound: termsAcceptancesTable.howFound,
+      propertyTypes: termsAcceptancesTable.propertyTypes,
+      geoFocus: termsAcceptancesTable.geoFocus,
+    })
+    .from(termsAcceptancesTable);
+
+  // How Found counts
+  const howFoundCounts: Record<string, number> = {};
+  // Property type counts (comma-separated values per row)
+  const propTypeCounts: Record<string, number> = {};
+  // Geo focus counts
+  const geoCounts: Record<string, number> = {};
+
+  for (const r of rows) {
+    if (r.howFound) {
+      howFoundCounts[r.howFound] = (howFoundCounts[r.howFound] ?? 0) + 1;
+    }
+    if (r.propertyTypes) {
+      for (const t of r.propertyTypes.split(",")) {
+        const key = t.trim();
+        if (key) propTypeCounts[key] = (propTypeCounts[key] ?? 0) + 1;
+      }
+    }
+    if (r.geoFocus) {
+      const key = r.geoFocus.trim().toLowerCase();
+      if (key) geoCounts[key] = (geoCounts[key] ?? 0) + 1;
+    }
+  }
+
+  const toSortedArray = (obj: Record<string, number>) =>
+    Object.entries(obj)
+      .map(([label, count]) => ({ label, count }))
+      .sort((a, b) => b.count - a.count);
+
+  res.json({
+    total: rows.length,
+    howFound: toSortedArray(howFoundCounts),
+    propertyTypes: toSortedArray(propTypeCounts),
+    geoFocus: toSortedArray(geoCounts),
+  });
 });
 
 export default router;
