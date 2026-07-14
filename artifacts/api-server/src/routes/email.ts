@@ -347,11 +347,14 @@ router.post("/email/sync", async (req, res) => {
   const settingsMap = new Map(settings.map((s) => [s.propertyId, s]));
 
   let total = 0;
+  const results: { propertyId: number; propertyName: string; synced: number }[] = [];
+
   for (const p of properties) {
     const s = settingsMap.get(p.id);
+    let synced = 0;
     try {
       if (isGmailOAuth(emailConn)) {
-        total += await syncPropertyEmailsViaGmail(
+        synced = await syncPropertyEmailsViaGmail(
           userId,
           emailConn.gmailAccessToken,
           emailConn.gmailRefreshToken,
@@ -363,12 +366,14 @@ router.post("/email/sync", async (req, res) => {
         );
       } else {
         const creds = toCredsOrNull(emailConn);
-        if (creds) total += await syncPropertyEmails(creds, p.id, userId, s?.pullMode ?? "address", s?.gmailLabel ?? null, p.address);
+        if (creds) synced = await syncPropertyEmails(creds, p.id, userId, s?.pullMode ?? "address", s?.gmailLabel ?? null, p.address);
       }
     } catch { /* continue with other properties */ }
+    total += synced;
+    results.push({ propertyId: p.id, propertyName: p.name, synced });
   }
 
-  res.json({ synced: total });
+  res.json({ synced: total, results });
 });
 
 // ── Notes ─────────────────────────────────────────────────────────────────

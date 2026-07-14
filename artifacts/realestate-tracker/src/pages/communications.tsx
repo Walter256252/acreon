@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter";
 import {
   Mail, Tag, MapPin, RefreshCw, Save, CheckCircle2, ChevronRight,
   Info, Eye, EyeOff, X, Wifi, WifiOff, Loader2, Clock,
+  ChevronDown, ChevronUp, Sparkles,
 } from "lucide-react";
 
 // ── Relative time ─────────────────────────────────────────────────────────
@@ -591,6 +592,12 @@ export default function Communications() {
   const [syncingId, setSyncingId] = useState<number | null>(null);
   const [savedIds, setSavedIds] = useState<Set<number>>(new Set());
   const [oauthBanner, setOauthBanner] = useState<"success" | "denied" | "error" | null>(null);
+  const [howItWorksOpen, setHowItWorksOpen] = useState(false);
+  const [syncSummary, setSyncSummary] = useState<{
+    total: number;
+    results: { propertyId: number; propertyName: string; synced: number }[];
+    showNewOnly: boolean;
+  } | null>(null);
 
   // Detect Gmail OAuth callback result from query params
   useEffect(() => {
@@ -656,8 +663,16 @@ export default function Communications() {
   };
 
   const handleSyncAll = async () => {
-    await syncAllMutation.mutateAsync();
+    const result = await syncAllMutation.mutateAsync() as {
+      synced: number;
+      results: { propertyId: number; propertyName: string; synced: number }[];
+    };
     queryClient.invalidateQueries();
+    setSyncSummary({
+      total: result.synced ?? 0,
+      results: result.results ?? [],
+      showNewOnly: true,
+    });
   };
 
   const numProperties = (settings ?? []).length;
@@ -705,36 +720,44 @@ export default function Communications() {
         <ConnectedCard email={connEmail} onDisconnect={() => { refetchStatus(); queryClient.invalidateQueries(); }} />
       )}
 
-      {/* How it works — always visible */}
-      <div className="rounded-xl border border-border bg-card p-5 space-y-4">
-        <div className="flex items-center gap-2">
-          <Info className="w-4 h-4 text-muted-foreground" />
-          <h2 className="font-semibold text-foreground">How syncing works</h2>
-        </div>
-        <div className="grid md:grid-cols-2 gap-4">
-          <div className="rounded-lg border border-border bg-background p-4 space-y-2">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-full bg-secondary/50 flex items-center justify-center">
-                <MapPin className="w-3.5 h-3.5 text-muted-foreground" />
+      {/* How syncing works — collapsible, collapsed by default when connected */}
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <button
+          onClick={() => setHowItWorksOpen((v) => !v)}
+          className="w-full flex items-center gap-2 px-5 py-3.5 text-left hover:bg-muted/40 transition-colors"
+        >
+          <Info className="w-4 h-4 text-muted-foreground shrink-0" />
+          <span className="font-semibold text-foreground text-sm flex-1">How syncing works</span>
+          {howItWorksOpen
+            ? <ChevronUp className="w-4 h-4 text-muted-foreground shrink-0" />
+            : <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />}
+        </button>
+        {howItWorksOpen && (
+          <div className="px-5 pb-5 grid md:grid-cols-2 gap-4">
+            <div className="rounded-lg border border-border bg-background p-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-full bg-secondary/50 flex items-center justify-center">
+                  <MapPin className="w-3.5 h-3.5 text-muted-foreground" />
+                </div>
+                <h3 className="font-semibold text-sm text-foreground">By Address</h3>
+                <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">Easiest</span>
               </div>
-              <h3 className="font-semibold text-sm text-foreground">By Address</h3>
-              <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">Easiest</span>
+              <p className="text-sm text-muted-foreground">Acreon scans your inbox for emails that mention the property's street address. Nothing to set up — just connect your email and hit Sync.</p>
             </div>
-            <p className="text-sm text-muted-foreground">Acreon scans your inbox for emails that mention the property's street address. Nothing to set up — just connect your email and hit Sync.</p>
-          </div>
-          <div className="rounded-lg border border-border bg-background p-4 space-y-2">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
-                <Tag className="w-3.5 h-3.5 text-primary" />
+            <div className="rounded-lg border border-border bg-background p-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Tag className="w-3.5 h-3.5 text-primary" />
+                </div>
+                <h3 className="font-semibold text-sm text-foreground">By Label</h3>
+                <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">More precise</span>
               </div>
-              <h3 className="font-semibold text-sm text-foreground">By Label</h3>
-              <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">More precise</span>
+              <p className="text-sm text-muted-foreground">
+                You create a label in Gmail (like a tag) for a property and drag relevant emails there. Acreon then only pulls emails with that label — so you decide exactly what gets synced.
+              </p>
             </div>
-            <p className="text-sm text-muted-foreground">
-              You create a label in Gmail (like a tag) for a property and drag relevant emails there. Acreon then only pulls emails with that label — so you decide exactly what gets synced.
-            </p>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Sync All card */}
@@ -773,6 +796,60 @@ export default function Communications() {
           {syncAllMutation.isPending ? "Syncing all…" : "Sync All Properties"}
         </button>
       </div>
+
+      {/* Sync summary banner */}
+      {syncSummary && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 dark:border-emerald-900 dark:bg-emerald-950/20 overflow-hidden">
+          <div className="flex items-center gap-3 px-4 py-3">
+            <div className="w-7 h-7 rounded-lg bg-emerald-500/15 flex items-center justify-center shrink-0">
+              <Sparkles className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-emerald-900 dark:text-emerald-200">
+                {syncSummary.total === 0
+                  ? "All caught up — no new emails found."
+                  : `${syncSummary.total} new email${syncSummary.total !== 1 ? "s" : ""} synced across your properties.`}
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {syncSummary.results.some((r) => r.synced > 0) && (
+                <button
+                  onClick={() => setSyncSummary((s) => s ? { ...s, showNewOnly: !s.showNewOnly } : s)}
+                  className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-400 hover:underline"
+                >
+                  {syncSummary.showNewOnly ? <><Eye className="w-3 h-3" /> Show all</> : <><EyeOff className="w-3 h-3" /> New only</>}
+                </button>
+              )}
+              <button
+                onClick={() => setSyncSummary(null)}
+                className="text-emerald-500 hover:text-emerald-700 dark:hover:text-emerald-300"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+          {syncSummary.results.length > 0 && (
+            <div className="px-4 pb-3 flex flex-col gap-1">
+              {syncSummary.results
+                .filter((r) => !syncSummary.showNewOnly || r.synced > 0)
+                .sort((a, b) => b.synced - a.synced)
+                .map((r) => (
+                  <div key={r.propertyId} className="flex items-center justify-between text-xs py-1 border-t border-emerald-200/60 dark:border-emerald-800/40">
+                    <span className="text-emerald-800 dark:text-emerald-300 font-medium">{r.propertyName}</span>
+                    <span className={cn(
+                      "px-2 py-0.5 rounded-full font-semibold",
+                      r.synced > 0
+                        ? "bg-emerald-200 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300"
+                        : "bg-muted text-muted-foreground"
+                    )}>
+                      {r.synced > 0 ? `+${r.synced} new` : "no new"}
+                    </span>
+                  </div>
+                ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Per-property settings */}
       <div className="space-y-3">
