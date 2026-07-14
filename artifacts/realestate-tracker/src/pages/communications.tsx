@@ -592,19 +592,6 @@ export default function Communications() {
   const [savedIds, setSavedIds] = useState<Set<number>>(new Set());
   const [oauthBanner, setOauthBanner] = useState<"success" | "denied" | "error" | null>(null);
 
-  // Fetch real Gmail labels for the picker
-  const { data: gmailLabelsData } = useQuery<{ labels: { id: string; name: string }[] }>({
-    queryKey: ["/api/email/gmail/labels"],
-    queryFn: async () => {
-      const res = await fetch("/api/email/gmail/labels");
-      if (!res.ok) return { labels: [] };
-      return res.json() as Promise<{ labels: { id: string; name: string }[] }>;
-    },
-    enabled: connected,
-    staleTime: 60_000,
-  });
-  const gmailLabels = gmailLabelsData?.labels ?? [];
-
   // Detect Gmail OAuth callback result from query params
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -627,6 +614,19 @@ export default function Communications() {
 
   const connected = status?.connected ?? false;
   const connEmail = status?.email ?? connDetail?.displayEmail ?? "";
+
+  // Fetch real Gmail labels for the picker (after `connected` is defined)
+  const { data: gmailLabelsData } = useQuery<{ labels: { id: string; name: string }[] }>({
+    queryKey: ["/api/email/gmail/labels"],
+    queryFn: async () => {
+      const res = await fetch("/api/email/gmail/labels");
+      if (!res.ok) return { labels: [] };
+      return res.json() as Promise<{ labels: { id: string; name: string }[] }>;
+    },
+    enabled: connected,
+    staleTime: 60_000,
+  });
+  const gmailLabels = gmailLabelsData?.labels ?? [];
 
   const getLocal = (id: number, server: { pullMode: string; emailFolder: string | null }): LocalSetting =>
     localSettings[id] ?? { pullMode: (server.pullMode as PullMode) ?? "address", emailFolder: server.emailFolder ?? "", dirty: false };
