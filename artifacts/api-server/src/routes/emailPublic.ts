@@ -70,8 +70,11 @@ interface GoogleUserInfo {
 router.get("/email/gmail/callback", async (req, res) => {
   const { code, state, error } = req.query as Record<string, string>;
 
+  console.log("[gmail-callback] received", { hasCode: !!code, hasState: !!state, error, stateMapSize: oauthStates.size });
+
   // Helper to redirect with an error param
   const redirectError = (returnTo: string, reason: string) => {
+    console.log("[gmail-callback] redirecting with error:", reason, "returnTo:", returnTo);
     try {
       const url = new URL(returnTo);
       url.searchParams.set("gmail_error", reason);
@@ -84,6 +87,8 @@ router.get("/email/gmail/callback", async (req, res) => {
   // Validate state
   const stateData = state ? oauthStates.get(state) : undefined;
   const returnTo = stateData?.returnTo ?? "/";
+
+  console.log("[gmail-callback] state valid:", !!stateData, "expires ok:", stateData ? stateData.expires > Date.now() : false);
 
   if (!stateData || stateData.expires < Date.now()) {
     redirectError(returnTo, "invalid_state");
