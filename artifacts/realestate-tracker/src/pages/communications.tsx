@@ -251,6 +251,7 @@ function ConnectEmailForm({ onConnected }: { onConnected: () => void }) {
   const [imapHost, setImapHost] = useState("");
   const [imapPort, setImapPort] = useState("993");
   const [imapTls, setImapTls] = useState(true);
+  const [isGoogleWorkspace, setIsGoogleWorkspace] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const connectMutation = usePostEmailConnect();
@@ -394,53 +395,87 @@ function ConnectEmailForm({ onConnected }: { onConnected: () => void }) {
                     )}
                   </div>
                 ) : (
-                  /* Unknown / custom domain — IMAP details */
-                  <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-4">
-                    <div>
-                      <p className="font-semibold text-sm text-foreground mb-1">Custom or business email</p>
-                      <p className="text-xs text-muted-foreground leading-relaxed">
-                        We don't automatically know how to reach this email provider, so you'll need to tell us where
-                        your mail server lives. Think of it like a postal address for your inbox — every provider
-                        has one, and your email provider's support pages will list it.
-                      </p>
-                    </div>
-                    <div className="rounded-lg bg-background border border-border px-3 py-2.5 space-y-1">
-                      <p className="text-xs font-medium text-foreground">How to find these details</p>
-                      <ul className="text-xs text-muted-foreground space-y-0.5 list-disc list-inside">
-                        <li>Google <span className="font-medium text-foreground">"{email.split("@")[1] ?? "yourprovider"} IMAP settings"</span></li>
-                        <li>Open your email app's account settings — look for "Incoming server"</li>
-                        <li>Or ask whoever manages your company email (IT / admin)</li>
-                      </ul>
-                    </div>
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="col-span-2">
-                        <label className="text-xs font-medium text-foreground block mb-1">
-                          IMAP Server <span className="text-muted-foreground font-normal">(Incoming mail server)</span>
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="e.g. imap.yourprovider.com"
-                          value={imapHost}
-                          onChange={(e) => setImapHost(e.target.value)}
-                          className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-                        />
+                  /* Unknown / custom domain */
+                  <div className="space-y-3">
+                    {/* Google Workspace toggle */}
+                    <button
+                      type="button"
+                      onClick={() => { setIsGoogleWorkspace((v) => !v); setError(null); }}
+                      className={`w-full flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition-colors ${
+                        isGoogleWorkspace
+                          ? "border-blue-300 bg-blue-50"
+                          : "border-border bg-muted/30 hover:bg-muted/50"
+                      }`}
+                    >
+                      <div className="w-8 h-8 rounded-full bg-white border border-border flex items-center justify-center flex-shrink-0 shadow-sm">
+                        <span className="text-sm font-bold" style={{ fontFamily: "sans-serif" }}>
+                          <span style={{ color: "#4285F4" }}>G</span>
+                        </span>
                       </div>
-                      <div>
-                        <label className="text-xs font-medium text-foreground block mb-1">
-                          Port <span className="text-muted-foreground font-normal">(usually 993)</span>
-                        </label>
-                        <input
-                          type="number"
-                          value={imapPort}
-                          onChange={(e) => setImapPort(e.target.value)}
-                          className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-                        />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-foreground">This email is hosted by Google Workspace</p>
+                        <p className="text-xs text-muted-foreground">Sign in with Google — no passwords needed</p>
                       </div>
-                      <div className="col-span-3 flex items-center gap-2">
-                        <input type="checkbox" id="imap-tls" checked={imapTls} onChange={(e) => setImapTls(e.target.checked)} className="rounded" />
-                        <label htmlFor="imap-tls" className="text-xs text-foreground">Use SSL/TLS <span className="text-muted-foreground">(leave on unless told otherwise)</span></label>
+                      <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${
+                        isGoogleWorkspace ? "border-blue-500 bg-blue-500" : "border-muted-foreground"
+                      }`}>
+                        {isGoogleWorkspace && <div className="w-full h-full rounded-full bg-white scale-[0.4]" />}
                       </div>
-                    </div>
+                    </button>
+
+                    {isGoogleWorkspace ? (
+                      /* Show OAuth button */
+                      <GmailOAuthStep email={email} onBack={() => setIsGoogleWorkspace(false)} error={error} setError={setError} />
+                    ) : (
+                      /* IMAP details for truly unknown providers */
+                      <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-4">
+                        <div>
+                          <p className="font-semibold text-sm text-foreground mb-1">Custom or business email</p>
+                          <p className="text-xs text-muted-foreground leading-relaxed">
+                            We don't automatically know how to reach this email provider, so you'll need to tell us where
+                            your mail server lives. Think of it like a postal address for your inbox — every provider
+                            has one, and your email provider's support pages will list it.
+                          </p>
+                        </div>
+                        <div className="rounded-lg bg-background border border-border px-3 py-2.5 space-y-1">
+                          <p className="text-xs font-medium text-foreground">How to find these details</p>
+                          <ul className="text-xs text-muted-foreground space-y-0.5 list-disc list-inside">
+                            <li>Google <span className="font-medium text-foreground">"{email.split("@")[1] ?? "yourprovider"} IMAP settings"</span></li>
+                            <li>Open your email app's account settings — look for "Incoming server"</li>
+                            <li>Or ask whoever manages your company email (IT / admin)</li>
+                          </ul>
+                        </div>
+                        <div className="grid grid-cols-3 gap-3">
+                          <div className="col-span-2">
+                            <label className="text-xs font-medium text-foreground block mb-1">
+                              IMAP Server <span className="text-muted-foreground font-normal">(Incoming mail server)</span>
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="e.g. imap.yourprovider.com"
+                              value={imapHost}
+                              onChange={(e) => setImapHost(e.target.value)}
+                              className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs font-medium text-foreground block mb-1">
+                              Port <span className="text-muted-foreground font-normal">(usually 993)</span>
+                            </label>
+                            <input
+                              type="number"
+                              value={imapPort}
+                              onChange={(e) => setImapPort(e.target.value)}
+                              className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                            />
+                          </div>
+                          <div className="col-span-3 flex items-center gap-2">
+                            <input type="checkbox" id="imap-tls" checked={imapTls} onChange={(e) => setImapTls(e.target.checked)} className="rounded" />
+                            <label htmlFor="imap-tls" className="text-xs text-foreground">Use SSL/TLS <span className="text-muted-foreground">(leave on unless told otherwise)</span></label>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
