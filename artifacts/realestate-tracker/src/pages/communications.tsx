@@ -711,7 +711,7 @@ export default function Communications() {
             <ul className="text-sm text-muted-foreground space-y-1">
               <li className="flex gap-2"><span className="text-xs bg-muted rounded px-1.5 py-0.5 flex-shrink-0 mt-0.5">1</span> In Gmail: create a label like <code className="text-xs bg-muted px-1 rounded">Acreon/123 Main St</code></li>
               <li className="flex gap-2"><span className="text-xs bg-muted rounded px-1.5 py-0.5 flex-shrink-0 mt-0.5">2</span> In Outlook: create a subfolder with the property name</li>
-              <li className="flex gap-2"><span className="text-xs bg-muted rounded px-1.5 py-0.5 flex-shrink-0 mt-0.5">3</span> Enter the exact folder name below, then Sync</li>
+              <li className="flex gap-2"><span className="text-xs bg-muted rounded px-1.5 py-0.5 flex-shrink-0 mt-0.5">3</span> For each property below, click <strong>By Folder</strong> and enter the exact label name in the field that appears</li>
               <li className="flex gap-2"><span className="text-xs bg-muted rounded px-1.5 py-0.5 flex-shrink-0 mt-0.5">4</span> Tip: set up a filter to auto-label emails from tenants</li>
             </ul>
           </div>
