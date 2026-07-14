@@ -1,7 +1,7 @@
-import React from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, PlusCircle, Calculator, Building2, TrendingUp, Mail, Settings, ShieldCheck, Scale, Map, CalendarDays, Wallet, FileText } from "lucide-react";
-import { useUser, UserButton } from "@clerk/react";
+import { LayoutDashboard, PlusCircle, Calculator, Building2, TrendingUp, Mail, Settings, ShieldCheck, Scale, Map, CalendarDays, Wallet, FileText, LogOut, UserCog } from "lucide-react";
+import { useUser, useClerk } from "@clerk/react";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +22,77 @@ const NAV_ITEMS = [
 const BOTTOM_NAV_ITEMS = [
   { href: "/app/settings", label: "Settings", icon: Settings },
 ];
+
+function UserMenu() {
+  const { user } = useUser();
+  const { openUserProfile, signOut } = useClerk();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const initials = user?.firstName?.[0] ?? user?.emailAddresses?.[0]?.emailAddress?.[0]?.toUpperCase() ?? "?";
+  const label = user?.firstName ?? user?.emailAddresses?.[0]?.emailAddress ?? "Account";
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-3 px-3 py-2.5 w-full rounded-md hover:bg-sidebar-accent/50 transition-colors text-left"
+      >
+        <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-semibold shrink-0">
+          {initials}
+        </div>
+        <span className="text-sm text-sidebar-foreground/70 truncate">{label}</span>
+      </button>
+
+      {open && (
+        <div className="fixed z-[9999] w-52 rounded-lg border border-border bg-popover shadow-lg py-1"
+          style={{
+            bottom: (() => {
+              if (!ref.current) return 60;
+              const rect = ref.current.getBoundingClientRect();
+              return window.innerHeight - rect.top + 4;
+            })(),
+            left: (() => {
+              if (!ref.current) return 16;
+              return ref.current.getBoundingClientRect().left;
+            })(),
+          }}
+        >
+          <div className="px-3 py-2 border-b border-border mb-1">
+            <p className="text-xs font-medium text-foreground truncate">{label}</p>
+            <p className="text-xs text-muted-foreground truncate">
+              {user?.emailAddresses?.[0]?.emailAddress}
+            </p>
+          </div>
+          <button
+            onClick={() => { setOpen(false); openUserProfile(); }}
+            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-foreground hover:bg-accent transition-colors"
+          >
+            <UserCog className="w-4 h-4 text-muted-foreground" />
+            Manage account
+          </button>
+          <button
+            onClick={() => { setOpen(false); signOut({ redirectUrl: "/" }); }}
+            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors"
+          >
+            <LogOut className="w-4 h-4" />
+            Sign out
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
@@ -106,12 +177,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
               </Link>
             );
           })}
-          <div className="flex items-center gap-3 px-3 py-2.5">
-            <UserButton afterSignOutUrl="/" />
-            <span className="text-sm text-sidebar-foreground/70 truncate">
-              {user?.firstName ?? user?.emailAddresses?.[0]?.emailAddress ?? "Account"}
-            </span>
-          </div>
+          <UserMenu />
         </div>
       </aside>
 
