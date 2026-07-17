@@ -33,7 +33,7 @@ services:
       target: api
       args:
         VITE_CLERK_PUBLISHABLE_KEY: ${VITE_CLERK_PUBLISHABLE_KEY}
-        VITE_CLERK_PROXY_URL: ${VITE_CLERK_PROXY_URL:-/api/__clerk}
+        VITE_CLERK_PROXY_URL: ${VITE_CLERK_PROXY_URL-}
         BASE_PATH: ${BASE_PATH:-/}
 
     container_name: acreon-api
@@ -74,7 +74,7 @@ services:
       target: web
       args:
         VITE_CLERK_PUBLISHABLE_KEY: ${VITE_CLERK_PUBLISHABLE_KEY}
-        VITE_CLERK_PROXY_URL: ${VITE_CLERK_PROXY_URL:-/api/__clerk}
+        VITE_CLERK_PROXY_URL: ${VITE_CLERK_PROXY_URL-}
         BASE_PATH: ${BASE_PATH:-/}
 
     container_name: acreon-web
