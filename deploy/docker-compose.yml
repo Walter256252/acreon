@@ -1,0 +1,99 @@
+services:
+  acreon-db:
+    image: postgres:16-alpine
+    container_name: acreon-db
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
+    volumes:
+      - acreon-postgres-data:/var/lib/postgresql/data
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+    networks:
+      - acreon-internal
+
+
+  acreon-api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: api
+      args:
+        VITE_CLERK_PUBLISHABLE_KEY: ${VITE_CLERK_PUBLISHABLE_KEY}
+        VITE_CLERK_PROXY_URL: ${VITE_CLERK_PROXY_URL:-/api/__clerk}
+        BASE_PATH: ${BASE_PATH:-/}
+
+    container_name: acreon-api
+    restart: unless-stopped
+
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@acreon-db:5432/${POSTGRES_DB}
+
+      ALLOWED_ORIGIN: ${ALLOWED_ORIGIN}
+
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY}
+      CLERK_PUBLISHABLE_KEY: ${CLERK_PUBLISHABLE_KEY}
+
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+
+      AI_INTEGRATIONS_OPENAI_API_KEY: ${AI_INTEGRATIONS_OPENAI_API_KEY:-}
+      AI_INTEGRATIONS_OPENAI_BASE_URL: ${AI_INTEGRATIONS_OPENAI_BASE_URL:-}
+
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      REPLIT_DEV_DOMAIN: ${REPLIT_DEV_DOMAIN:-}
+
+    depends_on:
+      acreon-db:
+        condition: service_healthy
+
+    networks:
+      - acreon-internal
+
+
+  acreon-web:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: web
+      args:
+        VITE_CLERK_PUBLISHABLE_KEY: ${VITE_CLERK_PUBLISHABLE_KEY}
+        VITE_CLERK_PROXY_URL: ${VITE_CLERK_PROXY_URL:-/api/__clerk}
+        BASE_PATH: ${BASE_PATH:-/}
+
+    container_name: acreon-web
+    restart: unless-stopped
+
+    depends_on:
+      - acreon-api
+
+    ports:
+      - "${WEB_PORT:-8080}:80"
+
+    networks:
+      - acreon-internal
+
+
+volumes:
+  acreon-postgres-data:
+
+
+networks:
+  acreon-internal:
+    driver: bridge
