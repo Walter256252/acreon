@@ -34,6 +34,7 @@ export * from './emailPropertySettings';
 export * from './emailPropertySettingsInput';
 export * from './emailStatus';
 export * from './emailSyncResult';
+export * from './emailSyncResultResultsItem';
 export * from './extraPaymentEntry';
 export * from './healthStatus';
 export * from './openaiConversation';

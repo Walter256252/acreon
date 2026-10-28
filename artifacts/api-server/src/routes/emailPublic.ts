@@ -1,3 +1,4 @@
+import { encryptCredential } from "../lib/credentialEncryption";
 /**
  * Public email routes — no Clerk auth required.
  * Mounted BEFORE requireAuth so Google's OAuth callback can reach this handler.
@@ -34,11 +35,29 @@ setInterval(() => {
 // ── Helpers ───────────────────────────────────────────────────────────────
 
 function getCallbackUrl(req: import("express").Request): string {
-  // The Google redirect_uri must match exactly what's registered in the Cloud Console.
-  // We derive it from the request so it works in both dev and production.
-  const proto = req.headers["x-forwarded-proto"] ?? req.protocol ?? "https";
-  const host = req.headers["x-forwarded-host"] ?? req.headers.host ?? "";
-  return `${proto}://${host}/api/email/gmail/callback`;
+  const origin = configuredOrigin();
+  return `${origin}/api/email/gmail/callback`;
+}
+
+
+function configuredOrigin(): string {
+  const origin = process.env.ALLOWED_ORIGIN ?? (process.env.REPLIT_DEV_DOMAIN
+    ? `https://${process.env.REPLIT_DEV_DOMAIN}` : "");
+  const url = new URL(origin);
+  if (!["https:", "http:"].includes(url.protocol) || url.username || url.password) {
+    throw new Error("A valid ALLOWED_ORIGIN is required for Gmail OAuth");
+  }
+  return url.origin;
+}
+
+export function validatedReturnTo(value: string): string | null {
+  try {
+    const origin = configuredOrigin();
+    const url = new URL(value, origin);
+    return url.origin === origin && !url.username && !url.password ? url.href : null;
+  } catch {
+    return null;
+  }
 }
 
 // ── Exported state helpers (used by protected email routes) ───────────────
@@ -128,13 +147,26 @@ router.get("/email/gmail/callback", async (req, res) => {
         grant_type: "authorization_code",
       }),
     });
+    if (!tokenRes.ok) throw new Error("Token exchange rejected");
     tokenData = (await tokenRes.json()) as TokenResponse;
   } catch {
     redirectError(returnTo, "token_exchange_failed");
     return;
   }
 
-  if (tokenData.error || !tokenData.access_token) {
+  if (tokenData.error || typeof tokenData.access_token !== "string" || !tokenData.access_token.trim()) {
+    redirectError(returnTo, "token_exchange_failed");
+    return;
+  }
+
+  // Every successful connection must have durable credentials for this authorization.
+  // Never reuse a previous mailbox's refresh token when switching Google accounts.
+  if (typeof tokenData.refresh_token !== "string" || !tokenData.refresh_token.trim()) {
+    redirectError(returnTo, "missing_refresh_token");
+    return;
+  }
+  if (tokenData.expires_in !== undefined &&
+      (typeof tokenData.expires_in !== "number" || !Number.isFinite(tokenData.expires_in) || tokenData.expires_in <= 0)) {
     redirectError(returnTo, "token_exchange_failed");
     return;
   }
@@ -145,10 +177,16 @@ router.get("/email/gmail/callback", async (req, res) => {
     const userRes = await fetch("https://www.googleapis.com/userinfo/v2/me", {
       headers: { Authorization: `Bearer ${tokenData.access_token}` },
     });
+    if (!userRes.ok) throw new Error("Account lookup rejected");
     const userInfo = (await userRes.json()) as GoogleUserInfo;
-    userEmail = userInfo.email ?? "";
+    if (userInfo.error || typeof userInfo.email !== "string" ||
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userInfo.email.trim())) {
+      throw new Error("Missing account email");
+    }
+    userEmail = userInfo.email.trim();
   } catch {
-    // Non-fatal — we'll use a placeholder
+    redirectError(returnTo, "identity_lookup_failed");
+    return;
   }
 
   const expiry = new Date(Date.now() + (tokenData.expires_in ?? 3600) * 1000);
@@ -162,8 +200,8 @@ router.get("/email/gmail/callback", async (req, res) => {
         displayEmail: userEmail,
         provider: "gmail",
         imapTls: true,
-        gmailAccessToken: tokenData.access_token,
-        gmailRefreshToken: tokenData.refresh_token ?? null,
+        gmailAccessToken: encryptCredential(tokenData.access_token, stateData.userId),
+        gmailRefreshToken: encryptCredential(tokenData.refresh_token, stateData.userId),
         gmailTokenExpiry: expiry,
         verified: true,
         lastError: null,
@@ -174,8 +212,9 @@ router.get("/email/gmail/callback", async (req, res) => {
         set: {
           displayEmail: userEmail,
           provider: "gmail",
-          gmailAccessToken: tokenData.access_token,
-          gmailRefreshToken: tokenData.refresh_token ?? null,
+          imapPassword: null,
+          gmailAccessToken: encryptCredential(tokenData.access_token, stateData.userId),
+          gmailRefreshToken: encryptCredential(tokenData.refresh_token, stateData.userId),
           gmailTokenExpiry: expiry,
           verified: true,
           lastError: null,

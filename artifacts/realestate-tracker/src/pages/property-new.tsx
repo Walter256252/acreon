@@ -42,39 +42,11 @@ function stripCurrency(val: unknown): unknown {
 }
 
 /** Standard mortgage P&I formula */
-function computePI(loanAmount: number, interestRate: number, loanTermYears: number): number {
-  const r = interestRate / 100 / 12;
-  const n = loanTermYears * 12;
-  if (!r || !n || loanAmount <= 0) return 0;
-  return (loanAmount * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
-}
-
-/** Remaining loan balance based on loan parameters and elapsed time */
-function computeRemainingBalance(
-  loanAmount: number,
-  interestRate: number,
-  loanTermYears: number,
-  loanStartDate: string,
-): number {
-  const r = interestRate / 100 / 12;
-  const n = loanTermYears * 12;
-  const start = new Date(loanStartDate);
-  const now = new Date();
-  const monthsElapsed =
-    (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
-  if (monthsElapsed <= 0) return loanAmount;
-  if (monthsElapsed >= n) return 0;
-  if (!r) return Math.max(0, loanAmount - (loanAmount / n) * monthsElapsed);
-  const M = computePI(loanAmount, interestRate, loanTermYears);
-  const remaining =
-    loanAmount * Math.pow(1 + r, monthsElapsed) - (M * (Math.pow(1 + r, monthsElapsed) - 1)) / r;
-  return Math.max(0, Math.round(remaining * 100) / 100);
-}
-
 /** Compute P&I from principal, annual rate %, and remaining months */
 function computePIFromMonths(principal: number, annualRate: number, months: number): number {
   const r = annualRate / 100 / 12;
-  if (!r || !months || principal <= 0) return 0;
+  if (!months || principal <= 0) return 0;
+  if (!r) return principal / months;
   return (principal * r * Math.pow(1 + r, months)) / (Math.pow(1 + r, months) - 1);
 }
 
@@ -566,12 +538,12 @@ export default function PropertyNew() {
     if (useBalance && watchedStartDate && term > 0) {
       const start = new Date(watchedStartDate);
       const now = new Date();
-      const elapsed = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
+      const elapsed = (now.getUTCFullYear() - start.getUTCFullYear()) * 12 + (now.getUTCMonth() - start.getUTCMonth());
       const remaining = term * 12 - elapsed;
       if (remaining > 0 && remaining < term * 12) months = remaining;
     }
 
-    if (principal > 0 && rate > 0 && months > 0) {
+    if (principal > 0 && rate >= 0 && months > 0 && !form.getFieldState("monthlyPayment").isDirty) {
       const pi = computePIFromMonths(principal, rate, months);
       form.setValue("monthlyPayment", Math.round(pi * 100) / 100, { shouldDirty: false });
     }
@@ -580,17 +552,8 @@ export default function PropertyNew() {
   const createProperty = useCreateProperty();
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    // Compute remaining balance from loan params (or use the explicitly entered balance)
-    let currentLoanBalance = values.currentLoanBalance;
-    if (!knowCurrentBalance || currentLoanBalance == null) {
-      const loan = Number(values.loanAmount) || 0;
-      const rate = Number(values.interestRate) || 0;
-      const term = Number(values.loanTermYears) || 0;
-      const startDate = values.loanStartDate;
-      if (loan > 0 && rate > 0 && term > 0 && startDate) {
-        currentLoanBalance = computeRemainingBalance(loan, rate, term, startDate);
-      }
-    }
+    // Leave unknown balances to the shared server calculation, using the actual payment.
+    const currentLoanBalance = knowCurrentBalance ? values.currentLoanBalance : undefined;
 
     const zillowUrl = connectToZillow && values.address
       ? `https://www.zillow.com/homes/${encodeURIComponent(values.address)}_rb/`
@@ -757,7 +720,7 @@ export default function PropertyNew() {
                   )} />
                   <FormField control={form.control} name="loanStartDate" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Loan Start Date</FormLabel>
+                      <FormLabel>First Payment Date</FormLabel>
                       <FormControl><Input type="date" {...field} /></FormControl>
                       <FormDescription>Format: YYYY-MM-DD</FormDescription>
                       <FormMessage />

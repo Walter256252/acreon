@@ -1,3 +1,5 @@
+import { monthIndex, LoanInputError } from "../lib/loan";
+import { getPropertyLoan } from "../lib/propertyLoan";
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { paymentsTable, propertiesTable } from "@workspace/db";
@@ -37,6 +39,14 @@ router.post("/properties/:id/payments", async (req, res) => {
   const userId = uid(req);
   const { id } = LogPaymentParams.parse({ id: Number(req.params.id) });
   const body = LogPaymentBody.parse(req.body);
+  monthIndex(body.paymentDate);
+  for (const amount of [body.paymentAmount, body.interestAmount, body.extraPayment ?? 0, body.remainingBalance]) {
+    if (!Number.isFinite(amount) || amount < 0) throw new LoanInputError("Payment amounts and balances must be nonnegative");
+  }
+  if (!Number.isFinite(body.principalAmount)) throw new LoanInputError("Invalid principal amount");
+  if (body.paymentNumber != null && (!Number.isInteger(body.paymentNumber) || body.paymentNumber < 1)) {
+    throw new LoanInputError("Payment number must be a positive integer");
+  }
 
   // Verify property belongs to user
   const [prop] = await db.select().from(propertiesTable)
@@ -72,120 +82,12 @@ router.get("/properties/:id/amortization", async (req, res) => {
     .from(paymentsTable)
     .where(eq(paymentsTable.propertyId, id));
 
-  const loggedByNumber = new Set(loggedPayments.map(p => p.paymentNumber).filter(Boolean));
-
-  const savedExtras = (prop.savedExtraPayments as Array<{ paymentNumber: number; amount: number }> | null) ?? [];
-
-  const today = new Date();
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-01`;
-
-  const schedule = buildAmortizationSchedule({
-    loanAmount: Number(prop.loanAmount),
-    interestRate: Number(prop.interestRate),
-    loanTermYears: prop.loanTermYears,
-    loanStartDate: prop.loanStartDate,
-    monthlyPayment: Number(prop.monthlyPayment),
-    extraPaymentMonthly: prop.savedExtraMonthly != null ? Number(prop.savedExtraMonthly) : 0,
-    extraPayments: savedExtras,
-    loggedByNumber,
-    startingBalance: prop.currentLoanBalance != null ? Number(prop.currentLoanBalance) : undefined,
-    // When currentLoanBalance is set, dates start from today so payment #1 = this month
-    dateStartOverride: prop.currentLoanBalance != null ? todayStr : undefined,
-  });
+  const loan = await getPropertyLoan(prop);
+  const loggedDates = new Set(loggedPayments.map(p => p.paymentDate.slice(0, 7)));
+  const schedule = loan.schedule.map(row => ({ ...row, isLogged: loggedDates.has(row.paymentDate.slice(0, 7)) }));
 
   res.json(schedule);
 });
-
-export function buildAmortizationSchedule(opts: {
-  loanAmount: number;
-  interestRate: number;
-  loanTermYears: number;
-  loanStartDate: string;
-  monthlyPayment: number;
-  extraPaymentMonthly?: number;
-  extraPayments?: Array<{ paymentNumber: number; amount: number }>;
-  loggedByNumber?: Set<number | null>;
-  startingBalance?: number;
-  /** When provided, payment dates begin at this month instead of loanStartDate */
-  dateStartOverride?: string;
-}) {
-  const {
-    loanAmount,
-    interestRate,
-    loanTermYears,
-    loanStartDate,
-    monthlyPayment,
-    extraPaymentMonthly = 0,
-    extraPayments = [],
-    loggedByNumber = new Set(),
-    startingBalance,
-    dateStartOverride,
-  } = opts;
-
-  const monthlyRate = interestRate / 100 / 12;
-  const totalPayments = loanTermYears * 12;
-  const extraByNumber = new Map(extraPayments.map(e => [e.paymentNumber, e.amount]));
-
-  // Use the override balance if provided (mid-loan entry), otherwise start fresh
-  let balance = startingBalance ?? loanAmount;
-  let cumulativeInterest = 0;
-  let cumulativePrincipal = 0;
-
-  // When a startingBalance is given, anchor dates to dateStartOverride (today) so
-  // payment #1 always lands on the current month, not the original loan start date.
-  const effectiveDateStart = dateStartOverride ?? loanStartDate;
-  const [startYear, startMonth] = effectiveDateStart.split("-").map(Number);
-  const schedule = [];
-
-  for (let i = 1; i <= totalPayments; i++) {
-    if (balance <= 0) break;
-
-    const interestCharge = balance * monthlyRate;
-    const extraOneTime = extraByNumber.get(i) ?? 0;
-    const extraTotal = extraPaymentMonthly + extraOneTime;
-
-    let principalPaid = monthlyPayment - interestCharge;
-    if (principalPaid < 0) principalPaid = 0;
-
-    // Apply extra
-    let totalPrincipal = principalPaid + extraTotal;
-    if (totalPrincipal > balance) totalPrincipal = balance;
-
-    const totalPaymentAmount = interestCharge + totalPrincipal;
-    balance -= totalPrincipal;
-    if (balance < 0) balance = 0;
-
-    cumulativeInterest += interestCharge;
-    cumulativePrincipal += totalPrincipal;
-
-    // Calculate payment date
-    const monthIndex = (startMonth - 1 + i - 1) % 12;
-    const yearOffset = Math.floor((startMonth - 1 + i - 1) / 12);
-    const payYear = startYear + yearOffset;
-    const payMonth = String(monthIndex + 1).padStart(2, "0");
-    const paymentDate = `${payYear}-${payMonth}-01`;
-
-    schedule.push({
-      paymentNumber: i,
-      paymentDate,
-      paymentAmount: round(totalPaymentAmount),
-      principalAmount: round(totalPrincipal),
-      interestAmount: round(interestCharge),
-      remainingBalance: round(balance),
-      cumulativeInterest: round(cumulativeInterest),
-      cumulativePrincipal: round(cumulativePrincipal),
-      isLogged: loggedByNumber.has(i),
-    });
-
-    if (balance === 0) break;
-  }
-
-  return schedule;
-}
-
-function round(n: number) {
-  return Math.round(n * 100) / 100;
-}
 
 function toApiPayment(row: typeof paymentsTable.$inferSelect) {
   return {

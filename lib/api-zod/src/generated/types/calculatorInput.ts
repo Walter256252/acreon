@@ -10,6 +10,7 @@ import type { ExtraPaymentEntry } from './extraPaymentEntry';
 export interface CalculatorInput {
   loanAmount: number;
   interestRate: number;
+  /** Term in years; fractional years must represent whole months */
   loanTermYears: number;
   loanStartDate: string;
   monthlyPayment: number;

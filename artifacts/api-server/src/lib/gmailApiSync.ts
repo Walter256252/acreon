@@ -1,3 +1,4 @@
+import { encryptCredential } from "./credentialEncryption";
 /**
  * Gmail API sync — fetches emails via Google's REST API using per-user OAuth tokens.
  * Mirrors the interface of imapSync.ts so the email routes can use both interchangeably.
@@ -82,7 +83,7 @@ export async function getValidAccessToken(
   const newExpiry = new Date(Date.now() + data.expires_in * 1000);
   await db
     .update(emailConnectionsTable)
-    .set({ gmailAccessToken: data.access_token, gmailTokenExpiry: newExpiry, updatedAt: new Date() })
+    .set({ gmailAccessToken: encryptCredential(data.access_token, userId), gmailTokenExpiry: newExpiry, updatedAt: new Date() })
     .where(eq(emailConnectionsTable.userId, userId));
 
   return data.access_token;

@@ -1,9 +1,9 @@
+import { getPropertyLoan } from "../lib/propertyLoan";
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { propertiesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { getAuth } from "@clerk/express";
-import { buildAmortizationSchedule } from "./payments";
 
 const router: IRouter = Router();
 
@@ -16,47 +16,14 @@ router.get("/dashboard", async (req, res) => {
     .where(eq(propertiesTable.clerkUserId, userId))
     .orderBy(propertiesTable.createdAt);
 
-  const summaries = properties.map((prop) => {
-    // Compute how many payments have elapsed since loan start
-    const start = new Date(prop.loanStartDate);
-    const now = new Date();
-    const monthsElapsed =
-      (now.getFullYear() - start.getFullYear()) * 12 +
-      (now.getMonth() - start.getMonth());
-
-    const savedExtras =
-      (prop.savedExtraPayments as Array<{ paymentNumber: number; amount: number }> | null) ?? [];
-
-    const hasKnownBalance = prop.currentLoanBalance != null;
-
-    const schedule = buildAmortizationSchedule({
-      loanAmount: Number(prop.loanAmount),
-      interestRate: Number(prop.interestRate),
-      loanTermYears: prop.loanTermYears,
-      loanStartDate: prop.loanStartDate,
-      monthlyPayment: Number(prop.monthlyPayment),
-      extraPaymentMonthly: prop.savedExtraMonthly != null ? Number(prop.savedExtraMonthly) : 0,
-      extraPayments: savedExtras,
-      startingBalance: hasKnownBalance ? Number(prop.currentLoanBalance) : undefined,
-    });
-
-    // When the user supplied a known balance, use it directly — the schedule in that case
-    // starts from that balance going forward, so we don't look up a past payment row.
-    // Otherwise compute the balance from the amortization schedule at today's payment index.
-    const currentPaymentIdx = Math.max(0, Math.min(monthsElapsed - 1, schedule.length - 1));
-    const estimatedBalance = hasKnownBalance
-      ? Number(prop.currentLoanBalance)
-      : monthsElapsed <= 0
-        ? Number(prop.loanAmount)
-        : (schedule[currentPaymentIdx]?.remainingBalance ?? 0);
-
+  const summaries = await Promise.all(properties.map(async (prop) => {
+    const loan = await getPropertyLoan(prop);
+    const estimatedBalance = loan.currentBalance;
     const currentValue = Number(prop.currentValue);
     const equity = currentValue - estimatedBalance;
     const equityPercent = currentValue > 0 ? (equity / currentValue) * 100 : 0;
 
-    // Find payoff date: last entry in schedule where remainingBalance > 0
-    const lastPayment = schedule.findLast((e) => e.remainingBalance > 0.01);
-    const payoffDate = lastPayment ? lastPayment.paymentDate : null;
+    const payoffDate = loan.payoffDate;
 
     const purchasePrice = Number(prop.purchasePrice);
     const appreciation = currentValue - purchasePrice;
@@ -92,7 +59,7 @@ router.get("/dashboard", async (req, res) => {
       inTrustOrLlc: prop.inTrustOrLlc ?? false,
       trustOrLlcName: prop.trustOrLlcName ?? null,
     };
-  });
+  }));
 
   const totalPortfolioValue = summaries.reduce((sum, s) => sum + s.currentValue, 0);
   const totalLoanBalance = summaries.reduce((sum, s) => sum + s.estimatedBalance, 0);

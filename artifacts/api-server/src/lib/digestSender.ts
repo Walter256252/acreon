@@ -1,9 +1,10 @@
+import { getPropertyLoan } from "./propertyLoan";
+import { balanceBeforeMonth, monthDate, monthIndex, todayMonth } from "./loan";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { db } from "@workspace/db";
 import { propertiesTable, emailNotesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { ReplitConnectors } from "@replit/connectors-sdk";
-import { buildAmortizationSchedule } from "../routes/payments";
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -49,7 +50,7 @@ function fmtFull(n: number) {
 // ── AI content generation ─────────────────────────────────────────────────
 
 export async function generateDigest(userId: string, firstName: string): Promise<DigestContent> {
-  const properties = await db.select().from(propertiesTable);
+  const properties = await db.select().from(propertiesTable).where(eq(propertiesTable.clerkUserId, userId));
 
   const today = new Date();
   const [startYear5, startYear10] = [
@@ -79,38 +80,14 @@ export async function generateDigest(userId: string, firstName: string): Promise
     let currentBalance = Number(p.loanAmount ?? 0);
     let payoffDate: string | undefined;
 
-    if (p.loanAmount && p.interestRate && p.loanTermYears && p.loanStartDate) {
-      const schedule = buildAmortizationSchedule({
-        loanAmount: Number(p.loanAmount),
-        interestRate: Number(p.interestRate),
-        loanTermYears: p.loanTermYears,
-        loanStartDate: p.loanStartDate,
-        monthlyPayment,
-        extraPaymentMonthly: p.savedExtraMonthly != null ? Number(p.savedExtraMonthly) : 0,
-        extraPayments: (p.savedExtraPayments as Array<{ paymentNumber: number; amount: number }> | null) ?? [],
-        startingBalance: p.currentLoanBalance != null ? Number(p.currentLoanBalance) : undefined,
-      });
-
-      const lastRow = schedule[schedule.length - 1];
-      payoffDate = lastRow?.paymentDate;
-
-      // Current balance: find the row matching today
-      const [sy, sm] = p.loanStartDate.split("-").map(Number);
-      const monthsElapsed = Math.max(0,
-        (today.getFullYear() - sy) * 12 + (today.getMonth() + 1 - sm)
-      );
-      const currentRow = schedule[Math.min(monthsElapsed, schedule.length) - 1];
-      if (currentRow) currentBalance = currentRow.remainingBalance;
-
-      // 5yr equity projection
-      const months5 = monthsElapsed + 60;
-      const row5 = schedule[Math.min(months5, schedule.length) - 1];
-      const equity5 = currentValue - (row5 ? row5.remainingBalance : 0);
-
-      // 10yr equity projection
-      const months10 = monthsElapsed + 120;
-      const row10 = schedule[Math.min(months10, schedule.length) - 1];
-      const equity10 = currentValue - (row10 ? row10.remainingBalance : 0);
+    if (p.loanTermYears && p.loanStartDate) {
+      const loan = await getPropertyLoan(p, today);
+      currentBalance = loan.currentBalance;
+      payoffDate = loan.payoffDate ?? undefined;
+      const equity5 = currentValue - balanceBeforeMonth(loan.schedule, loan.initial,
+        monthDate(monthIndex(todayMonth(today)) + 60));
+      const equity10 = currentValue - balanceBeforeMonth(loan.schedule, loan.initial,
+        monthDate(monthIndex(todayMonth(today)) + 120));
 
       const equity = currentValue - currentBalance;
       const ltv = currentValue > 0 ? (currentBalance / currentValue) * 100 : 0;

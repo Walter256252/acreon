@@ -43,31 +43,13 @@ function stripCurrency(val: unknown): unknown {
 /** Compute P&I from principal, annual rate %, and remaining months */
 function computePIFromMonths(principal: number, annualRate: number, months: number): number {
   const r = annualRate / 100 / 12;
-  if (!r || !months || principal <= 0) return 0;
+  if (!months || principal <= 0) return 0;
+  if (!r) return principal / months;
   return (principal * r * Math.pow(1 + r, months)) / (Math.pow(1 + r, months) - 1);
 }
 
 /** Remaining loan balance based on loan parameters and elapsed time */
-function computeRemainingBalance(
-  loanAmount: number,
-  interestRate: number,
-  loanTermYears: number,
-  loanStartDate: string,
-): number {
-  const r = interestRate / 100 / 12;
-  const n = loanTermYears * 12;
-  const start = new Date(loanStartDate);
-  const now = new Date();
-  const monthsElapsed =
-    (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
-  if (monthsElapsed <= 0) return loanAmount;
-  if (monthsElapsed >= n) return 0;
-  if (!r) return Math.max(0, loanAmount - (loanAmount / n) * monthsElapsed);
-  const M = computePIFromMonths(loanAmount, interestRate, n);
-  const remaining =
-    loanAmount * Math.pow(1 + r, monthsElapsed) - (M * (Math.pow(1 + r, monthsElapsed) - 1)) / r;
-  return Math.max(0, Math.round(remaining * 100) / 100);
-}
+
 
 // ── Schema ────────────────────────────────────────────────────────────────────
 
@@ -184,12 +166,14 @@ export default function PropertyEdit() {
       const start = new Date(watchedStartDate);
       const now = new Date();
       const elapsed =
-        (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
+        (now.getUTCFullYear() - start.getUTCFullYear()) * 12 + (now.getUTCMonth() - start.getUTCMonth());
       const remaining = term * 12 - elapsed;
       if (remaining > 0 && remaining < term * 12) months = remaining;
     }
 
-    if (principal > 0 && rate > 0 && months > 0) {
+    const loanEdited = ["loanAmount", "interestRate", "loanTermYears", "loanStartDate", "currentLoanBalance"]
+      .some(name => form.getFieldState(name as keyof FormValues).isDirty);
+    if (loanEdited && principal > 0 && rate >= 0 && months > 0 && !form.getFieldState("monthlyPayment").isDirty) {
       const pi = computePIFromMonths(principal, rate, months);
       form.setValue("monthlyPayment", Math.round(pi * 100) / 100, { shouldDirty: false });
     }
@@ -198,19 +182,8 @@ export default function PropertyEdit() {
   const updateProperty = useUpdateProperty();
 
   function onSubmit(values: FormValues) {
-    let balanceToSend: number | null = null;
-
-    if (knowCurrentBalance && values.currentLoanBalance != null && values.currentLoanBalance > 0) {
-      balanceToSend = values.currentLoanBalance;
-    } else {
-      const loan = Number(String(values.loanAmount).replace(/[$,\s]/g, "")) || 0;
-      const rate = Number(String(values.interestRate).replace(/[$,%\s]/g, "")) || 0;
-      const term = Number(values.loanTermYears) || 0;
-      const startDate = values.loanStartDate;
-      if (loan > 0 && rate > 0 && term > 0 && startDate) {
-        balanceToSend = computeRemainingBalance(loan, rate, term, startDate);
-      }
-    }
+    const balanceToSend = knowCurrentBalance && values.currentLoanBalance != null
+      ? values.currentLoanBalance : null;
 
     updateProperty.mutate(
       {
@@ -468,7 +441,7 @@ export default function PropertyEdit() {
                   name="loanStartDate"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Loan Start Date</FormLabel>
+                      <FormLabel>First Payment Date</FormLabel>
                       <FormControl>
                         <Input type="date" {...field} />
                       </FormControl>

@@ -1,9 +1,10 @@
+import { getPropertyLoan } from "../lib/propertyLoan";
+import { monthIndex, monthDate, todayMonth, balanceBeforeMonth } from "../lib/loan";
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { propertiesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { getAuth } from "@clerk/express";
-import { buildAmortizationSchedule } from "./payments";
 
 const router: IRouter = Router();
 
@@ -20,52 +21,17 @@ router.get("/projections", async (req, res) => {
 
   const today = new Date();
 
-  const propertyProjections = properties.map((prop) => {
-    const hasKnownBalance = prop.currentLoanBalance != null;
-
-    const schedule = buildAmortizationSchedule({
-      loanAmount: Number(prop.loanAmount),
-      interestRate: Number(prop.interestRate),
-      loanTermYears: prop.loanTermYears,
-      loanStartDate: prop.loanStartDate,
-      monthlyPayment: Number(prop.monthlyPayment),
-      startingBalance: hasKnownBalance ? Number(prop.currentLoanBalance) : undefined,
-    });
-
-    // Index schedule by payment number for fast lookup
-    const scheduleByNumber = new Map(schedule.map((r) => [r.paymentNumber, r]));
-    const lastRow = schedule[schedule.length - 1];
-
-    // Calculate how many months have elapsed from loan start to today
-    const [startYear, startMonth] = prop.loanStartDate.split("-").map(Number);
-    const monthsElapsedToday =
-      (today.getFullYear() - startYear) * 12 +
-      (today.getMonth() + 1 - startMonth);
-
+  const propertyProjections = await Promise.all(properties.map(async (prop) => {
+    const loan = await getPropertyLoan(prop, today);
     const snapshots = MILESTONES.map((years) => {
-      // Months from loan start to this milestone
-      const milestonDate = new Date(today);
-      milestonDate.setFullYear(milestonDate.getFullYear() + years);
-      const monthsToMilestone =
-        (milestonDate.getFullYear() - startYear) * 12 +
-        (milestonDate.getMonth() + 1 - startMonth);
-
-      // Find the row at or just before this milestone
-      const targetPayment = Math.max(1, monthsToMilestone);
-      let row = scheduleByNumber.get(targetPayment);
-
-      // If the loan is already paid off before this milestone, use the last row
-      const isPaidOff = !row || targetPayment > schedule.length;
-      if (isPaidOff) {
-        row = lastRow;
-      }
-
-      const remainingBalance = isPaidOff ? 0 : (row?.remainingBalance ?? 0);
-      const cumulativeInterestPaid = row?.cumulativeInterest ?? lastRow?.cumulativeInterest ?? 0;
-      const cumulativePrincipalPaid = row?.cumulativePrincipal ?? lastRow?.cumulativePrincipal ?? 0;
+      const target = monthDate(monthIndex(todayMonth(today)) + years * 12);
+      const remainingBalance = balanceBeforeMonth(loan.schedule, loan.initial, target);
+      const row = loan.schedule.filter(r => monthIndex(r.paymentDate) < monthIndex(target)).at(-1);
+      const cumulativeInterestPaid = row?.cumulativeInterest ?? 0;
+      const cumulativePrincipalPaid = row?.cumulativePrincipal ?? 0;
       const equity = Number(prop.currentValue) - remainingBalance;
-      const payoffDate = lastRow?.paymentDate;
-
+      const isPaidOff = remainingBalance === 0;
+      const payoffDate = loan.payoffDate ?? undefined;
       return {
         years,
         remainingBalance: round(remainingBalance),
@@ -77,14 +43,7 @@ router.get("/projections", async (req, res) => {
       };
     });
 
-    // Current snapshot (today)
-    // When the user supplied a known balance, use it directly — the schedule starts from
-    // that balance going forward, not from the original loan amount in the past.
-    const currentPaymentNum = Math.max(1, Math.min(monthsElapsedToday, schedule.length));
-    const currentRow = scheduleByNumber.get(currentPaymentNum) ?? lastRow;
-    const currentBalance = hasKnownBalance
-      ? Number(prop.currentLoanBalance)
-      : (currentRow ? currentRow.remainingBalance : Number(prop.loanAmount));
+    const currentBalance = loan.currentBalance;
 
     return {
       id: prop.id,
@@ -98,7 +57,7 @@ router.get("/projections", async (req, res) => {
       currentBalance: round(currentBalance),
       snapshots,
     };
-  });
+  }));
 
   // Portfolio totals per milestone
   const totals = MILESTONES.map((years) => {

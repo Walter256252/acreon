@@ -1,3 +1,4 @@
+import { getPropertyLoan } from "../lib/propertyLoan";
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { getAuth, clerkClient } from "@clerk/express";
 import { db } from "@workspace/db";
@@ -5,7 +6,6 @@ import { propertiesTable, userPreferencesTable, termsAcceptancesTable, feedbackT
 import { count, desc, eq, sum } from "drizzle-orm";
 import { ReplitConnectors } from "@replit/connectors-sdk";
 import { buildRawEmail } from "../lib/digestSender";
-import { buildAmortizationSchedule } from "./payments";
 
 const router: IRouter = Router();
 
@@ -46,22 +46,21 @@ router.get("/admin/exists", async (req, res) => {
 });
 
 // ── POST /admin/become ─────────────────────────────────────────────────────
-// Bootstrap: first user to call this becomes admin IF no admin exists yet.
+// Provision only operator-configured Clerk user IDs; disabled by default.
 
 router.post("/admin/become", async (req, res) => {
   const userId = uid(req);
   if (!userId) { res.status(401).json({ error: "Not authenticated" }); return; }
 
-  const { data: allUsers } = await clerkClient.users.getUserList({ limit: 500 });
-  const existingAdmin = allUsers.find((u) => u.publicMetadata?.role === "admin");
-
-  if (existingAdmin && existingAdmin.id !== userId) {
-    res.status(403).json({ error: "An admin already exists. Ask them to promote you." });
+  const allowedIds = new Set((process.env.ADMIN_BOOTSTRAP_USER_IDS ?? "")
+    .split(",").map((id) => id.trim()).filter(Boolean));
+  if (!allowedIds.has(userId)) {
+    res.status(403).json({ error: "Admin provisioning is restricted to configured users." });
     return;
   }
-
+  const user = await clerkClient.users.getUser(userId);
   await clerkClient.users.updateUser(userId, {
-    publicMetadata: { role: "admin" },
+    publicMetadata: { ...user.publicMetadata, role: "admin" },
   });
 
   res.json({ success: true, message: "You are now an admin." });
@@ -98,30 +97,7 @@ router.get("/admin/stats", requireAdmin, async (_req, res) => {
   for (const prop of allProperties) {
     platformPortfolioValue += Number(prop.currentValue);
 
-    const now = new Date();
-    const start = new Date(prop.loanStartDate);
-    const monthsElapsed =
-      (now.getFullYear() - start.getFullYear()) * 12 +
-      (now.getMonth() - start.getMonth());
-
-    const savedExtras =
-      (prop.savedExtraPayments as Array<{ paymentNumber: number; amount: number }> | null) ?? [];
-
-    const schedule = buildAmortizationSchedule({
-      loanAmount: Number(prop.loanAmount),
-      interestRate: Number(prop.interestRate),
-      loanTermYears: prop.loanTermYears,
-      loanStartDate: prop.loanStartDate,
-      monthlyPayment: Number(prop.monthlyPayment),
-      extraPaymentMonthly: prop.savedExtraMonthly != null ? Number(prop.savedExtraMonthly) : 0,
-      extraPayments: savedExtras,
-      startingBalance: prop.currentLoanBalance != null ? Number(prop.currentLoanBalance) : undefined,
-    });
-
-    const idx = Math.max(0, Math.min(monthsElapsed - 1, schedule.length - 1));
-    const balance = monthsElapsed <= 0
-      ? (prop.currentLoanBalance != null ? Number(prop.currentLoanBalance) : Number(prop.loanAmount))
-      : (schedule[idx]?.remainingBalance ?? 0);
+    const balance = (await getPropertyLoan(prop)).currentBalance;
 
     platformLoanBalance += balance;
   }

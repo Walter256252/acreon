@@ -1,3 +1,4 @@
+import { getPropertyLoan } from "../../lib/propertyLoan";
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import {
@@ -137,18 +138,10 @@ router.post("/openai/conversations/:id/messages", async (req, res) => {
 
   const propertySummaries = await Promise.all(
     properties.map(async (prop) => {
-      const [lastPayment] = await db
-        .select()
-        .from(paymentsTable)
-        .where(eq(paymentsTable.propertyId, prop.id))
-        .orderBy(desc(paymentsTable.paymentNumber))
-        .limit(1);
-
+      const loan = await getPropertyLoan(prop);
       const loanAmount = Number(prop.loanAmount);
       const currentValue = Number(prop.currentValue);
-      const currentBalance = lastPayment
-        ? Number(lastPayment.remainingBalance)
-        : loanAmount;
+      const currentBalance = loan.currentBalance;
       const equity = currentValue - currentBalance;
       const equityPercent =
         currentValue > 0 ? ((equity / currentValue) * 100).toFixed(1) : "0";

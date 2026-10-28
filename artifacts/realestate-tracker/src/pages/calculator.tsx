@@ -61,15 +61,15 @@ interface Property {
 
 const formSchema = z.object({
   loanAmount: z.coerce.number().min(1, "Required"),
-  interestRate: z.coerce.number().min(0.01, "Required"),
+  interestRate: z.coerce.number().min(0, "Cannot be negative"),
   loanTermYears: z.coerce.number().min(1, "Required"),
   loanStartDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD"),
   monthlyPayment: z.coerce.number().min(1, "Required"),
-  extraPaymentMonthly: z.coerce.number().optional(),
+  extraPaymentMonthly: z.coerce.number().min(0).optional(),
   extraPayments: z
     .array(
       z.object({
-        paymentNumber: z.coerce.number().min(1),
+        paymentNumber: z.coerce.number().int().min(1),
         amount: z.coerce.number().min(1),
       }),
     )
@@ -455,7 +455,7 @@ export default function Calculator() {
                         name="loanStartDate"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Start Date</FormLabel>
+                            <FormLabel>First Payment Date</FormLabel>
                             <FormControl>
                               <Input type="date" {...field} />
                             </FormControl>
@@ -599,7 +599,7 @@ export default function Calculator() {
                 />
                 <StatCard
                   title="Payoff Date"
-                  value={formatDate(result.summary.payoffDate)}
+                  value={result.summary.payoffDate ? formatDate(result.summary.payoffDate) : "Not paid off within term"}
                   icon={<CalendarClock className="w-5 h-5 text-primary" />}
                   trend={result.summary.monthsSaved > 0 ? "up" : "neutral"}
                   trendValue={
@@ -610,11 +610,17 @@ export default function Calculator() {
                 />
                 <StatCard
                   title="Total Paid"
-                  value={formatCurrency(result.summary.totalPayments)}
+                  value={formatCurrency(result.schedule.reduce((sum, row) => sum + row.paymentAmount, 0))}
                   icon={<Target className="w-5 h-5 text-muted-foreground" />}
                 />
               </div>
 
+              {!result.summary.payoffDate && (
+                <p className="text-sm text-destructive" role="status">
+                  This payment plan does not repay the loan within the term. Remaining debt: {formatCurrency(result.summary.remainingBalance)}.
+                  Savings are unavailable unless both plans repay the loan.
+                </p>
+              )}
               <Card>
                 <CardHeader>
                   <CardTitle>Projected Schedule</CardTitle>

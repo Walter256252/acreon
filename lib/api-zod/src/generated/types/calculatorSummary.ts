@@ -10,7 +10,12 @@ export interface CalculatorSummary {
   totalPayments: number;
   totalInterest: number;
   totalPrincipal: number;
+  /** Empty when the loan does not pay off within the term */
   payoffDate: string;
   monthsSaved: number;
   interestSaved: number;
+  /** True only when both the baseline and scenario pay off within the term */
+  savingsAvailable?: boolean;
+  /** Outstanding debt at the end of the generated schedule */
+  remainingBalance?: number;
 }

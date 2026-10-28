@@ -1,3 +1,5 @@
+import { buildAmortizationSchedule, propertyLoanSnapshot, rebaseLoanPlan, futureExtraPayments, futureExtraOffset, LoanInputError } from "../lib/loan";
+import { getPropertyLoan } from "../lib/propertyLoan";
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { propertiesTable, propertyGeocodesTable } from "@workspace/db";
@@ -27,13 +29,15 @@ router.get("/properties", async (req, res) => {
     .from(propertiesTable)
     .where(eq(propertiesTable.clerkUserId, userId))
     .orderBy(propertiesTable.createdAt);
-  res.json(rows.map(toApiProperty));
+  res.json(await Promise.all(rows.map(toApiProperty)));
 });
 
 // ── POST /api/properties ──────────────────────────────────────────────────
 router.post("/properties", async (req, res) => {
   const userId = uid(req);
   const body = CreatePropertyBody.parse(req.body);
+  if (body.loanTermYears <= 0) throw new LoanInputError("Loan term must be positive");
+  buildAmortizationSchedule({ ...body, startingBalance: body.currentLoanBalance ?? undefined });
   const [row] = await db
     .insert(propertiesTable)
     .values({
@@ -53,11 +57,12 @@ router.post("/properties", async (req, res) => {
       monthlyPayment: String(body.monthlyPayment),
       notes: body.notes ?? null,
       zillowUrl: body.zillowUrl ?? null,
+      currentLoanBalanceAsOf: body.currentLoanBalance != null ? new Date() : null,
       currentLoanBalance:
         body.currentLoanBalance != null ? String(body.currentLoanBalance) : null,
     })
     .returning();
-  res.status(201).json(toApiProperty(row));
+  res.status(201).json(await toApiProperty(row));
 });
 
 // ── GET /api/properties/:id ───────────────────────────────────────────────
@@ -69,7 +74,7 @@ router.get("/properties/:id", async (req, res) => {
     .from(propertiesTable)
     .where(and(eq(propertiesTable.id, id), eq(propertiesTable.clerkUserId, userId)));
   if (!row) { res.status(404).json({ error: "Property not found" }); return; }
-  res.json(toApiProperty(row));
+  res.json(await toApiProperty(row));
 });
 
 // ── PUT /api/properties/:id ───────────────────────────────────────────────
@@ -107,9 +112,25 @@ router.put("/properties/:id", async (req, res) => {
       body.monthlyInsurance != null ? String(body.monthlyInsurance) : null;
   if ("monthlyRent" in body)
     updates.monthlyRent = body.monthlyRent != null ? String(body.monthlyRent) : null;
-  if ("currentLoanBalance" in body)
-    updates.currentLoanBalance =
-      body.currentLoanBalance != null ? String(body.currentLoanBalance) : null;
+  if ("currentLoanBalance" in body) {
+    updates.currentLoanBalance = body.currentLoanBalance != null ? String(body.currentLoanBalance) : null;
+    updates.currentLoanBalanceAsOf = body.currentLoanBalance != null ? new Date() : null;
+  }
+
+  const [existing] = await db.select().from(propertiesTable)
+    .where(and(eq(propertiesTable.id, id), eq(propertiesTable.clerkUserId, userId)));
+  if (!existing) { res.status(404).json({ error: "Property not found" }); return; }
+  const previousLoan = await getPropertyLoan(existing);
+  Object.assign(updates, rebaseLoanPlan(existing, body, previousLoan));
+  const candidate = { ...existing, ...updates } as typeof existing;
+  propertyLoanSnapshot(candidate); // Validate before committing loan changes.
+  // Store one-time extras by original loan month so snapshots never replay them.
+  if (body.savedExtraPayments != null) {
+    // Input numbers refer to the schedule the user saw before this update.
+    const numberingLoan = body.currentLoanBalance != null ? await getPropertyLoan(candidate) : previousLoan;
+    const offset = futureExtraOffset(numberingLoan, candidate.loanStartDate);
+    updates.savedExtraPayments = body.savedExtraPayments.map(e => ({ ...e, paymentNumber: e.paymentNumber + offset }));
+  }
 
   const locationChanged =
     body.address !== undefined ||
@@ -132,7 +153,7 @@ router.put("/properties/:id", async (req, res) => {
       .where(eq(propertyGeocodesTable.propertyId, id));
   }
 
-  res.json(toApiProperty(row));
+  res.json(await toApiProperty(row));
 });
 
 // ── POST /api/properties/bulk-import ─────────────────────────────────────
@@ -146,6 +167,8 @@ router.post("/properties/bulk-import", async (req, res) => {
   for (let i = 0; i < properties.length; i++) {
     const p = properties[i];
     try {
+      if (p.loanTermYears <= 0) throw new LoanInputError("Loan term must be positive");
+      buildAmortizationSchedule(p);
       await db.insert(propertiesTable).values({
         clerkUserId: userId,
         name: p.name,
@@ -250,7 +273,7 @@ router.patch("/properties/:id/receipt-folder", async (req, res) => {
     .where(eq(propertiesTable.id, id))
     .returning();
 
-  res.json(toApiProperty(row));
+  res.json(await toApiProperty(row));
 });
 
 // ── PATCH /api/properties/:id/property-info ───────────────────────────────
@@ -296,7 +319,7 @@ router.patch("/properties/:id/property-info", async (req, res) => {
     .where(eq(propertiesTable.id, id))
     .returning();
 
-  res.json(toApiProperty(row));
+  res.json(await toApiProperty(row));
 });
 
 // ── PATCH /api/properties/:id/rental-type (occupancy sub-route lives here) ─
@@ -312,7 +335,9 @@ export async function assertPropertyOwner(
   return !!row;
 }
 
-function toApiProperty(row: typeof propertiesTable.$inferSelect) {
+async function toApiProperty(row: typeof propertiesTable.$inferSelect) {
+  const loan = await getPropertyLoan(row);
+  const extras = futureExtraPayments(loan, row.loanStartDate);
   return {
     id: row.id,
     name: row.name,
@@ -332,11 +357,7 @@ function toApiProperty(row: typeof propertiesTable.$inferSelect) {
     autoPayEnabled: row.autoPayEnabled,
     savedExtraMonthly:
       row.savedExtraMonthly != null ? Number(row.savedExtraMonthly) : null,
-    savedExtraPayments:
-      (row.savedExtraPayments as Array<{
-        paymentNumber: number;
-        amount: number;
-      }> | null) ?? null,
+    savedExtraPayments: extras.length ? extras : null,
     valueLastUpdatedAt: row.valueLastUpdatedAt
       ? row.valueLastUpdatedAt.toISOString()
       : null,
@@ -360,7 +381,7 @@ function toApiProperty(row: typeof propertiesTable.$inferSelect) {
       row.monthlyInsurance != null ? Number(row.monthlyInsurance) : null,
     monthlyRent: row.monthlyRent != null ? Number(row.monthlyRent) : null,
     currentLoanBalance:
-      row.currentLoanBalance != null ? Number(row.currentLoanBalance) : null,
+      loan.hasSnapshot ? loan.currentBalance : null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

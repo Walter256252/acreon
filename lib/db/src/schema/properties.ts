@@ -28,6 +28,7 @@ export const propertiesTable = pgTable("properties", {
   // Current balance override — used when entering a property mid-loan
   // (e.g. bought in 2018, don't want to re-enter every extra payment)
   currentLoanBalance: numeric("current_loan_balance", { precision: 15, scale: 2 }),
+  currentLoanBalanceAsOf: timestamp("current_loan_balance_as_of"),
   // Monthly cost tracking (does not affect amortization schedule)
   monthlyTaxes: numeric("monthly_taxes", { precision: 15, scale: 2 }),
   monthlyInsurance: numeric("monthly_insurance", { precision: 15, scale: 2 }),

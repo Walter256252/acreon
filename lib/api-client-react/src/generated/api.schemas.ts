@@ -292,6 +292,7 @@ export interface DashboardStats {
 export interface CalculatorInput {
   loanAmount: number;
   interestRate: number;
+  /** Term in years; fractional years must represent whole months */
   loanTermYears: number;
   loanStartDate: string;
   monthlyPayment: number;
@@ -305,9 +306,14 @@ export interface CalculatorSummary {
   totalPayments: number;
   totalInterest: number;
   totalPrincipal: number;
+  /** Empty when the loan does not pay off within the term */
   payoffDate: string;
   monthsSaved: number;
   interestSaved: number;
+  /** True only when both the baseline and scenario pay off within the term */
+  savingsAvailable?: boolean;
+  /** Outstanding debt at the end of the generated schedule */
+  remainingBalance?: number;
 }
 
 export interface CalculatorResult {
@@ -444,9 +450,20 @@ export interface EmailPropertySettingsInput {
   emailFolder?: string | null;
 }
 
+export type EmailSyncResultResultsItem = {
+  propertyId: number;
+  propertyName: string;
+  synced: number;
+  /** Safe error message when this property could not be synced */
+  error?: string;
+};
+
 export interface EmailSyncResult {
   synced: number;
   propertyId?: number;
+  /** Number of properties whose sync failed */
+  failed?: number;
+  results?: EmailSyncResultResultsItem[];
 }
 
 export type EmailNoteKeyDatesItem = {

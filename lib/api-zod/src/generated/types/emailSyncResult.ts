@@ -5,8 +5,12 @@
  * Real Estate Tracker API
  * OpenAPI spec version: 0.1.0
  */
+import type { EmailSyncResultResultsItem } from './emailSyncResultResultsItem';
 
 export interface EmailSyncResult {
   synced: number;
   propertyId?: number;
+  /** Number of properties whose sync failed */
+  failed?: number;
+  results?: EmailSyncResultResultsItem[];
 }

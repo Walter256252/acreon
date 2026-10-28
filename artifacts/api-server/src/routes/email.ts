@@ -1,3 +1,4 @@
+import { encryptCredential, decryptCredential } from "../lib/credentialEncryption";
 import { Router, type IRouter } from "express";
 import { getAuth } from "@clerk/express";
 import { db } from "@workspace/db";
@@ -10,7 +11,7 @@ import {
 import { and, eq } from "drizzle-orm";
 import { testConnection, syncPropertyEmails, type ImapCredentials } from "../lib/imapSync";
 import { syncPropertyEmailsViaGmail } from "../lib/gmailApiSync";
-import { createOAuthState, getCallbackUrl } from "./emailPublic";
+import { createOAuthState, getCallbackUrl, validatedReturnTo } from "./emailPublic";
 
 const router: IRouter = Router();
 
@@ -26,7 +27,7 @@ function toCredsOrNull(conn: typeof emailConnectionsTable.$inferSelect | undefin
     host: conn.imapHost,
     port: conn.imapPort ?? 993,
     email: conn.imapEmail,
-    password: conn.imapPassword,
+    password: decryptCredential(conn.imapPassword, conn.userId),
     tls: conn.imapTls ?? true,
   };
 }
@@ -121,7 +122,7 @@ router.post("/email/connect", async (req, res) => {
       imapHost: creds.host,
       imapPort: creds.port,
       imapEmail: creds.email,
-      imapPassword: creds.password,
+      imapPassword: encryptCredential(creds.password, userId),
       imapTls: creds.tls,
       verified: true,
       lastError: null,
@@ -131,10 +132,14 @@ router.post("/email/connect", async (req, res) => {
       target: emailConnectionsTable.userId,
       set: {
         displayEmail: String(displayEmail || imapEmail),
+        provider: "imap",
+        gmailAccessToken: null,
+        gmailRefreshToken: null,
+        gmailTokenExpiry: null,
         imapHost: creds.host,
         imapPort: creds.port,
         imapEmail: creds.email,
-        imapPassword: creds.password,
+        imapPassword: encryptCredential(creds.password, userId),
         imapTls: creds.tls,
         verified: true,
         lastError: null,
@@ -166,7 +171,11 @@ router.get("/email/gmail/auth-url", async (req, res) => {
     return;
   }
 
-  const returnTo = String(req.query.returnTo ?? "");
+  const returnTo = validatedReturnTo(String(req.query.returnTo ?? "/"));
+  if (!returnTo) {
+    res.status(400).json({ error: "Invalid return URL" });
+    return;
+  }
   const state = createOAuthState(userId, returnTo);
 
   const params = new URLSearchParams({
@@ -201,8 +210,8 @@ router.get("/email/gmail/labels", async (req, res) => {
     const { getValidAccessToken } = await import("../lib/gmailApiSync");
     const token = await getValidAccessToken(
       userId,
-      emailConn.gmailAccessToken,
-      emailConn.gmailRefreshToken,
+      decryptCredential(emailConn.gmailAccessToken, emailConn.userId),
+      decryptCredential(emailConn.gmailRefreshToken, emailConn.userId),
       emailConn.gmailTokenExpiry,
     );
 
@@ -313,8 +322,8 @@ router.post("/email/sync/:propertyId", async (req, res) => {
     if (isGmailOAuth(emailConn)) {
       synced = await syncPropertyEmailsViaGmail(
         userId,
-        emailConn.gmailAccessToken,
-        emailConn.gmailRefreshToken,
+        decryptCredential(emailConn.gmailAccessToken, emailConn.userId),
+        decryptCredential(emailConn.gmailRefreshToken, emailConn.userId),
         emailConn.gmailTokenExpiry,
         propertyId,
         setting?.pullMode ?? "address",
@@ -347,7 +356,7 @@ router.post("/email/sync", async (req, res) => {
   const settingsMap = new Map(settings.map((s) => [s.propertyId, s]));
 
   let total = 0;
-  const results: { propertyId: number; propertyName: string; synced: number }[] = [];
+  const results: { propertyId: number; propertyName: string; synced: number; error?: string }[] = [];
 
   for (const p of properties) {
     const s = settingsMap.get(p.id);
@@ -356,8 +365,8 @@ router.post("/email/sync", async (req, res) => {
       if (isGmailOAuth(emailConn)) {
         synced = await syncPropertyEmailsViaGmail(
           userId,
-          emailConn.gmailAccessToken,
-          emailConn.gmailRefreshToken,
+          decryptCredential(emailConn.gmailAccessToken, emailConn.userId),
+          decryptCredential(emailConn.gmailRefreshToken, emailConn.userId),
           emailConn.gmailTokenExpiry,
           p.id,
           s?.pullMode ?? "address",
@@ -366,14 +375,19 @@ router.post("/email/sync", async (req, res) => {
         );
       } else {
         const creds = toCredsOrNull(emailConn);
-        if (creds) synced = await syncPropertyEmails(creds, p.id, userId, s?.pullMode ?? "address", s?.gmailLabel ?? null, p.address);
+        if (!creds) throw new Error("Incomplete email connection");
+        synced = await syncPropertyEmails(creds, p.id, userId, s?.pullMode ?? "address", s?.gmailLabel ?? null, p.address);
       }
-    } catch { /* continue with other properties */ }
+    } catch {
+      results.push({ propertyId: p.id, propertyName: p.name, synced: 0,
+        error: "Email sync failed. Check your email connection and try again." });
+      continue;
+    }
     total += synced;
     results.push({ propertyId: p.id, propertyName: p.name, synced });
   }
 
-  res.json({ synced: total, results });
+  res.json({ synced: total, failed: results.filter(r => r.error).length, results });
 });
 
 // ── Notes ─────────────────────────────────────────────────────────────────

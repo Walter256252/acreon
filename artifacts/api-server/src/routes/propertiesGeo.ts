@@ -1,9 +1,9 @@
+import { getPropertyLoan } from "../lib/propertyLoan";
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { getAuth, clerkClient } from "@clerk/express";
 import { db } from "@workspace/db";
 import { propertiesTable, propertyGeocodesTable } from "@workspace/db";
 import { eq, inArray, and } from "drizzle-orm";
-import { buildAmortizationSchedule } from "./payments";
 
 const router: IRouter = Router();
 
@@ -166,33 +166,10 @@ router.get("/admin/properties-geo", requireAdmin, async (_req, res) => {
 
   // Build per-property result with equity
   const now = new Date();
-  const properties = allProperties.map(prop => {
+  const properties = await Promise.all(allProperties.map(async prop => {
     const geo = cachedMap.get(prop.id);
 
-    let balance: number;
-    if (prop.currentLoanBalance != null) {
-      // User supplied a known remaining balance — use it directly
-      balance = Number(prop.currentLoanBalance);
-    } else {
-      const start = new Date(prop.loanStartDate);
-      const monthsElapsed =
-        (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
-      const savedExtras =
-        (prop.savedExtraPayments as Array<{ paymentNumber: number; amount: number }> | null) ?? [];
-      const schedule = buildAmortizationSchedule({
-        loanAmount: Number(prop.loanAmount),
-        interestRate: Number(prop.interestRate),
-        loanTermYears: prop.loanTermYears,
-        loanStartDate: prop.loanStartDate,
-        monthlyPayment: Number(prop.monthlyPayment),
-        extraPaymentMonthly: prop.savedExtraMonthly != null ? Number(prop.savedExtraMonthly) : 0,
-        extraPayments: savedExtras,
-      });
-      const idx = Math.max(0, Math.min(monthsElapsed - 1, schedule.length - 1));
-      balance = monthsElapsed <= 0
-        ? Number(prop.loanAmount)
-        : (schedule[idx]?.remainingBalance ?? 0);
-    }
+    const balance = (await getPropertyLoan(prop, now)).currentBalance;
 
     const currentValue = Number(prop.currentValue);
     const equity = currentValue - balance;
@@ -210,7 +187,7 @@ router.get("/admin/properties-geo", requireAdmin, async (_req, res) => {
       state: geo?.state ?? null,
       country: geo?.country ?? null,
     };
-  });
+  }));
 
   // Aggregate by state
   const stateMap = new Map<string, {
@@ -305,33 +282,10 @@ router.get("/properties-geo", async (req, res) => {
   }
 
   const now = new Date();
-  const properties = allProperties.map(prop => {
+  const properties = await Promise.all(allProperties.map(async prop => {
     const geo = cachedMap.get(prop.id);
 
-    let balance: number;
-    if (prop.currentLoanBalance != null) {
-      // User supplied a known remaining balance — use it directly
-      balance = Number(prop.currentLoanBalance);
-    } else {
-      const start = new Date(prop.loanStartDate);
-      const monthsElapsed =
-        (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
-      const savedExtras =
-        (prop.savedExtraPayments as Array<{ paymentNumber: number; amount: number }> | null) ?? [];
-      const schedule = buildAmortizationSchedule({
-        loanAmount: Number(prop.loanAmount),
-        interestRate: Number(prop.interestRate),
-        loanTermYears: prop.loanTermYears,
-        loanStartDate: prop.loanStartDate,
-        monthlyPayment: Number(prop.monthlyPayment),
-        extraPaymentMonthly: prop.savedExtraMonthly != null ? Number(prop.savedExtraMonthly) : 0,
-        extraPayments: savedExtras,
-      });
-      const idx = Math.max(0, Math.min(monthsElapsed - 1, schedule.length - 1));
-      balance = monthsElapsed <= 0
-        ? Number(prop.loanAmount)
-        : (schedule[idx]?.remainingBalance ?? 0);
-    }
+    const balance = (await getPropertyLoan(prop, now)).currentBalance;
 
     const currentValue = Number(prop.currentValue);
     const equity = currentValue - balance;
@@ -354,7 +308,7 @@ router.get("/properties-geo", async (req, res) => {
       state: geo?.state ?? null,
       country: geo?.country ?? null,
     };
-  });
+  }));
 
   // Aggregate by city+state
   const cityMap = new Map<string, {

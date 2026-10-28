@@ -1,3 +1,4 @@
+import { updateReviewStatus } from "@/lib/review-status";
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Pencil, Trash2, CheckCircle, Circle, X, Search, Repeat, ArrowDownUp, LayoutList, Tag } from "lucide-react";
@@ -512,6 +513,7 @@ function TxRow({
 // ── Main Component ────────────────────────────────────────────────────────
 
 export default function FinancesTransactions({ filterPropertyId, dateFrom, dateTo }: Props) {
+  const [reviewError, setReviewError] = useState<string | null>(null);
   const qc = useQueryClient();
   const [editTx, setEditTx] = useState<Transaction | null | "new">(null);
   const [search, setSearch] = useState("");
@@ -550,12 +552,11 @@ export default function FinancesTransactions({ filterPropertyId, dateFrom, dateT
   });
 
   const toggleReview = useMutation({
-    mutationFn: ({ id, isReviewed }: { id: number; isReviewed: boolean }) =>
-      fetch(`/api/finances/transactions/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isReviewed }),
-      }),
+    mutationFn: async ({ id, isReviewed }: { id: number; isReviewed: boolean }) => {
+      setReviewError(null);
+      await updateReviewStatus(id, isReviewed);
+    },
+    onError: () => setReviewError("Could not save review status. Please try again."),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["/api/finances/transactions"] });
       qc.invalidateQueries({ queryKey: ["/api/finances/summary"] });
@@ -614,6 +615,7 @@ export default function FinancesTransactions({ filterPropertyId, dateFrom, dateT
 
   return (
     <>
+      {reviewError && <p role="alert" className="mb-3 text-sm text-destructive">{reviewError}</p>}
       {/* Modals */}
       {editTx !== null && (
         <TransactionModal

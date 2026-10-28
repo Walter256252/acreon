@@ -589,13 +589,15 @@ export default function Communications() {
   useLocation(); // used to read search params on mount
 
   const [localSettings, setLocalSettings] = useState<Record<number, LocalSetting>>({});
+  const [syncError, setSyncError] = useState<string | null>(null);
   const [syncingId, setSyncingId] = useState<number | null>(null);
   const [savedIds, setSavedIds] = useState<Set<number>>(new Set());
   const [oauthBanner, setOauthBanner] = useState<"success" | "denied" | "error" | null>(null);
+  const [oauthErrorMessage, setOauthErrorMessage] = useState("Something went wrong during Google sign-in. Please try again.");
   const [howItWorksOpen, setHowItWorksOpen] = useState(false);
   const [syncSummary, setSyncSummary] = useState<{
     total: number;
-    results: { propertyId: number; propertyName: string; synced: number }[];
+    results: { propertyId: number; propertyName: string; synced: number; error?: string }[];
     showNewOnly: boolean;
   } | null>(null);
 
@@ -612,6 +614,11 @@ export default function Communications() {
       const clean = window.location.pathname;
       window.history.replaceState({}, "", clean);
     } else if (oauthError) {
+      const messages: Record<string, string> = {
+        missing_refresh_token: "Google did not grant ongoing Gmail access. Try connecting again and approve the requested permissions. Your previous connection has not been changed.",
+        identity_lookup_failed: "Acreon could not confirm your Google email address. Try connecting again. Your previous connection has not been changed.",
+      };
+      setOauthErrorMessage(messages[oauthError] ?? "Something went wrong during Google sign-in. Please try again.");
       setOauthBanner(oauthError === "access_denied" ? "denied" : "error");
       const clean = window.location.pathname;
       window.history.replaceState({}, "", clean);
@@ -655,24 +662,26 @@ export default function Communications() {
 
   const handleSyncOne = async (propertyId: number) => {
     setSyncingId(propertyId);
+    setSyncError(null);
     try {
       await syncOneMutation.mutateAsync({ propertyId });
       queryClient.invalidateQueries({ queryKey: [`/api/email/notes/${propertyId}`] });
       queryClient.invalidateQueries({ queryKey: ["/api/email/settings"] });
+    } catch {
+      setSyncError("Email sync failed. Check your email connection and try again.");
     } finally { setSyncingId(null); }
   };
 
   const handleSyncAll = async () => {
-    const result = await syncAllMutation.mutateAsync() as {
-      synced: number;
-      results: { propertyId: number; propertyName: string; synced: number }[];
-    };
-    queryClient.invalidateQueries();
-    setSyncSummary({
-      total: result.synced ?? 0,
-      results: result.results ?? [],
-      showNewOnly: true,
-    });
+    setSyncError(null);
+    setSyncSummary(null);
+    try {
+      const result = await syncAllMutation.mutateAsync();
+      queryClient.invalidateQueries();
+      setSyncSummary({ total: result.synced ?? 0, results: result.results ?? [], showNewOnly: true });
+    } catch {
+      setSyncError("Email sync failed. Check your email connection and try again.");
+    }
   };
 
   const numProperties = (settings ?? []).length;
@@ -708,7 +717,7 @@ export default function Communications() {
       {oauthBanner === "error" && (
         <div className="flex items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3">
           <Info className="w-4 h-4 text-destructive flex-shrink-0" />
-          <p className="text-sm font-medium text-destructive flex-1">Something went wrong during Google sign-in. Please try again.</p>
+          <p className="text-sm font-medium text-destructive flex-1">{oauthErrorMessage}</p>
           <button onClick={() => setOauthBanner(null)} className="text-destructive/60 hover:text-destructive"><X className="w-4 h-4" /></button>
         </div>
       )}
@@ -798,15 +807,22 @@ export default function Communications() {
       </div>
 
       {/* Sync summary banner */}
+      {syncError && <p role="alert" className="text-sm text-destructive">{syncError}</p>}
       {syncSummary && (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 dark:border-emerald-900 dark:bg-emerald-950/20 overflow-hidden">
+        <div className={cn("rounded-xl border overflow-hidden", syncSummary.results.some(r => r.error)
+          ? "border-amber-300 bg-amber-50/60 dark:border-amber-900 dark:bg-amber-950/20"
+          : "border-emerald-200 bg-emerald-50/60 dark:border-emerald-900 dark:bg-emerald-950/20")}>
           <div className="flex items-center gap-3 px-4 py-3">
             <div className="w-7 h-7 rounded-lg bg-emerald-500/15 flex items-center justify-center shrink-0">
-              <Sparkles className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              {syncSummary.results.some(r => r.error)
+                ? <Info className="w-3.5 h-3.5 text-amber-700" />
+                : <Sparkles className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-emerald-900 dark:text-emerald-200">
-                {syncSummary.total === 0
+                {syncSummary.results.some(r => r.error)
+                  ? `Sync incomplete: ${syncSummary.results.filter(r => r.error).length} properties failed. ${syncSummary.total} new emails synced.`
+                  : syncSummary.total === 0
                   ? "All caught up — no new emails found."
                   : `${syncSummary.total} new email${syncSummary.total !== 1 ? "s" : ""} synced across your properties.`}
               </p>
@@ -831,18 +847,18 @@ export default function Communications() {
           {syncSummary.results.length > 0 && (
             <div className="px-4 pb-3 flex flex-col gap-1">
               {syncSummary.results
-                .filter((r) => !syncSummary.showNewOnly || r.synced > 0)
+                .filter((r) => !syncSummary.showNewOnly || r.synced > 0 || !!r.error)
                 .sort((a, b) => b.synced - a.synced)
                 .map((r) => (
                   <div key={r.propertyId} className="flex items-center justify-between text-xs py-1 border-t border-emerald-200/60 dark:border-emerald-800/40">
                     <span className="text-emerald-800 dark:text-emerald-300 font-medium">{r.propertyName}</span>
                     <span className={cn(
                       "px-2 py-0.5 rounded-full font-semibold",
-                      r.synced > 0
+                      r.error ? "bg-destructive/10 text-destructive" : r.synced > 0
                         ? "bg-emerald-200 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300"
                         : "bg-muted text-muted-foreground"
                     )}>
-                      {r.synced > 0 ? `+${r.synced} new` : "no new"}
+                      {r.error ? "Sync failed — check connection" : r.synced > 0 ? `+${r.synced} new` : "no new"}
                     </span>
                   </div>
                 ))}

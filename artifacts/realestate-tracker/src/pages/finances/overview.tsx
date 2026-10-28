@@ -12,6 +12,8 @@ interface SummaryData {
   noi: number;
   mortgageInterestPaid: number;
   mortgagePrincipalPaid: number;
+  mortgageOtherPaid: number;
+  totalMortgagePayments: number;
   capitalImprovements: number;
   ownerContributions: number;
   ownerDraws: number;
@@ -220,7 +222,7 @@ export default function FinancesOverview({ dateFrom, dateTo, propertyId }: Overv
 
   if (!data) return null;
 
-  const cashFlow = data.grossIncome - data.operatingExpenses - (data.mortgageInterestPaid + data.mortgagePrincipalPaid);
+  const cashFlow = data.grossIncome - data.operatingExpenses - data.totalMortgagePayments;
   const hasAnyData = data.totalTransactions > 0;
 
   // Properties to show in receipt folder section (filter by selected property if active)
@@ -284,6 +286,7 @@ export default function FinancesOverview({ dateFrom, dateTo, propertyId }: Overv
         />
         <SummaryCard label="Mortgage Interest" value={fmt$(data.mortgageInterestPaid)} icon={DollarSign} variant="neutral" />
         <SummaryCard label="Mortgage Principal" value={fmt$(data.mortgagePrincipalPaid)} icon={DollarSign} variant="neutral" />
+        <SummaryCard label="Other / Unsplit Loan Payments" value={fmt$(data.mortgageOtherPaid)} icon={DollarSign} variant="neutral" sub="Escrow, PMI, fees, and payments without a principal/interest split" />
         <SummaryCard label="Capital Improvements" value={fmt$(data.capitalImprovements)} icon={Building2} variant="neutral" />
         {(data.ownerContributions > 0 || data.ownerDraws > 0) && (
           <SummaryCard
@@ -340,7 +343,7 @@ export default function FinancesOverview({ dateFrom, dateTo, propertyId }: Overv
                     {fmt$(data.noi)}
                   </td>
                   <td className="px-4 py-3 text-right font-semibold text-muted-foreground">
-                    {fmt$(data.mortgageInterestPaid + data.mortgagePrincipalPaid)}
+                    {fmt$(data.totalMortgagePayments)}
                   </td>
                   <td className="px-4 py-3 text-right font-semibold text-muted-foreground">{fmt$(data.capitalImprovements)}</td>
                 </tr>

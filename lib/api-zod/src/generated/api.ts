@@ -279,7 +279,14 @@ export const PutEmailSettingsPropertyIdResponse = zod.object({
  */
 export const PostEmailSyncResponse = zod.object({
   "synced": zod.number(),
-  "propertyId": zod.number().optional()
+  "propertyId": zod.number().optional(),
+  "failed": zod.number().optional().describe('Number of properties whose sync failed'),
+  "results": zod.array(zod.object({
+  "propertyId": zod.number(),
+  "propertyName": zod.string(),
+  "synced": zod.number(),
+  "error": zod.string().optional().describe('Safe error message when this property could not be synced')
+})).optional()
 })
 
 
@@ -292,7 +299,14 @@ export const PostEmailSyncPropertyIdParams = zod.object({
 
 export const PostEmailSyncPropertyIdResponse = zod.object({
   "synced": zod.number(),
-  "propertyId": zod.number().optional()
+  "propertyId": zod.number().optional(),
+  "failed": zod.number().optional().describe('Number of properties whose sync failed'),
+  "results": zod.array(zod.object({
+  "propertyId": zod.number(),
+  "propertyName": zod.string(),
+  "synced": zod.number(),
+  "error": zod.string().optional().describe('Safe error message when this property could not be synced')
+})).optional()
 })
 
 
@@ -727,7 +741,7 @@ export const GetDashboardResponse = zod.object({
 export const RunCalculatorBody = zod.object({
   "loanAmount": zod.number(),
   "interestRate": zod.number(),
-  "loanTermYears": zod.number(),
+  "loanTermYears": zod.number().describe('Term in years; fractional years must represent whole months'),
   "loanStartDate": zod.string(),
   "monthlyPayment": zod.number(),
   "extraPaymentMonthly": zod.number().optional().describe('Fixed extra payment added every month'),
@@ -753,9 +767,11 @@ export const RunCalculatorResponse = zod.object({
   "totalPayments": zod.number(),
   "totalInterest": zod.number(),
   "totalPrincipal": zod.number(),
-  "payoffDate": zod.string(),
+  "payoffDate": zod.string().describe('Empty when the loan does not pay off within the term'),
   "monthsSaved": zod.number(),
-  "interestSaved": zod.number()
+  "interestSaved": zod.number(),
+  "savingsAvailable": zod.boolean().optional().describe('True only when both the baseline and scenario pay off within the term'),
+  "remainingBalance": zod.number().optional().describe('Outstanding debt at the end of the generated schedule')
 })
 })
 

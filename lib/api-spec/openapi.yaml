@@ -1060,7 +1060,8 @@ components:
         interestRate:
           type: number
         loanTermYears:
-          type: integer
+          type: number
+          description: Term in years; fractional years must represent whole months
         loanStartDate:
           type: string
         monthlyPayment:
@@ -1116,10 +1117,18 @@ components:
           type: number
         payoffDate:
           type: string
+          description: Empty when the loan does not pay off within the term
         monthsSaved:
           type: integer
         interestSaved:
           type: number
+
+        savingsAvailable:
+          type: boolean
+          description: True only when both the baseline and scenario pay off within the term
+        remainingBalance:
+          type: number
+          description: Outstanding debt at the end of the generated schedule
 
     ProjectionsResponse:
       type: object
@@ -1368,6 +1377,25 @@ components:
           type: integer
         propertyId:
           type: integer
+
+        failed:
+          type: integer
+          description: Number of properties whose sync failed
+        results:
+          type: array
+          items:
+            type: object
+            required: [propertyId, propertyName, synced]
+            properties:
+              propertyId:
+                type: integer
+              propertyName:
+                type: string
+              synced:
+                type: integer
+              error:
+                type: string
+                description: Safe error message when this property could not be synced
 
     EmailNote:
       type: object

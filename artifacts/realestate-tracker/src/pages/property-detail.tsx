@@ -265,23 +265,39 @@ export default function PropertyDetail() {
       .filter(e => e.paymentNumber && e.amount && Number(e.amount) > 0)
       .map(e => ({ paymentNumber: Number(e.paymentNumber), amount: Number(e.amount) }));
 
+    const thisMonth = new Date().toISOString().slice(0, 7) + "-01";
+    const forwardBase = (schedule ?? []).filter(row => row.paymentDate >= thisMonth);
+    const startDate = forwardBase[0]?.paymentDate ?? (property.loanStartDate > thisMonth ? property.loanStartDate : thisMonth);
+    const monthOffset = (Number(startDate.slice(0, 4)) - Number(property.loanStartDate.slice(0, 4))) * 12
+      + Number(startDate.slice(5, 7)) - Number(property.loanStartDate.slice(5, 7));
+    if (property.loanTermYears * 12 - monthOffset <= 0) {
+      toast({ title: "Loan term has ended", description: "Update the loan terms before modeling future payments.", variant: "destructive" });
+      return;
+    }
     runCalculator.mutate({
       data: {
-        loanAmount: property.loanAmount,
+        loanAmount: currentBalance,
         interestRate: property.interestRate,
-        loanTermYears: property.loanTermYears,
-        loanStartDate: property.loanStartDate,
+        loanTermYears: Math.max(1, property.loanTermYears * 12 - monthOffset) / 12,
+        loanStartDate: startDate,
         monthlyPayment: property.monthlyPayment,
         extraPaymentMonthly: extraMonthly ? Number(extraMonthly) : 0,
         extraPayments: validExtras.length > 0 ? validExtras : undefined,
       },
     }, {
       onSuccess: (result) => {
-        setScenarioResult(result);
+        const base = forwardBase;
+        const comparable = base.at(-1)?.remainingBalance === 0 && !!result.summary.payoffDate;
+        const adjusted = { ...result, summary: { ...result.summary,
+          savingsAvailable: comparable,
+          monthsSaved: comparable ? base.length - result.schedule.length : 0,
+          interestSaved: comparable ? Math.round((base.reduce((sum, row) => sum + row.interestAmount, 0) - result.summary.totalInterest) * 100) / 100 : 0,
+        } };
+        setScenarioResult(adjusted);
         setShowingScenario(true);
         toast({
           title: "Scenario calculated",
-          description: `Save ${result.summary.monthsSaved} months and ${formatCurrency(result.summary.interestSaved)} in interest.`,
+          description: comparable ? `Change versus saved schedule: ${adjusted.summary.monthsSaved} months and ${formatCurrency(adjusted.summary.interestSaved)} in interest.` : "Savings are unavailable unless both schedules pay off within the term.",
         });
       },
       onError: () => {
@@ -389,12 +405,12 @@ export default function PropertyDetail() {
     // When a known balance was provided, the schedule starts from today (payment #1 = first
     // upcoming payment), so "current" is always the very first row.
     if (property.currentLoanBalance != null) return 1;
-    const start = new Date(property.loanStartDate);
+    const [startYear, startMonth] = property.loanStartDate.split("-").map(Number);
     const now = new Date();
     const months =
-      (now.getFullYear() - start.getFullYear()) * 12 +
-      (now.getMonth() - start.getMonth());
-    return Math.min(Math.max(months, 1), schedule?.length || 1);
+      (now.getUTCFullYear() - startYear) * 12 +
+      (now.getUTCMonth() + 1 - startMonth);
+    return Math.min(Math.max(months, 0), schedule?.length || 0);
   })();
 
   // Scroll to current row when switching to "all" mode
@@ -428,7 +444,9 @@ export default function PropertyDetail() {
   const baseSchedule = schedule ?? [];
   const scenarioSchedule = scenarioResult?.schedule ?? [];
   const scenarioSummary = scenarioResult?.summary;
-  const maxRows = Math.max(baseSchedule.length, showingScenario ? scenarioSchedule.length : 0);
+  const comparisonDates = Array.from(new Set([...baseSchedule, ...(showingScenario ? scenarioSchedule : [])].map(row => row.paymentDate))).sort();
+  const baseByDate = new Map(baseSchedule.map(row => [row.paymentDate, row]));
+  const scenarioByDate = new Map(scenarioSchedule.map(row => [row.paymentDate, row]));
 
   // Current balance = amortized balance at today's payment number, not the final payoff row.
   // When the user supplied a known balance, use it directly — the schedule in that case starts
@@ -437,7 +455,7 @@ export default function PropertyDetail() {
   const currentBalance =
     property.currentLoanBalance != null
       ? Number(property.currentLoanBalance)
-      : (currentBalanceRow?.remainingBalance ?? Number(property.loanAmount));
+      : (currentPaymentNumber <= 0 ? Number(property.loanAmount) : currentBalanceRow?.remainingBalance ?? Number(property.loanAmount));
   const estimatedEquity = property.currentValue - currentBalance;
 
   const hasSavedExtras = property.savedExtraMonthly || property.savedExtraPayments?.length;
@@ -869,7 +887,7 @@ export default function PropertyDetail() {
               <div>
                 <CardTitle className="text-xl">Amortization Schedule</CardTitle>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {baseSchedule.length} payments &mdash; payoff {baseSchedule.length > 0 ? formatDate(baseSchedule[baseSchedule.length - 1].paymentDate) : "—"}
+                  {baseSchedule.length} payments &mdash; payoff {baseSchedule.length > 0 ? (baseSchedule[baseSchedule.length - 1].remainingBalance === 0 ? formatDate(baseSchedule[baseSchedule.length - 1].paymentDate) : "not reached within term") : "—"}
                   {hasSavedExtras && (
                     <span className="ml-2 text-primary font-medium">(with extra payments)</span>
                   )}
@@ -1076,17 +1094,17 @@ export default function PropertyDetail() {
                     <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
                       <Clock className="w-3 h-3" /> Months Saved
                     </p>
-                    <p className="text-lg font-bold text-primary">{scenarioSummary.monthsSaved}</p>
+                    <p className="text-lg font-bold text-primary">{scenarioSummary.savingsAvailable ? scenarioSummary.monthsSaved : "Unavailable"}</p>
                   </div>
                   <div className="bg-background rounded-lg p-3 border border-border">
                     <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
                       <TrendingDown className="w-3 h-3" /> Interest Saved
                     </p>
-                    <p className="text-lg font-bold text-primary">{formatCurrency(scenarioSummary.interestSaved)}</p>
+                    <p className="text-lg font-bold text-primary">{scenarioSummary.savingsAvailable ? formatCurrency(scenarioSummary.interestSaved) : "Unavailable"}</p>
                   </div>
                   <div className="bg-background rounded-lg p-3 border border-border">
                     <p className="text-xs text-muted-foreground mb-1">Payoff Date</p>
-                    <p className="text-lg font-bold">{formatDate(scenarioSummary.payoffDate)}</p>
+                    <p className="text-lg font-bold">{scenarioSummary.payoffDate ? formatDate(scenarioSummary.payoffDate) : "Not paid off within term"}</p>
                   </div>
                   <div className="bg-background rounded-lg p-3 border border-border">
                     <p className="text-xs text-muted-foreground mb-1">Total Payments</p>
@@ -1110,7 +1128,7 @@ export default function PropertyDetail() {
                 Scenario
               </span>
               <Badge variant="secondary" className="text-xs ml-auto">
-                Scenario ends {scenarioSummary?.monthsSaved ?? 0} months earlier
+                {scenarioSummary?.savingsAvailable ? `Scenario changes payoff by ${scenarioSummary.monthsSaved} months` : "Payoff savings unavailable"}
               </Badge>
             </div>
           )}
@@ -1149,13 +1167,13 @@ export default function PropertyDetail() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {Array.from({ length: showingScenario ? maxRows : baseSchedule.length }, (_, idx) => {
-                  const base = baseSchedule[idx];
-                  const scen = showingScenario ? scenarioSchedule[idx] : undefined;
-                  const isScenarioPaidOff = showingScenario && !scen && !!base;
+                {comparisonDates.map((date, idx) => {
+                  const base = baseByDate.get(date);
+                  const scen = showingScenario ? scenarioByDate.get(date) : undefined;
+                  const isScenarioPaidOff = showingScenario && !scen && !!base && scenarioSchedule.at(-1)?.remainingBalance === 0;
                   const paymentNum = base?.paymentNumber ?? (scen?.paymentNumber ?? idx + 1);
-                  const isCurrent = paymentNum === currentPaymentNumber;
-                  const isPast = paymentNum < currentPaymentNumber;
+                  const isCurrent = date.slice(0, 7) === new Date().toISOString().slice(0, 7);
+                  const isPast = date.slice(0, 7) < new Date().toISOString().slice(0, 7);
                   const hasExtra = base && base.paymentAmount > property.monthlyPayment + 1;
 
                   // In "current" mode, hide past payments
@@ -1163,7 +1181,7 @@ export default function PropertyDetail() {
 
                   return (
                     <TableRow
-                      key={paymentNum}
+                      key={date}
                       ref={isCurrent ? currentRowRef : undefined}
                       className={[
                         isScenarioPaidOff ? "opacity-40" : "",

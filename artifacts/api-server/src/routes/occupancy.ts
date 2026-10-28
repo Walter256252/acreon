@@ -1,3 +1,4 @@
+import { validateOccupancyActions, OccupancyActionError } from "../lib/occupancyValidation";
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { propertiesTable, occupancyRecordsTable } from "@workspace/db";
@@ -178,7 +179,14 @@ Rules:
   let parsed: { summary?: string; actions?: unknown[] };
   try { parsed = JSON.parse(raw); } catch { res.status(500).json({ error: "AI returned invalid JSON" }); return; }
 
-  const actions = Array.isArray(parsed.actions) ? parsed.actions as Record<string, unknown>[] : [];
+  let actions: Record<string, unknown>[];
+  try {
+    actions = validateOccupancyActions(parsed?.actions, new Set(properties.map(p => p.id)));
+  } catch (error) {
+    res.status(error instanceof OccupancyActionError ? error.status : 400)
+      .json({ error: error instanceof Error ? error.message : "Invalid occupancy actions" });
+    return;
+  }
   let applied = 0;
 
   for (const action of actions) {

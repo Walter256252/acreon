@@ -1,3 +1,4 @@
+import { parseTxBody, debtComponent, taxYearForUpdate, type TxInput } from "../lib/financeValidation";
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { finTransactionsTable, propertiesTable, emailNotesTable, finEmailSuggestionsTable, emailConnectionsTable } from "@workspace/db";
@@ -9,57 +10,6 @@ const router: IRouter = Router();
 
 function uid(req: Parameters<typeof getAuth>[0]) {
   return getAuth(req).userId!;
-}
-
-// ── Validation ────────────────────────────────────────────────────────────
-
-const VALID_TYPES = new Set([
-  "income", "expense", "loan_payment", "owner_contribution", "owner_draw", "capital_improvement",
-]);
-
-interface TxInput {
-  propertyId?: number | null;
-  date?: string;
-  description?: string;
-  amount?: number;
-  type?: string;
-  category?: string;
-  vendorPayer?: string | null;
-  paymentAccount?: string | null;
-  notes?: string | null;
-  rentalType?: string | null;
-  taxYear?: number | null;
-  isReviewed?: boolean;
-}
-
-function parseTxBody(body: unknown, requireAll = true): TxInput {
-  const b = body as Record<string, unknown>;
-  if (requireAll) {
-    if (!b.date || typeof b.date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(b.date))
-      throw new Error("Invalid date");
-    if (!b.description || typeof b.description !== "string")
-      throw new Error("Description required");
-    if (typeof b.amount !== "number" || b.amount <= 0)
-      throw new Error("Amount must be a positive number");
-    if (!b.type || !VALID_TYPES.has(b.type as string))
-      throw new Error("Invalid type");
-    if (!b.category || typeof b.category !== "string")
-      throw new Error("Category required");
-  }
-  return {
-    propertyId: b.propertyId != null ? Number(b.propertyId) : null,
-    date: b.date as string | undefined,
-    description: b.description as string | undefined,
-    amount: b.amount != null ? Number(b.amount) : undefined,
-    type: b.type as string | undefined,
-    category: b.category as string | undefined,
-    vendorPayer: b.vendorPayer != null ? String(b.vendorPayer) : null,
-    paymentAccount: b.paymentAccount != null ? String(b.paymentAccount) : null,
-    notes: b.notes != null ? String(b.notes) : null,
-    rentalType: b.rentalType != null && b.rentalType !== "" ? String(b.rentalType) : null,
-    taxYear: b.taxYear != null ? Number(b.taxYear) : null,
-    isReviewed: typeof b.isReviewed === "boolean" ? b.isReviewed : undefined,
-  };
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────
@@ -276,7 +226,8 @@ router.put("/finances/transactions/:id", async (req, res) => {
   if (body.paymentAccount !== undefined) updateData.paymentAccount = body.paymentAccount;
   if (body.notes !== undefined) updateData.notes = body.notes;
   if (body.rentalType !== undefined) updateData.rentalType = body.rentalType || null;
-  if (body.taxYear !== undefined) updateData.taxYear = body.taxYear;
+  const taxYear = taxYearForUpdate(body, existing.date);
+  if (taxYear !== undefined) updateData.taxYear = taxYear;
   if (body.isReviewed !== undefined) updateData.isReviewed = body.isReviewed;
   if (body.propertyId !== undefined) updateData.propertyId = body.propertyId;
 
@@ -336,6 +287,7 @@ router.get("/finances/summary", async (req, res) => {
   let operatingExpenses = 0;
   let mortgageInterestPaid = 0;
   let mortgagePrincipalPaid = 0;
+  let mortgageOtherPaid = 0;
   let capitalImprovements = 0;
   let ownerContributions = 0;
   let ownerDraws = 0;
@@ -391,12 +343,10 @@ router.get("/finances/summary", async (req, res) => {
         break;
       case "loan_payment":
         // All loan payments reduce cash flow; split interest vs. principal/other
-        if (row.category === "Interest") {
-          mortgageInterestPaid += amt;
-        } else {
-          // Principal, Escrow, PMI, Loan Fees, Mortgage Payment (Combined) — all non-interest
-          mortgagePrincipalPaid += amt;
-        }
+        const component = debtComponent(row.category);
+        if (component === "interest") mortgageInterestPaid += amt;
+        else if (component === "principal") mortgagePrincipalPaid += amt;
+        else mortgageOtherPaid += amt;
         agg.mortgagePayments += amt; // all loan payments shown in per-property debt column
         break;
       case "capital_improvement":
@@ -420,6 +370,8 @@ router.get("/finances/summary", async (req, res) => {
     noi,
     mortgageInterestPaid,
     mortgagePrincipalPaid,
+    mortgageOtherPaid,
+    totalMortgagePayments: mortgageInterestPaid + mortgagePrincipalPaid + mortgageOtherPaid,
     capitalImprovements,
     ownerContributions,
     ownerDraws,

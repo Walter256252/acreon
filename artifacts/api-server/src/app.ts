@@ -1,3 +1,4 @@
+import { LoanInputError } from "./lib/loan";
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -42,19 +43,9 @@ const allowedOrigins = new Set<string>(
   ].filter(Boolean) as string[],
 );
 
-// Allow any Replit-hosted domain (covers both dev previews and production deployments)
+// Only explicitly configured origins are trusted.
 function isAllowedOrigin(origin: string): boolean {
-  if (allowedOrigins.has(origin)) return true;
-  try {
-    const { hostname } = new URL(origin);
-    return (
-      hostname.endsWith(".replit.app") ||
-      hostname.endsWith(".replit.dev") ||
-      hostname.endsWith(".repl.co")
-    );
-  } catch {
-    return false;
-  }
+  return allowedOrigins.has(origin);
 }
 
 app.use(
@@ -141,6 +132,11 @@ app.use("/api", router);
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
   logger.error({ err, url: req.url, method: req.method }, "Unhandled error");
+
+  if (err instanceof LoanInputError || err.name === "ZodError") {
+    res.status(400).json({ error: err instanceof LoanInputError ? err.message : "Invalid request input" });
+    return;
+  }
 
   // CORS errors get a 403 rather than 500
   if (err.message?.startsWith("CORS:")) {
